@@ -60,6 +60,9 @@ a{color:inherit}
 .btn-sm{padding:8px 14px;font-size:12.5px;border-radius:9px}
 .err{font-size:12.5px;color:var(--bad);margin-top:10px;min-height:16px}
 .hint{font-size:11.5px;color:var(--muted);margin-top:14px;text-align:center;line-height:1.5}
+.auth-guide{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);text-align:center}
+.auth-guide a{font-size:13px;font-weight:700;color:var(--teal);text-decoration:none}
+.auth-guide a:hover{text-decoration:underline}
 
 /* ============ APP SHELL ============ */
 #app{display:none;min-height:100vh}
@@ -401,6 +404,7 @@ textarea.fi{min-height:70px;resize:vertical}
         <div class="err" id="rErr"></div>
         <div class="hint">Tu cuenta inicia en plan <b>Explora</b>. Activa cada módulo cuando lo necesites.</div>
       </div>
+      <div class="auth-guide"><a href="guia.html" target="_blank" rel="noopener">📘 Guía de usuario · Cómo ingresar con tu código de acceso</a></div>
     </div>
   </div>
 </div>
@@ -427,6 +431,7 @@ textarea.fi{min-height:70px;resize:vertical}
             <div class="rl" id="userRole">—</div>
           </div>
         </div>
+        <a class="nav-item" href="guia.html" target="_blank" rel="noopener" style="margin-top:6px;text-decoration:none"><span class="ic">📘</span> Guía de usuario</a>
         <button class="nav-item" style="margin-top:6px" onclick="logout()"><span class="ic">⏻</span> Cerrar sesión</button>
       </div>
     </aside>

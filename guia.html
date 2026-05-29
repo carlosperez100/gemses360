@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía de usuario · GEMSES360</title>
+<meta name="description" content="Guía rápida para alumnos: cómo ingresar a GEMSES360 con un código de acceso, registrar tu hospital y servicio, y realizar la práctica de Gestión de Indicadores con IA (Modelo GEMSES).">
+<style>
+  :root{--navy:#13294B;--teal:#028090;--teal2:#05a8a0;--gold:#E0A21A;--ok:#1E9E6A;--bad:#D64545;--line:#e6eaf0;--bg:#f5f7fb;--muted:#5b6675}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;color:var(--navy);background:var(--bg);line-height:1.55}
+  a{color:var(--teal)}
+  .hero{background:linear-gradient(120deg,#13294B,#1f4068 60%,#028090);color:#fff;padding:38px 22px}
+  .wrap{max-width:920px;margin:0 auto;padding:0 6px}
+  .hero h1{margin:0;font-size:30px;font-weight:800}
+  .hero h1 span{color:var(--gold)}
+  .hero .tag{font-size:14px;opacity:.92;margin-top:6px}
+  .hero .lead{margin-top:14px;font-size:15px;max-width:680px;opacity:.95}
+  .badges{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+  .badges span{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:5px 12px;border-radius:30px;font-size:12.5px}
+  .container{max-width:920px;margin:0 auto;padding:26px 16px 60px}
+  .toc{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:26px}
+  .toc h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .toc ol{margin:0;padding-left:20px;columns:2;column-gap:26px}
+  @media(max-width:620px){.toc ol{columns:1}}
+  .toc a{text-decoration:none;font-weight:600}
+  section{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:18px}
+  section h2{margin:0 0 4px;font-size:21px;color:var(--navy);display:flex;align-items:center;gap:10px}
+  section h2 .n{background:var(--teal);color:#fff;width:30px;height:30px;border-radius:9px;display:inline-grid;place-items:center;font-size:15px;flex:none}
+  section h3{font-size:15px;color:var(--teal);margin:16px 0 6px}
+  .steps{margin:10px 0 0;padding-left:22px}
+  .steps li{margin:8px 0}
+  .note{background:#f2f7f8;border-left:4px solid var(--teal);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:13.5px}
+  .warn{background:#fff6e6;border-left:4px solid var(--gold)}
+  .ok{background:#eefaf3;border-left:4px solid var(--ok)}
+  .pill{display:inline-block;background:var(--navy);color:#fff;border-radius:7px;padding:2px 9px;font-size:12px;font-weight:700}
+  .code{font-family:ui-monospace,Consolas,monospace;background:#0f1e36;color:#9fe;padding:2px 8px;border-radius:6px;font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px}
+  .card{border:1px solid var(--line);border-radius:12px;padding:14px}
+  .card b{display:block;margin-bottom:4px}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--navy);color:#fff}
+  .dmaic{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .dmaic .f{flex:1;min-width:150px;border:1px solid var(--line);border-top:4px solid var(--teal);border-radius:12px;padding:12px}
+  .dmaic .f b{font-size:14px}
+  .dmaic .f p{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+  .cta{display:inline-block;background:var(--gold);color:var(--navy);font-weight:800;text-decoration:none;padding:12px 22px;border-radius:12px;margin-top:6px}
+  .foot{text-align:center;color:var(--muted);font-size:12.5px;margin-top:24px}
+  .back{display:inline-block;margin-top:10px;color:#fff;text-decoration:none;font-weight:700;font-size:13px;opacity:.9}
+</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <h1>GEMSES<span>360</span> · Guía de usuario</h1>
+      <div class="tag">Práctica del curso: <b>Gestión de Indicadores con Inteligencia Artificial</b> — Modelo GEMSES</div>
+      <p class="lead">Esta guía te explica, paso a paso, cómo ingresar a la plataforma con tu <b>código de acceso</b> (sin pagar), registrar tu <b>hospital y servicio</b>, y realizar la práctica de gestión de indicadores con apoyo de IA.</p>
+      <div class="badges"><span>🔑 Acceso por código</span><span>🏥 Tu hospital / servicio</span><span>📊 Ciclo DMAIC</span><span>🤖 Análisis con IA</span><span>📄 Informe Word/Excel</span></div>
+      <a class="back" href="index.html">← Ir a la plataforma GEMSES360</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="toc">
+      <h3>Contenido</h3>
+      <ol>
+        <li><a href="#acceso">Cómo ingresar con tu código</a></li>
+        <li><a href="#perfil">Registrar tu hospital y servicio</a></li>
+        <li><a href="#visibilidad">Qué información verás</a></li>
+        <li><a href="#practica">La práctica: ciclo DMAIC</a></li>
+        <li><a href="#ia">Análisis con Inteligencia Artificial</a></li>
+        <li><a href="#informe">Informe, tendencia y exportar</a></li>
+        <li><a href="#problemas">Problemas frecuentes</a></li>
+      </ol>
+    </nav>
+
+    <section id="acceso">
+      <h2><span class="n">1</span> Cómo ingresar con tu código</h2>
+      <p>El docente te entregará un <b>código de acceso</b> con el formato <span class="code">GEM-XXXX-XXXX</span>. Con él activas el módulo <b>sin realizar ningún pago</b>.</p>
+      <ol class="steps">
+        <li>Abre la plataforma: <a href="https://gemses360.metacalidad.cloud" target="_blank">gemses360.metacalidad.cloud</a></li>
+        <li>Haz clic en la pestaña <span class="pill">Crear cuenta</span> e ingresa tu <b>nombre</b>, <b>correo</b>, <b>tipo de cliente</b>, tu <b>organización</b> (hospital) y una <b>contraseña</b>. Pulsa <b>“Crear cuenta gratis”</b>.</li>
+        <li>El módulo <b>Gestión de Indicadores</b> suele quedar disponible al crear tu cuenta. Si aparece <b>bloqueado (🔒)</b> o el docente te indica activarlo con código, ubica la tarjeta del módulo y pulsa <b>“Activar”</b>.</li>
+        <li>En la ventana, elige la pestaña <span class="pill">🔑 Tengo un código</span>, escribe tu código <span class="code">GEM-XXXX-XXXX</span> y pulsa <b>“Canjear código y activar”</b>.</li>
+        <li>Verás el mensaje de confirmación y el módulo quedará <b>activo automáticamente</b> por la vigencia asignada. (El código también sirve para abrir <b>módulos adicionales</b> sin pago.)</li>
+      </ol>
+      <div class="note ok">✅ <b>El código es por persona.</b> Cada alumno usa el suyo. No compartas tu código: una vez canjeado queda asociado a tu cuenta.</div>
+      <div class="note">¿Solo quieres explorar primero? Puedes usar la cuenta de demostración <span class="code">demo@gemses360.com</span> / <span class="code">gemses</span>, pero para tu práctica usa <b>tu propia cuenta</b> con tu código.</div>
+    </section>
+
+    <section id="perfil">
+      <h2><span class="n">2</span> Registrar tu hospital y servicio</h2>
+      <p>La <b>primera vez</b> que entras, GEMSES360 te pide parametrizar tu perfil. Esto personaliza tus objetivos y tus informes.</p>
+      <ol class="steps">
+        <li><b>Nombre del Hospital / IPRESS / Institución</b> — escribe el nombre de tu establecimiento.</li>
+        <li><b>Tu cargo</b> — elige el que corresponda:</li>
+      </ol>
+      <div class="grid">
+        <div class="card"><b>Director / Dirección</b>Visión integral del establecimiento.</div>
+        <div class="card"><b>Jefe de Servicio</b>Gestión de los indicadores de tu servicio.</div>
+        <div class="card"><b>Supervisor</b>Supervisión de procesos y actividades.</div>
+        <div class="card"><b>Área / Unidad</b>Indicadores propios de tu área.</div>
+      </div>
+      <ol class="steps" start="3">
+        <li><b>Servicio / Área / Unidad</b> (opcional) — por ejemplo: Emergencia, Hospitalización, Laboratorio.</li>
+        <li>Pulsa <b>“Empezar”</b>. Verás el objetivo de tu rol y entrarás al sistema.</li>
+      </ol>
+      <div class="note">Puedes cambiar estos datos más adelante si te equivocaste; vuelve a abrir la parametrización desde tu perfil.</div>
+    </section>
+
+    <section id="visibilidad">
+      <h2><span class="n">3</span> Qué información verás</h2>
+      <p>GEMSES360 protege la información: <b>cada usuario ve solo lo que le corresponde</b>.</p>
+      <table>
+        <tr><th>Perfil</th><th>Qué ve</th></tr>
+        <tr><td><b>Alumno / Personal</b> (tu caso)</td><td>🔒 <b>Solo tus propios registros</b> (los de tu servicio).</td></tr>
+        <tr><td><b>Administrador del Hospital</b></td><td>👁️ El <b>consolidado de todo el hospital</b> (todos los servicios de la misma institución).</td></tr>
+        <tr><td><b>Administrador de la plataforma</b></td><td>Toda la información y las configuraciones.</td></tr>
+      </table>
+      <div class="note">Como alumno entras como <b>Personal</b>: tu tablero, tu informe y tus exportaciones muestran únicamente <b>tus indicadores</b>. Tus compañeros no ven los tuyos y tú no ves los de ellos.</div>
+    </section>
+
+    <section id="practica">
+      <h2><span class="n">4</span> La práctica: ciclo DMAIC del Modelo GEMSES</h2>
+      <p>En el módulo <b>Gestión de Indicadores</b> trabajarás el ciclo de mejora en 5 fases. Es <b>secuencial</b>: cierras una fase para avanzar a la siguiente.</p>
+      <div class="dmaic">
+        <div class="f"><b>1 · Definir</b><p>Describe el proceso (SIPOC), el indicador (KPI/KRI/KCI), su objetivo, meta y ficha técnica.</p></div>
+        <div class="f"><b>2 · Medir</b><p>Registra las mediciones por periodo (con fechas) e indica el servicio/área de la medición.</p></div>
+        <div class="f"><b>3 · Analizar</b><p>Compara el resultado vs. la meta; revisa tendencias, anomalías y prioriza.</p></div>
+        <div class="f"><b>4 · Implementar</b><p>Crea tu plan de mejora <b>5W+2H</b> (qué, cómo, quién, cuándo, nivel) y registra avances.</p></div>
+        <div class="f"><b>5 · Controlar</b><p>Verifica el impacto con una nueva medición (base vs. post) y estandariza la mejora.</p></div>
+      </div>
+      <h3>Pasos sugeridos para la práctica</h3>
+      <ol class="steps">
+        <li>Entra a <b>Gestión de Indicadores</b> y pulsa <b>“+ Nuevo indicador”</b>.</li>
+        <li>Completa la ficha: nombre, tipo (KPI/KRI/KCI), dimensión GEMSES (Tiempo, Calidad, Costo, Satisfacción), ámbito, meta y sentido (mayor/menor es mejor).</li>
+        <li>En <b>Medir</b>, agrega tus mediciones por mes y selecciona el <b>Servicio/Área/Unidad</b> donde se midió.</li>
+        <li>En <b>Implementar</b>, registra tu plan <b>5W+2H</b> con responsables y fechas.</li>
+        <li>En <b>Controlar</b>, registra la medición posterior para verificar si hubo mejora.</li>
+      </ol>
+      <div class="note warn">⏱️ Las fechas de inicio/fin de cada medición son importantes: el sistema usa el periodo para calcular el cumplimiento y la tendencia.</div>
+    </section>
+
+    <section id="ia">
+      <h2><span class="n">5</span> Análisis con Inteligencia Artificial</h2>
+      <p>El <b>Informe</b> puede enriquecerse con un análisis automático generado por IA: diagnóstico ejecutivo, dimensiones críticas y recomendaciones priorizadas.</p>
+      <ol class="steps">
+        <li>Abre <b>📄 Informe</b> desde el módulo de indicadores.</li>
+        <li>Si tu docente habilitó la IA, pulsa <b>“✨ Generar análisis con IA”</b> y léelo junto a tus resultados.</li>
+      </ol>
+      <div class="note warn">🔐 <b>Seguridad:</b> la clave de IA se guarda <b>solo en el navegador</b> de quien la configura y se administra desde el perfil de administrador. <b>Nunca compartas claves de API en el chat ni con terceros.</b></div>
+    </section>
+
+    <section id="informe">
+      <h2><span class="n">6</span> Informe, tendencia y exportar</h2>
+      <p>El <b>Informe</b> reúne todos tus indicadores con filtros por periodo, ámbito, tipo y dimensión.</p>
+      <ul class="steps">
+        <li><b>Índice de cumplimiento ponderado (GEMSES)</b> por dimensión: Tiempo, Calidad, Costo y Satisfacción.</li>
+        <li><b>📈 Gráfico de tendencia en el tiempo</b>: evolución del % de logro por periodo.</li>
+        <li><b>📄 Word</b> y <b>📊 Excel</b>: descarga el informe completo (ficha, mediciones, plan 5W+2H, fases) y todos los datos.</li>
+        <li><b>🖨️ Imprimir / PDF</b>: guarda una copia en PDF desde el navegador.</li>
+      </ul>
+      <div class="note ok">💡 Para tu entrega, exporta el <b>Word</b> (informe redactado) y el <b>Excel</b> (datos al 100%).</div>
+    </section>
+
+    <section id="problemas">
+      <h2><span class="n">7</span> Problemas frecuentes</h2>
+      <table>
+        <tr><th>Situación</th><th>Solución</th></tr>
+        <tr><td>El módulo aparece bloqueado 🔒</td><td>Actívalo: tarjeta del módulo → <b>Activar</b> → <b>🔑 Tengo un código</b> → escribe tu código.</td></tr>
+        <tr><td>“Código ya asignado a otra persona”</td><td>Ese código ya fue usado. Pide al docente uno nuevo a tu nombre.</td></tr>
+        <tr><td>No veo mis indicadores</td><td>Verifica que iniciaste sesión con <b>tu</b> cuenta. Cada alumno ve solo lo suyo.</td></tr>
+        <tr><td>No se ven los cambios recientes</td><td>Recarga forzando el caché: <b>Ctrl + Shift + R</b>.</td></tr>
+        <tr><td>Me equivoqué en el hospital/cargo</td><td>Vuelve a abrir la parametrización desde tu perfil y corrige los datos.</td></tr>
+      </table>
+      <div class="note">Tus datos se guardan en el <b>navegador</b> que uses. Para continuar tu práctica, usa siempre el <b>mismo equipo y navegador</b>.</div>
+    </section>
+
+    <p style="text-align:center"><a class="cta" href="index.html">🚀 Ir a la plataforma GEMSES360</a></p>
+    <p class="foot">GEMSES360 · Plataforma de Gestión en Salud — Modelo GEMSES · Material de apoyo para el curso de Gestión de Indicadores con IA.</p>
+  </main>
+</body>
+</html>
