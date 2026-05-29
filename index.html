@@ -455,12 +455,22 @@ const PRODUCTS = [
 ];
 
 /* ---------- PLANES ---------- */
-const PLANS = {
-  explora:{name:'Explora',price:'Gratis',per:'',desc:'1 módulo demo · datos locales'},
-  servicio:{name:'Servicio',price:'S/ 149',per:'/mes',desc:'Hasta 3 módulos · 1 servicio'},
-  ipress:{name:'IPRESS',price:'S/ 690',per:'/mes',desc:'Todos los módulos · 1 establecimiento'},
-  institucional:{name:'Institucional',price:'A medida',per:'',desc:'Multi-IPRESS · usuarios ilimitados'},
+/* ---------- PLANES (editables y persistentes, administrables por admin) ----------
+   amount = monto S/ requerido; todos = habilita todos los módulos;
+   aMedida = precio a convenir (no valida monto); modulos = ids específicos. */
+const PLAN_DEFAULTS = {
+  explora:{name:'Explora',price:'Gratis',per:'',desc:'1 módulo demo · datos locales',amount:0,modulos:['indicadores']},
+  servicio:{name:'Servicio',price:'S/ 149',per:'/mes',desc:'Hasta 3 módulos · 1 servicio',amount:149,modulos:['indicadores','pae','formacion']},
+  ipress:{name:'IPRESS',price:'S/ 690',per:'/mes',desc:'Todos los módulos · 1 establecimiento',amount:690,todos:true},
+  institucional:{name:'Institucional',price:'A medida',per:'',desc:'Multi-IPRESS · usuarios ilimitados',amount:0,aMedida:true,todos:true},
 };
+const LS_PLANS='g360_plans';
+const PLAN_BASE=['explora','servicio','ipress','institucional']; // no eliminables
+function loadPlans(){try{const s=JSON.parse(localStorage.getItem(LS_PLANS));if(s&&Object.keys(s).length)return s;}catch(e){}return JSON.parse(JSON.stringify(PLAN_DEFAULTS));}
+function savePlans(p){localStorage.setItem(LS_PLANS,JSON.stringify(p));}
+let PLANS=loadPlans();
+function planName(k){return (PLANS[k]&&PLANS[k].name)||k;}
+function planModulos(p){return p&&p.todos?PRODUCTS.map(x=>x.id):((p&&p.modulos)||[]);}
 
 /* ---------- ESTADO ---------- */
 let USER=null, DB=null;
@@ -544,7 +554,7 @@ function renderShell(){
   userName.textContent=USER.name; userRole.textContent=USER.org||USER.tenant;
   userAv.textContent=(USER.name||'U').trim()[0].toUpperCase();
   tenantLabel.textContent=USER.tenant;
-  planBadge.textContent='Plan '+PLANS[USER.plan].name;
+  planBadge.textContent='Plan '+planName(USER.plan);
   navProducts.innerHTML=PRODUCTS.map(p=>{
     const lk=hasAccess(p.id);
     return `<button class="nav-item ${lk?'':'locked'}" data-view="${p.id}" onclick="nav('${p.id}')">
@@ -589,7 +599,7 @@ function renderDashboard(){
       <div class="wstats">
         <div class="wstat"><b>${activos}</b><span>Módulos activos</span></div>
         <div class="wstat"><b>${inds.length}</b><span>Indicadores cargados</span></div>
-        <div class="wstat"><b>${PLANS[USER.plan].name}</b><span>Plan actual</span></div>
+        <div class="wstat"><b>${planName(USER.plan)}</b><span>Plan actual</span></div>
       </div>
     </div>
     <div class="sec-head"><h3>Productos GEMSES360</h3><div class="ln"></div><span class="pill">Modelo GEMSES</span></div>
@@ -705,8 +715,8 @@ function renderBilling(){
   pgTitle.textContent='Suscripción y pagos'; pgSub.textContent='Gestiona tu plan y la activación de módulos';
   content.innerHTML=`
     <div class="welcome" style="background:linear-gradient(120deg,#13294B,#028090)">
-      <h2>Plan ${PLANS[USER.plan].name}</h2>
-      <p>${PLANS[USER.plan].desc}. El acceso a cada módulo se autoriza <b>automáticamente</b> al confirmar el pago — sin esperas ni activaciones manuales.</p>
+      <h2>Plan ${planName(USER.plan)}</h2>
+      <p>${(PLANS[USER.plan]||{}).desc||''}. El acceso a cada módulo se autoriza <b>automáticamente</b> al confirmar el pago — sin esperas ni activaciones manuales.</p>
     </div>
     <div class="sec-head"><h3>Planes disponibles</h3><div class="ln"></div></div>
     <div class="prod-grid">${Object.entries(PLANS).map(([k,v])=>`
@@ -855,7 +865,74 @@ function renderAdmin(){
       <p style="font-size:11px;color:var(--muted);padding:10px">Marca/desmarca para dar o quitar acceso a cada módulo. Bajo cada casilla se indica el origen (Pago / Código / Manual) y la vigencia.</p>
     </div>
 
+    ${plansAdminHTML()}
     ${codesAdminHTML()}`;
+}
+function val(id){const e=document.getElementById(id);return e?e.value:'';}
+function plansAdminHTML(){
+  const rows=Object.entries(PLANS).map(([k,v])=>`
+    <tr style="border-bottom:1px solid var(--line)">
+      <td style="padding:6px"><code style="font-size:11px">${k}</code></td>
+      <td style="padding:6px"><input class="fi" style="padding:5px;font-size:12px" value="${esc(v.name)}" onchange="setPlanField('${k}','name',this.value)"></td>
+      <td style="padding:6px;width:90px"><input class="fi" type="number" step="any" style="padding:5px;font-size:12px" value="${v.amount||0}" onchange="setPlanField('${k}','amount',this.value)" ${v.aMedida?'disabled title="A medida"':''}></td>
+      <td style="padding:6px"><input class="fi" style="padding:5px;font-size:12px" value="${esc(v.desc||'')}" onchange="setPlanField('${k}','desc',this.value)"></td>
+      <td style="text-align:center"><input type="checkbox" ${v.todos?'checked':''} onchange="setPlanField('${k}','todos',this.checked)" title="Incluye todos los módulos"></td>
+      <td style="text-align:center"><input type="checkbox" ${v.aMedida?'checked':''} onchange="setPlanField('${k}','aMedida',this.checked)" title="Precio a convenir"></td>
+      <td style="text-align:center">${PLAN_BASE.includes(k)?'<span style="font-size:10px;color:var(--muted)">base</span>':`<button class="btn btn-ghost btn-sm" style="color:var(--bad)" onclick="delPlan('${k}')">Quitar</button>`}</td>
+    </tr>`).join('');
+  const mods=PRODUCTS.map(p=>`<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;margin:0 10px 6px 0"><input type="checkbox" class="npMod" value="${p.id}"> ${p.icon} ${p.name}</label>`).join('');
+  return `
+    <div class="sec-head"><h3>💲 Planes (precios y alcance)</h3><div class="ln"></div></div>
+    <div class="prod" style="padding:14px;overflow:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="text-align:left;border-bottom:2px solid var(--line)">
+          <th style="padding:6px">Clave</th><th>Nombre</th><th>Monto S/</th><th>Descripción</th>
+          <th style="text-align:center">Todos</th><th style="text-align:center">A medida</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="font-size:11px;color:var(--muted);padding:8px 6px">Edita y los cambios se guardan al instante. "Todos" = habilita todos los módulos. "A medida" = precio a convenir (no exige monto).</p>
+      <div style="border-top:1px solid var(--line);margin-top:6px;padding-top:14px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:10px">➕ Agregar plan nuevo</div>
+        <div class="fgrid">
+          <div><label class="flbl">Clave (id corto)</label><input class="fi" id="npKey" placeholder="ej: regional"></div>
+          <div><label class="flbl">Nombre</label><input class="fi" id="npName" placeholder="Plan Regional"></div>
+          <div><label class="flbl">Monto S/ /mes</label><input class="fi" id="npAmount" type="number" step="any" placeholder="0"></div>
+          <div><label class="flbl">Descripción</label><input class="fi" id="npDesc" placeholder="Alcance del plan"></div>
+        </div>
+        <div style="margin-top:10px"><label class="flbl">Módulos incluidos (si no marcas "todos los módulos")</label><div style="margin-top:6px">${mods}</div></div>
+        <div style="margin-top:8px">
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:14px"><input type="checkbox" id="npTodos"> Incluye todos los módulos</label>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="npAMedida"> Precio a convenir (a medida)</label>
+        </div>
+        <div style="margin-top:12px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="addPlan()">Agregar plan</button></div>
+      </div>
+    </div>`;
+}
+function setPlanField(k,f,value){
+  const p=PLANS[k]; if(!p)return;
+  if(f==='amount'){p.amount=parseFloat(value)||0; p.price=p.amount?('S/ '+p.amount):'Gratis'; if(p.amount&&!p.per)p.per='/mes'; if(!p.amount)p.per='';}
+  else if(f==='todos'||f==='aMedida'){p[f]=!!value; if(f==='aMedida'&&value)p.price='A medida';}
+  else p[f]=value;
+  savePlans(PLANS); renderAdmin(); toast('Plan actualizado');
+}
+function addPlan(){
+  const key=(val('npKey')||'').trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const name=(val('npName')||'').trim();
+  const amount=parseFloat(val('npAmount'))||0;
+  const desc=(val('npDesc')||'').trim()||'—';
+  const todos=document.getElementById('npTodos').checked;
+  const aMedida=document.getElementById('npAMedida').checked;
+  const modulos=Array.from(document.querySelectorAll('.npMod:checked')).map(c=>c.value);
+  if(!key||!name){toast('Indica clave y nombre del plan');return;}
+  if(PLANS[key]){toast('Ya existe un plan con esa clave');return;}
+  PLANS[key]={name,price:aMedida?'A medida':(amount?('S/ '+amount):'Gratis'),per:(!aMedida&&amount)?'/mes':'',desc,amount,todos,aMedida,modulos:modulos.length?modulos:['indicadores']};
+  savePlans(PLANS); renderAdmin(); toast('✓ Plan agregado: '+name);
+}
+function delPlan(k){
+  if(PLAN_BASE.includes(k))return;
+  if(!confirm('¿Quitar el plan "'+(PLANS[k]||{}).name+'"?'))return;
+  delete PLANS[k]; savePlans(PLANS); renderAdmin(); toast('Plan eliminado');
 }
 function adminSetAccess(email,pid,on){
   const us=loadUsers(); const u=us.find(x=>x.email===email); if(!u)return;
@@ -892,20 +969,25 @@ function adminDeleteUser(email){
   renderAdmin(); toast('Usuario eliminado');
 }
 function changePlan(k){
+  const p=PLANS[k]; if(!p)return;
   USER.plan=k;
-  // plan upgrades grant access automatically
-  if(k==='ipress'||k==='institucional') USER.access=PRODUCTS.map(p=>p.id);
-  else if(k==='servicio'){USER.access=Array.from(new Set([...(USER.access||[]),'indicadores','pae','formacion']));}
+  USER.access=Array.from(new Set([...(USER.access||[]),...planModulos(p)]));
   persistUser(); renderShell(); renderBilling();
-  toast('Plan actualizado a '+PLANS[k].name+' · accesos autorizados automáticamente');
+  toast('Plan actualizado a '+p.name+' · accesos autorizados automáticamente');
 }
 
 /* ---------- ACTIVATION (payment-gated) ---------- */
-let pendingProduct=null, selPlan='servicio';
-const PLAN_PRICE={servicio:149,ipress:690,institucional:0}; // institucional = a medida
+let pendingProduct=null, selPlan='ipress';
 function openActivate(pid){
-  pendingProduct=pid; selPlan='ipress';
+  pendingProduct=pid;
+  selPlan = PLANS['ipress']?'ipress':Object.keys(PLANS)[0];
   const p=PRODUCTS.find(x=>x.id===pid);
+  const planOpts=Object.entries(PLANS).map(([k,v])=>
+    `<div class="plan-opt ${k===selPlan?'sel':''}" data-p="${k}" onclick="selectPlan('${k}')">
+       <div class="pn">${v.name}</div>
+       <div class="pp">${v.aMedida?'A medida':(v.amount?('S/'+v.amount):'Gratis')}<small>${v.per||''}</small></div>
+       <div class="pd">${v.desc||''}</div>
+     </div>`).join('');
   modal.innerHTML=`
     <div class="modal-head">
       <div class="mic" style="background:${p.color}">${p.icon}</div>
@@ -919,11 +1001,7 @@ function openActivate(pid){
       </div>
       <div id="payMonto">
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Modelo escalable: paga solo por el alcance que necesitas. Al ingresar el monto correcto, el módulo se abre automáticamente.</p>
-        <div class="plan-grid" id="planGrid">
-          <div class="plan-opt" data-p="servicio" onclick="selectPlan('servicio')"><div class="pn">Servicio</div><div class="pp">S/149<small>/mes</small></div><div class="pd">1 servicio · este módulo</div></div>
-          <div class="plan-opt sel" data-p="ipress" onclick="selectPlan('ipress')"><div class="pn">IPRESS</div><div class="pp">S/690<small>/mes</small></div><div class="pd">Todo el establecimiento</div></div>
-          <div class="plan-opt" data-p="institucional" onclick="selectPlan('institucional')"><div class="pn">Institucional</div><div class="pp">A medida</div><div class="pd">Multi-IPRESS (EsSalud)</div></div>
-        </div>
+        <div class="plan-grid" id="planGrid">${planOpts}</div>
         <div class="fgrid" style="margin-top:14px">
           <div><label class="flbl">Monto a pagar (S/)</label><input class="fi" id="payAmount" type="number" step="any" placeholder="0.00"></div>
           <div><label class="flbl">Método de pago</label><select class="fi" id="payMethod"><option>Tarjeta de crédito / débito</option><option>Transferencia / factura institucional</option><option>Orden de compra (SIAF)</option><option>Yape / Plin</option></select></div>
@@ -940,7 +1018,7 @@ function openActivate(pid){
       <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" id="payBtn" style="width:auto" onclick="confirmPayment()">💳 Confirmar pago y activar</button>
     </div>`;
-  selectPlan('ipress'); modalBg.classList.add('on');
+  selectPlan(selPlan); modalBg.classList.add('on');
 }
 function payMode(m){
   const monto=m==='monto';
@@ -956,23 +1034,25 @@ function selectPlan(k){
   selPlan=k;
   document.querySelectorAll('#planGrid .plan-opt').forEach(o=>o.classList.toggle('sel',o.dataset.p===k));
   const rn=document.getElementById('reqPlanName'), ra=document.getElementById('reqAmount');
-  if(rn)rn.textContent=PLANS[k].name;
-  if(ra)ra.textContent=k==='institucional'?'a convenir':('S/'+PLAN_PRICE[k]);
+  const p=PLANS[k]||{};
+  if(rn)rn.textContent=p.name||k;
+  if(ra)ra.textContent=p.aMedida?'a convenir':('S/'+(p.amount||0));
 }
 function confirmPayment(){
   const amount=parseFloat((document.getElementById('payAmount')||{}).value);
-  const req=PLAN_PRICE[selPlan];
-  if(selPlan!=='institucional'){
+  const p=PLANS[selPlan]||{}; const req=p.amount||0;
+  if(!p.aMedida){
     if(isNaN(amount)||amount<=0){toast('Ingresa el monto a pagar');return;}
-    if(amount<req){toast(`El monto ingresado (S/${amount}) es menor al requerido (S/${req}) para el plan ${PLANS[selPlan].name}`);return;}
+    if(amount<req){toast(`El monto ingresado (S/${amount}) es menor al requerido (S/${req}) para el plan ${p.name||selPlan}`);return;}
   }
   // PAGO CONFIRMADO -> AUTORIZACIÓN AUTOMÁTICA
-  if(selPlan==='ipress'||selPlan==='institucional'){USER.access=PRODUCTS.map(p=>p.id);USER.plan=selPlan;}
-  else{USER.access=Array.from(new Set([...(USER.access||[]),pendingProduct]));if(USER.plan==='explora')USER.plan='servicio';}
+  const mods=Array.from(new Set([...planModulos(p),pendingProduct].filter(Boolean)));
+  USER.access=Array.from(new Set([...(USER.access||[]),...mods]));
+  USER.plan=selPlan;
   // vigencia mensual desde hoy
   const hasta=addMonths(todayISO(),1);
   USER.accessUntil=USER.accessUntil||{};
-  (selPlan==='servicio'?[pendingProduct]:PRODUCTS.map(p=>p.id)).forEach(id=>USER.accessUntil[id]=hasta);
+  mods.forEach(id=>USER.accessUntil[id]=hasta);
   persistUser(); closeModal(); renderShell();
   toast('✓ Pago confirmado · acceso autorizado automáticamente hasta '+fmtDate(hasta));
   nav(pendingProduct);
