@@ -1132,13 +1132,15 @@ const DIMS_DEF=['Tiempo','Calidad','Costo','Satisfacción'];
 const AMBITOS_DEF=['Institucional','Consulta Externa','Emergencia','Hospitalización','UCI','Departamento de Enfermería']; // RBAC drill-down
 const PERSP_DEF=['Estratégico','Misional','Soporte']; // Macroprocesos Modelo GEMSES
 const FREC_DEF=['Diaria','Semanal','Mensual','Trimestral','Semestral','Anual'];
+const LUGAR_DEF=['Consulta Externa','Emergencia','Hospitalización','Laboratorio','Farmacia']; // Servicio / Área / Unidad de medición
 const CAT_META=[
   {key:'ambitos',label:'Ámbito / Nivel (drill-down)',icon:'📍',def:AMBITOS_DEF},
   {key:'dimensiones',label:'Dimensión GEMSES',icon:'📐',def:DIMS_DEF},
   {key:'perspectivas',label:'Perspectiva / Macroproceso GEMSES (Estratégico, Misional, Soporte)',icon:'🎯',def:PERSP_DEF},
   {key:'frecuencias',label:'Frecuencia de medición',icon:'⏱️',def:FREC_DEF},
+  {key:'lugares',label:'Servicio / Área / Unidad de medición',icon:'🏥',def:LUGAR_DEF},
 ];
-function defaultCatalogos(){return{ambitos:[...AMBITOS_DEF],dimensiones:[...DIMS_DEF],perspectivas:[...PERSP_DEF],frecuencias:[...FREC_DEF]};}
+function defaultCatalogos(){return{ambitos:[...AMBITOS_DEF],dimensiones:[...DIMS_DEF],perspectivas:[...PERSP_DEF],frecuencias:[...FREC_DEF],lugares:[...LUGAR_DEF]};}
 /* Migración: Balanced Scorecard antiguo → Macroprocesos GEMSES y estados de acción */
 const PERSP_MIGRA={'Resultados al Paciente':'Misional','Procesos Internos':'Misional','Económico-Financiero':'Soporte','Aprendizaje y Personal':'Estratégico'};
 function migrateData(email){
@@ -1160,6 +1162,7 @@ function catList(key){
 function getAmbitos(){return catList('ambitos');}
 function getDims(){return catList('dimensiones');}
 function getPersp(){return catList('perspectivas');}
+function getLugares(){return catList('lugares');}
 function getFrec(){return catList('frecuencias');}
 const PERSP_COLOR={'Estratégico':'#7A5BD6','Misional':'#028090','Soporte':'#E0A21A'};
 const PALETTE=['#028090','#7A5BD6','#E0A21A','#1E9E6A','#00A8CC','#D64545','#F0B429','#13294B'];
@@ -1454,18 +1457,31 @@ const EST_ACC=['Pendiente','En proceso','Hecho'];
 /* ----- FASE 2 · MEDIR: recolección con periodo (fecha inicio/fin) y método ----- */
 function medirHTML(i){
   const ms=i.mediciones||[];
+  const lugares=getLugares();
   const rows=ms.length?ms.map((m,idx)=>`<tr>
       <td>${esc(m.p||('M'+(idx+1)))}</td>
       <td style="font-size:11px;color:var(--muted)">${fmtPeriodo(m)}</td>
+      <td style="font-size:11px">${m.lugar?'🏥 '+esc(m.lugar):'<span style="color:var(--muted)">—</span>'}</td>
       <td>${m.metodo==='encuesta'?'📋 Encuesta':'✍️ Manual'}${m.metodo==='encuesta'&&m.muestra?` <small style="color:var(--muted)">n=${m.muestra}</small>`:''}</td>
       <td style="text-align:right"><b>${m.v}</b> ${esc(i.unidad)}</td>
-      <td style="text-align:right"><button title="Eliminar" onclick="delMed('${i.id}',${idx})" style="border:none;background:rgba(214,69,69,.12);color:var(--bad);border-radius:50%;width:20px;height:20px;cursor:pointer">✕</button></td></tr>`).join(''):`<tr><td colspan="5" style="color:var(--muted);font-size:12px">Aún no hay mediciones. Registra la primera abajo.</td></tr>`;
+      <td style="text-align:right"><button title="Eliminar" onclick="delMed('${i.id}',${idx})" style="border:none;background:rgba(214,69,69,.12);color:var(--bad);border-radius:50%;width:20px;height:20px;cursor:pointer">✕</button></td></tr>`).join(''):`<tr><td colspan="6" style="color:var(--muted);font-size:12px">Aún no hay mediciones. Registra la primera abajo.</td></tr>`;
+  const lugarOpts=lugares.map(l=>`<option value="${esc(l)}">🏥 ${esc(l)}</option>`).join('');
   return `<div class="detail-sec">
     <h4>📏 Fase 2 · Medir — recolección de datos</h4>
-    <table class="ft-table" style="font-size:12px"><tr><th>Periodo</th><th>Fechas</th><th>Método</th><th style="text-align:right">Valor</th><th></th></tr>${rows}</table>
+    <table class="ft-table" style="font-size:12px"><tr><th>Periodo</th><th>Fechas</th><th>Servicio/Área/Unidad</th><th>Método</th><th style="text-align:right">Valor</th><th></th></tr>${rows}</table>
     <div style="border:1px dashed var(--line);border-radius:10px;padding:12px;margin-top:10px">
       <div class="fgrid">
         <div><label class="flbl">Etiqueta del periodo</label><input class="fi" id="mP" placeholder="Ej. Junio 2026 / S23"></div>
+        <div><label class="flbl">Servicio / Área / Unidad</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select class="fi" id="mLugar" style="flex:1" onchange="if(this.value==='__new__')lugarAdd('${i.id}')">
+              <option value="">— Sin especificar —</option>
+              ${lugarOpts}
+              <option value="__new__">➕ Nuevo servicio/área/unidad…</option>
+            </select>
+            <button type="button" title="Editar el seleccionado" onclick="lugarEdit('${i.id}')" style="border:1px solid var(--line);background:#fff;border-radius:8px;width:32px;height:32px;cursor:pointer">✎</button>
+            <button type="button" title="Eliminar el seleccionado" onclick="lugarDel('${i.id}')" style="border:1px solid var(--line);background:#fff;color:var(--bad);border-radius:8px;width:32px;height:32px;cursor:pointer">✕</button>
+          </div></div>
         <div><label class="flbl">Método de recolección</label>
           <select class="fi" id="mMetodo" onchange="toggleMetodo()">
             <option value="manual">✍️ Ingreso manual del resultado</option>
@@ -1487,6 +1503,36 @@ function toggleMetodo(){
   if(man)man.style.display=enc?'none':''; if(e1)e1.style.display=enc?'':'none'; if(e2)e2.style.display=enc?'':'none';
 }
 function delMed(id,idx){const i=inds().find(x=>x.id===id);if(!i)return;if(!confirm('¿Eliminar esta medición?'))return;i.mediciones.splice(idx,1);saveData();openDetail(id);drawIndList();toast('Medición eliminada');}
+/* --- Servicio / Área / Unidad: catálogo editable desde el menú desplegable de Medir --- */
+function lugaresArr(){const c=DB[USER.email].catalogos||(DB[USER.email].catalogos=defaultCatalogos()); if(!Array.isArray(c.lugares))c.lugares=[...LUGAR_DEF]; return c.lugares;}
+function lugarAdd(id){
+  const sel=document.getElementById('mLugar');
+  const name=(prompt('Nuevo servicio / área / unidad:')||'').trim();
+  if(!name){ if(sel)sel.value=''; return; }
+  const arr=lugaresArr();
+  if(arr.some(x=>x.toLowerCase()===name.toLowerCase())){toast('Ya existe ese servicio/área/unidad'); if(sel)sel.value=name; saveData(); openDetail(id); return;}
+  arr.push(name); saveData(); openDetail(id);
+  const s2=document.getElementById('mLugar'); if(s2)s2.value=name;
+  toast('Servicio/área/unidad agregado');
+}
+function lugarEdit(id){
+  const sel=document.getElementById('mLugar'); const cur=sel?sel.value:'';
+  if(!cur||cur==='__new__'){toast('Elige primero un servicio/área/unidad para editar');return;}
+  const name=(prompt('Editar servicio / área / unidad:',cur)||'').trim();
+  if(!name||name===cur)return;
+  const arr=lugaresArr(); const k=arr.findIndex(x=>x===cur); if(k<0)return; arr[k]=name;
+  // Actualizar mediciones existentes que usaban el nombre anterior
+  (inds()||[]).forEach(ind=>(ind.mediciones||[]).forEach(m=>{if(m.lugar===cur)m.lugar=name;}));
+  saveData(); openDetail(id); const s2=document.getElementById('mLugar'); if(s2)s2.value=name; drawIndList();
+  toast('Servicio/área/unidad actualizado');
+}
+function lugarDel(id){
+  const sel=document.getElementById('mLugar'); const cur=sel?sel.value:'';
+  if(!cur||cur==='__new__'){toast('Elige primero un servicio/área/unidad para eliminar');return;}
+  if(!confirm('¿Eliminar «'+cur+'» de la lista? Las mediciones ya registradas conservarán su valor.'))return;
+  const arr=lugaresArr(); const k=arr.findIndex(x=>x===cur); if(k>=0)arr.splice(k,1);
+  saveData(); openDetail(id); toast('Servicio/área/unidad eliminado');
+}
 
 /* ----- FASE 4 · IMPLEMENTAR: plan 5W+2H con responsable, fechas y control ----- */
 function planHTML(i){
@@ -1967,7 +2013,8 @@ function addMedicion(id){
   } else { v=parseFloat(g('mV')); if(isNaN(v)){toast('Ingresa el valor medido');return;} }
   if(!ini){toast('Indica la fecha de inicio del periodo');return;}
   const label=g('mP').trim()|| (fin?fmtDate(fin):fmtDate(ini));
-  i.mediciones.push({p:label,v,ini,fin:fin||ini,metodo,...extra});
+  const lugar=(g('mLugar')==='__new__'?'':g('mLugar'))||'';
+  i.mediciones.push({p:label,v,ini,fin:fin||ini,metodo,lugar,...extra});
   i.mediciones.sort((a,b)=>(a.ini||'').localeCompare(b.ini||''));
   if(i.fases[0]&&!i.fases[1]&&i.mediciones.length>=1)i.fases[1]=true;
   saveData();openDetail(id);drawIndList();
