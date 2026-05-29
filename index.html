@@ -324,6 +324,20 @@ textarea.fi{min-height:70px;resize:vertical}
 .placeholder-mod p{font-size:14px;color:var(--muted);max-width:520px;margin:0 auto 22px;line-height:1.6}
 .roadmap{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:600px;margin:0 auto}
 .roadmap span{font-size:12px;background:#fff;border:1px solid var(--line);padding:8px 14px;border-radius:30px;font-weight:600}
+/* Onboarding (parametrización primer ingreso) */
+.onb-overlay{position:fixed;inset:0;background:rgba(19,41,75,.55);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:9999;padding:20px}
+.onb-card{background:#fff;border-radius:18px;max-width:520px;width:100%;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto}
+.onb-card h3{font-size:22px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.onb-sub{font-size:13px;color:var(--muted);margin:0 0 18px;line-height:1.5}
+.onb-card .fld{margin-bottom:14px}
+.onb-card .fld label{display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:5px}
+.onb-card .fld input,.onb-card .fld select{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit}
+.onb-card .fld input:focus,.onb-card .fld select:focus{outline:none;border-color:var(--teal)}
+.onb-obj{background:rgba(2,128,144,.06);border:1px solid rgba(2,128,144,.25);border-radius:10px;padding:11px 13px;font-size:12.5px;color:var(--navy);line-height:1.5;margin-bottom:14px}
+.rp-header{background:linear-gradient(135deg,rgba(2,128,144,.07),rgba(122,91,214,.07));border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.rp-header .rp-h-org{font-size:16px;font-weight:800;color:var(--navy)}
+.rp-header .rp-h-meta{font-size:12px;color:var(--muted);margin-top:3px}
+.rp-header .rp-h-obj{font-size:12px;color:var(--navy);margin-top:8px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -563,9 +577,66 @@ function startSession(u){
   document.getElementById('auth').style.display='none';
   app.style.display='block';
   renderShell(); nav('dashboard');
+  checkOnboarding();
 }
 function logout(){lsDel(LS_SESSION);location.reload();}
 function autoLogin(){const e=lsGet(LS_SESSION);if(e){const u=loadUsers().find(x=>x.email===e);if(u)startSession(u);}}
+
+/* ---------- ONBOARDING (parametrización al primer ingreso) ----------
+   Captura hospital/IPRESS + cargo (Director, Jefe de Servicio, Supervisor, Área).
+   El cargo define el objetivo y el alcance que se reflejan en el informe. */
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const CARGOS=[
+  {key:'DIRECTOR',label:'Director / Dirección',scope:'Toda la institución / IPRESS',
+   obj:'Visión institucional integral: monitorear el cumplimiento global de todos los servicios y de las cuatro dimensiones GEMSES (Tiempo, Calidad, Costo y Satisfacción) para sustentar decisiones estratégicas y rendición de cuentas.'},
+  {key:'JEFE_SERVICIO',label:'Jefe de Servicio',scope:'Servicio a cargo',
+   obj:'Gestión del servicio: asegurar el logro de las metas de los indicadores del servicio, liderar los planes de mejora 5W+2H y reportar avances a la dirección.'},
+  {key:'SUPERVISOR',label:'Supervisor / Supervisión',scope:'Servicios supervisados',
+   obj:'Supervisión de procesos y actividades: verificar la adherencia a protocolos, controlar la calidad de la recolección de datos y dar seguimiento a las acciones de mejora.'},
+  {key:'AREA',label:'Área / Unidad',scope:'Área o unidad asignada',
+   obj:'Gestión del área/unidad: medir, analizar y mejorar los indicadores propios del área dentro del ciclo DMAIC del Modelo GEMSES.'}
+];
+function cargoMeta(k){return CARGOS.find(c=>c.key===k)||CARGOS[0];}
+function checkOnboarding(){ if(USER && !USER.onboarded) renderOnboarding(); }
+function renderOnboarding(){
+  let ov=document.getElementById('onbOverlay');
+  if(!ov){ ov=document.createElement('div'); ov.id='onbOverlay'; ov.className='onb-overlay'; document.body.appendChild(ov); }
+  const cargoOpts=CARGOS.map(c=>`<option value="${c.key}">${escHtml(c.label)}</option>`).join('');
+  const orgVal=(USER.org&&USER.org!=='—'&&USER.org!=='GEMSES360')?USER.org:'';
+  ov.innerHTML=`<div class="onb-card">
+    <h3>👋 Bienvenido a GEMSES360</h3>
+    <p class="onb-sub">Antes de empezar, parametriza tu perfil. Esto personaliza los objetivos de tu rol y el contenido del informe y los reportes (Word/Excel).</p>
+    <div class="fld"><label>Nombre del Hospital / IPRESS / Institución</label>
+      <input id="onbHosp" value="${escHtml(orgVal)}" placeholder="Ej. Hospital III EsSalud — Cusco"></div>
+    <div class="fld"><label>Tu cargo</label>
+      <select id="onbCargo" onchange="onbCargoPreview()">${cargoOpts}</select></div>
+    <div class="fld"><label>Servicio / Área / Unidad (opcional)</label>
+      <input id="onbArea" value="${escHtml(USER.area||'')}" placeholder="Ej. Emergencia, Hospitalización, Laboratorio…"></div>
+    <div id="onbObj" class="onb-obj"></div>
+    <div class="err" id="onbErr" style="color:var(--bad);font-size:12px;min-height:16px;margin-bottom:6px"></div>
+    <button class="btn btn-primary" onclick="saveOnboarding()">Empezar →</button>
+  </div>`;
+  if(USER.cargo){ const sel=document.getElementById('onbCargo'); if(sel) sel.value=USER.cargo; }
+  onbCargoPreview();
+}
+function onbCargoPreview(){
+  const sel=document.getElementById('onbCargo'); if(!sel)return;
+  const m=cargoMeta(sel.value), o=document.getElementById('onbObj');
+  if(o&&m) o.innerHTML=`<b>Objetivo de tu rol:</b> ${escHtml(m.obj)}<br><b>Alcance:</b> ${escHtml(m.scope)}`;
+}
+function saveOnboarding(){
+  const hosp=(document.getElementById('onbHosp').value||'').trim();
+  const cargo=document.getElementById('onbCargo').value;
+  const area=(document.getElementById('onbArea').value||'').trim();
+  if(!hosp){ document.getElementById('onbErr').textContent='Indica el nombre del hospital / institución.'; return; }
+  USER.org=hosp; USER.cargo=cargo; USER.area=area; USER.onboarded=true;
+  saveUserRecord(USER);           // persiste y refresca el shell
+  const ov=document.getElementById('onbOverlay'); if(ov) ov.remove();
+  toast('✓ Perfil parametrizado');
+  nav('dashboard');
+}
+/* Permite reabrir la parametrización desde el menú/perfil. */
+function reabrirOnboarding(){ renderOnboarding(); }
 
 /* ---------- SHELL ---------- */
 function hasAccess(pid){
@@ -1900,7 +1971,14 @@ function renderInforme(){
     <div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="renderIndicadores()">← Volver</button>
       <div class="grow"></div>
       <button class="btn btn-ghost btn-sm" onclick="rpClear()">↺ Limpiar filtros</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportInformeWord()">📄 Word</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportInformeExcel()">📊 Excel</button>
       <button class="btn btn-ghost btn-sm" onclick="imprimirInforme()">🖨️ Imprimir / PDF</button>
+    </div>
+    <div class="rp-header">
+      <div class="rp-h-org">🏥 ${esc(USER.org&&USER.org!=='—'?USER.org:'Institución no definida')}</div>
+      <div class="rp-h-meta">${esc(cargoMeta(USER.cargo).label)}${USER.area?' · '+esc(USER.area):''} · Periodo: <b>${periodoTxt}</b> · Generado: ${new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      <div class="rp-h-obj"><b>Objetivo del rol:</b> ${esc(cargoMeta(USER.cargo).obj)}</div>
     </div>
     <div class="detail-sec">
       <h4>🔎 Filtros del informe</h4>
@@ -2036,6 +2114,130 @@ async function llamarIA(prompt){
   return (j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts&&j.candidates[0].content.parts[0].text)||'(respuesta vacía)';
 }
 function imprimirInforme(){ window.print(); }
+
+/* ============================================================
+   EXPORTAR INFORME — Word (.doc) y Excel (.xls) con el 100% de la data
+   ============================================================ */
+function descargarArchivo(nombre,contenido,mime){
+  const blob=new Blob([contenido],{type:mime});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+}
+function slugFecha(){ return new Date().toISOString().slice(0,10); }
+function nombreArchivo(ext){
+  const o=(informeMeta().org||'GEMSES360').replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_').slice(0,40);
+  return `Informe_GEMSES360_${o}_${slugFecha()}.${ext}`;
+}
+/* Metadatos del informe (institución, cargo, objetivo, periodo, filtros). */
+function informeMeta(){
+  const cm=cargoMeta(USER.cargo);
+  const periodoTxt=(rpFrom||rpTo)?`${rpFrom?fmtDate(rpFrom):'inicio'} → ${rpTo?fmtDate(rpTo):'hoy'}`:'Todo el histórico';
+  const filtros=`Ámbito: ${rpAmb==='all'?'Todos':rpAmb} · Macroproceso: ${rpPersp==='all'?'Todos':rpPersp} · Tipo: ${rpTipo==='all'?'Todos':rpTipo.toUpperCase()} · Dimensión: ${rpDim==='all'?'Todas':rpDim}`;
+  return {org:(USER.org&&USER.org!=='—'&&USER.org!=='GEMSES360')?USER.org:'Institución no definida',
+    cargo:cm.label,obj:cm.obj,scope:cm.scope,area:USER.area||'',periodoTxt,filtros,generado:new Date().toLocaleString('es-PE')};
+}
+function faseActualTxt(i){ const idx=(i.fases||[]).findIndex(x=>!x); return idx<0?'Completado':(PHASES[idx]?PHASES[idx].t:('F'+(idx+1))); }
+function fasePct(i){ return Math.round(((i.fases||[]).filter(Boolean).length/PHASES.length)*100); }
+
+/* ---------- WORD (.doc — HTML compatible con MS Word) ---------- */
+function exportInformeWord(){
+  const R=calcInforme(), M=informeMeta();
+  const dimRows=R.DIMS.map(d=>{const x=R.porDim[d];
+    return `<tr><td>${escHtml(d)}</td><td style="text-align:center">${pesoDim(d)}%</td><td style="text-align:center">${x.prom==null?'—':x.prom+'%'}</td><td style="text-align:center">${x.n}</td><td style="text-align:center">${x.enMeta}</td><td style="text-align:center">${x.conDato}</td></tr>`;}).join('');
+  const indRows=R.filas.map((f,k)=>{const i=f.i; const est=f.logro==null?'Sin dato':f.logro>=100?'En meta':f.logro>=85?'En alerta':'Crítico';
+    return `<tr><td style="text-align:center">${k+1}</td><td>${escHtml(i.nombre)}</td><td>${TIPOS[i.tipo]?TIPOS[i.tipo].l:escHtml(i.tipo)}</td><td>${escHtml(i.dim||'—')}</td><td>${escHtml(i.ambito||'—')}</td><td>${escHtml(i.persp||'—')}</td><td style="text-align:right">${i.meta} ${escHtml(i.unidad||'')}</td><td style="text-align:right">${f.valor==null?'—':escHtml(String(f.valor))}</td><td style="text-align:right">${f.logro==null?'—':f.logro+'%'}</td><td>${est}</td></tr>`;}).join('');
+  const detalle=R.filas.map((f,k)=>{const i=f.i;
+    const medHead=`<tr><th>Periodo</th><th>Desde</th><th>Hasta</th><th>Valor</th><th>Método</th><th>Servicio/Área/Unidad</th></tr>`;
+    const med=(i.mediciones||[]).map(m=>`<tr><td>${escHtml(m.p||'')}</td><td>${escHtml(m.ini||'')}</td><td>${escHtml(m.fin||'')}</td><td style="text-align:right">${escHtml(String(m.v))} ${escHtml(i.unidad||'')}</td><td>${escHtml(m.metodo||'')}</td><td>${escHtml(m.lugar||'')}</td></tr>`).join('')||`<tr><td colspan="6">Sin mediciones registradas.</td></tr>`;
+    const planHead=`<tr><th>Qué (What)</th><th>Cómo (How)</th><th>Quién (Who)</th><th>Nivel</th><th>Cuándo (When)</th><th>Estado</th><th>% Avance</th></tr>`;
+    const plan=(i.plan||[]).map(a=>`<tr><td>${escHtml(a.what||'')}</td><td>${escHtml(a.how||'')}</td><td>${escHtml(a.who||'')}</td><td>${escHtml(a.nivel||'')}</td><td>${escHtml(a.ini||'')} → ${escHtml(a.fin||'')}</td><td>${escHtml(a.estado||'')}</td><td style="text-align:right">${a.avance==null?'—':a.avance+'%'}</td></tr>`).join('')||`<tr><td colspan="7">Sin plan 5W+2H registrado.</td></tr>`;
+    const fases=(i.fases||[]).map((b,idx)=>`${PHASES[idx]?PHASES[idx].t:('F'+(idx+1))}: ${b?'✔':'○'}`).join(' · ');
+    return `<h3>${k+1}. ${escHtml(i.nombre)}</h3>
+      <p><b>Tipo:</b> ${TIPOS[i.tipo]?TIPOS[i.tipo].l:escHtml(i.tipo)} · <b>Dimensión:</b> ${escHtml(i.dim||'—')} · <b>Ámbito:</b> ${escHtml(i.ambito||'—')} · <b>Macroproceso:</b> ${escHtml(i.persp||'—')}</p>
+      <p><b>Fórmula:</b> ${escHtml(i.formula||'—')}<br><b>Fuente:</b> ${escHtml(i.fuente||'—')} · <b>Responsable:</b> ${escHtml(i.responsable||'—')} · <b>Frecuencia:</b> ${escHtml(i.frecuencia||'—')}<br><b>Meta:</b> ${i.meta} ${escHtml(i.unidad||'')} (sentido: ${escHtml(i.sentido||'')}) · <b>Logro en el periodo:</b> ${f.logro==null?'—':f.logro+'%'}</p>
+      <p><b>Fases DMAIC (${fasePct(i)}% — fase actual: ${escHtml(faseActualTxt(i))}):</b> ${fases}</p>
+      <p style="margin-bottom:2px"><b>Mediciones</b></p><table border="1">${medHead}${med}</table>
+      <p style="margin:6px 0 2px"><b>Plan de mejora 5W+2H</b></p><table border="1">${planHead}${plan}</table>`;}).join('<hr>');
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Informe GEMSES360</title>
+  <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#13294B}h1{font-size:20pt;color:#13294B;margin:0}h2{font-size:14pt;color:#028090;border-bottom:1px solid #ccc;padding-bottom:3px;margin-top:18px}h3{font-size:12pt;color:#13294B;margin:12px 0 4px}table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:4px 0}th,td{border:1px solid #aaa;padding:4px 6px;vertical-align:top}th{background:#13294B;color:#fff;text-align:left}.muted{color:#666;font-size:9pt}.box{background:#f2f7f8;border:1px solid #cde;padding:8px 10px;border-radius:6px}</style></head><body>
+  <h1>GEMSES360 — Informe del Tablero de Indicadores</h1>
+  <p class="muted">🏥 ${escHtml(M.org)} · ${escHtml(M.cargo)}${M.area?' · '+escHtml(M.area):''}<br>Periodo: <b>${escHtml(M.periodoTxt)}</b> · Generado: ${escHtml(M.generado)}<br>Filtros: ${escHtml(M.filtros)}</p>
+  <p class="box"><b>Objetivo del rol:</b> ${escHtml(M.obj)}<br><b>Alcance:</b> ${escHtml(M.scope)}</p>
+  <h2>Índice de cumplimiento ponderado (Modelo GEMSES)</h2>
+  <p>Índice global de cumplimiento: <b style="font-size:16pt;color:#028090">${R.indice==null?'—':R.indice+'%'}</b> &nbsp;·&nbsp; ${R.conDato}/${R.total} indicadores con dato en el periodo.</p>
+  <table><tr><th>Dimensión</th><th>Peso de impacto</th><th>Promedio de logro</th><th># Indicadores</th><th>En meta</th><th>Con dato</th></tr>${dimRows}</table>
+  <p class="muted">El índice global es el promedio del logro de cada dimensión ponderado por su peso de impacto GEMSES (solo dimensiones con datos).</p>
+  <h2>Resumen de indicadores (${R.filas.length})</h2>
+  <table><tr><th>#</th><th>Indicador</th><th>Tipo</th><th>Dim.</th><th>Ámbito</th><th>Macroproceso</th><th>Meta</th><th>Valor</th><th>Logro</th><th>Estado</th></tr>${indRows}</table>
+  <h2>Ficha técnica y seguimiento por indicador</h2>
+  ${detalle}
+  <p class="muted" style="margin-top:20px">Documento generado automáticamente por GEMSES360 · ${escHtml(M.generado)}</p>
+  </body></html>`;
+  descargarArchivo(nombreArchivo('doc'), '﻿'+html, 'application/msword');
+  toast('📄 Informe Word generado');
+}
+
+/* ---------- EXCEL (.xls — SpreadsheetML multi-hoja, sin dependencias) ---------- */
+function xEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function xCell(v){
+  if(v==null||v==='') return '<Cell><Data ss:Type="String"></Data></Cell>';
+  if(typeof v==='number'&&isFinite(v)) return '<Cell><Data ss:Type="Number">'+v+'</Data></Cell>';
+  return '<Cell><Data ss:Type="String">'+xEsc(v)+'</Data></Cell>';
+}
+function xRow(arr){ return '<Row>'+arr.map(xCell).join('')+'</Row>'; }
+function xHeadRow(arr){ return '<Row>'+arr.map(t=>'<Cell ss:StyleID="hdr"><Data ss:Type="String">'+xEsc(t)+'</Data></Cell>').join('')+'</Row>'; }
+function xSheet(name,xmlRows){ return '<Worksheet ss:Name="'+xEsc(String(name).replace(/[\\/?*\[\]:]/g,' ').slice(0,31))+'"><Table>'+xmlRows+'</Table></Worksheet>'; }
+function exportInformeExcel(){
+  const R=calcInforme(), M=informeMeta(), list=R.list;
+  // --- Hoja Resumen ---
+  let resumen='';
+  resumen+=xRow(['GEMSES360 — Informe del Tablero de Indicadores']);
+  resumen+=xRow(['Institución',M.org]);
+  resumen+=xRow(['Cargo',M.cargo]);
+  resumen+=xRow(['Servicio / Área / Unidad',M.area]);
+  resumen+=xRow(['Objetivo del rol',M.obj]);
+  resumen+=xRow(['Alcance',M.scope]);
+  resumen+=xRow(['Periodo',M.periodoTxt]);
+  resumen+=xRow(['Filtros aplicados',M.filtros]);
+  resumen+=xRow(['Generado',M.generado]);
+  resumen+=xRow([]);
+  resumen+=xRow(['Índice global ponderado (GEMSES) %', R.indice==null?'':R.indice]);
+  resumen+=xRow(['Indicadores con dato', R.conDato]);
+  resumen+=xRow(['Total de indicadores', R.total]);
+  resumen+=xRow([]);
+  resumen+=xHeadRow(['Dimensión','Peso %','Promedio logro %','# Indicadores','En meta','Con dato']);
+  R.DIMS.forEach(d=>{const x=R.porDim[d]; resumen+=xRow([d,pesoDim(d),x.prom==null?'':x.prom,x.n,x.enMeta,x.conDato]);});
+  // --- Hoja Indicadores (todos los campos) ---
+  let indSheet=xHeadRow(['#','Nombre','Tipo','Dimensión','Ámbito','Macroproceso','Unidad','Meta','Sentido','Fórmula','Fuente','Responsable','Frecuencia','Creado','Valor (periodo)','Logro % (periodo)','Estado periodo','Último valor','Logro % (último)','Fase actual','% Avance fases','# Mediciones','# Acciones plan']);
+  R.filas.forEach((f,k)=>{const i=f.i, st=statusOf(i);
+    const est=f.logro==null?'Sin dato':f.logro>=100?'En meta':f.logro>=85?'En alerta':'Crítico';
+    indSheet+=xRow([k+1,i.nombre,TIPOS[i.tipo]?TIPOS[i.tipo].l:i.tipo,i.dim||'',i.ambito||'',i.persp||'',i.unidad||'',i.meta,i.sentido||'',i.formula||'',i.fuente||'',i.responsable||'',i.frecuencia||'',i.creado||'',f.valor==null?'':f.valor,f.logro==null?'':f.logro,est,st.last==null?'':st.last,st.last==null?'':st.pct,faseActualTxt(i),fasePct(i),(i.mediciones||[]).length,(i.plan||[]).length]);});
+  // --- Hoja Mediciones ---
+  let medSheet=xHeadRow(['Indicador','Tipo','Dimensión','Periodo','Desde','Hasta','Valor','Unidad','Método','Servicio/Área/Unidad']);
+  list.forEach(i=>{(i.mediciones||[]).forEach(m=>{ medSheet+=xRow([i.nombre,TIPOS[i.tipo]?TIPOS[i.tipo].l:i.tipo,i.dim||'',m.p||'',m.ini||'',m.fin||'',m.v,i.unidad||'',m.metodo||'',m.lugar||'']); });});
+  // --- Hoja Plan 5W2H ---
+  let planSheet=xHeadRow(['Indicador','Qué (What)','Cómo (How)','Quién (Who)','Nivel','Desde (When)','Hasta (When)','Estado','% Avance']);
+  list.forEach(i=>{(i.plan||[]).forEach(a=>{ planSheet+=xRow([i.nombre,a.what||'',a.how||'',a.who||'',a.nivel||'',a.ini||'',a.fin||'',a.estado||'',a.avance==null?'':a.avance]); });});
+  // --- Hoja Fases DMAIC ---
+  let faseSheet=xHeadRow(['Indicador','1 Definir','2 Medir','3 Analizar','4 Implementar','5 Controlar','% Avance','Fase actual']);
+  list.forEach(i=>{const f=i.fases||[]; faseSheet+=xRow([i.nombre,f[0]?'Sí':'No',f[1]?'Sí':'No',f[2]?'Sí':'No',f[3]?'Sí':'No',f[4]?'Sí':'No',fasePct(i),faseActualTxt(i)]);});
+  // --- Hoja Catálogos ---
+  let catSheet=xHeadRow(['Catálogo','Valores']);
+  catSheet+=xRow(['Ámbitos / Niveles',getAmbitos().join(', ')]);
+  catSheet+=xRow(['Dimensiones GEMSES',getDims().join(', ')]);
+  catSheet+=xRow(['Macroprocesos',getPersp().join(', ')]);
+  catSheet+=xRow(['Frecuencias',getFrec().join(', ')]);
+  catSheet+=xRow(['Servicios / Áreas / Unidades',getLugares().join(', ')]);
+  const wb='<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n'+
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">'+
+    '<Styles><Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>'+
+    '<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#13294B" ss:Pattern="Solid"/></Style></Styles>'+
+    xSheet('Resumen',resumen)+xSheet('Indicadores',indSheet)+xSheet('Mediciones',medSheet)+xSheet('Plan 5W2H',planSheet)+xSheet('Fases DMAIC',faseSheet)+xSheet('Catálogos',catSheet)+
+    '</Workbook>';
+  descargarArchivo(nombreArchivo('xls'), wb, 'application/vnd.ms-excel');
+  toast('📊 Reporte Excel generado');
+}
 /* ---------- IMPORTAR / EXPORTAR CSV ---------- */
 function csvCell(v){const s=(v==null?'':String(v)); return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
 function exportCSV(){
