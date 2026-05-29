@@ -190,12 +190,24 @@ a{color:inherit}
 .phase-track .pt.done{background:var(--teal)}
 
 /* phases legend */
-.phases{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px}
+.phases{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:24px}
 @media(max-width:760px){.phases{grid-template-columns:repeat(2,1fr)}}
 .phase{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;position:relative}
 .phase .pn{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;margin:0 auto 8px}
 .phase b{font-size:13px;display:block}
 .phase span{font-size:10.5px;color:var(--muted);line-height:1.4;display:block;margin-top:3px}
+.phase-count{cursor:pointer;transition:.15s;text-align:left}
+.phase-count:hover{border-color:var(--navy);box-shadow:0 4px 14px rgba(0,0,0,.08);transform:translateY(-2px)}
+.phase-count.on{border-color:var(--navy);background:#f4f7ff;box-shadow:0 0 0 2px var(--navy) inset}
+.phase-count .pc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.phase-count .pn{margin:0}
+.phase-count .pc-n{font-size:22px;font-weight:800;color:var(--navy);line-height:1}
+.phase-count b{font-size:12.5px;margin-bottom:6px}
+.phase-count .pc-bar{height:6px;border-radius:4px;background:var(--line);overflow:hidden;margin:4px 0 5px}
+.phase-count .pc-fill{height:100%;border-radius:4px;background:var(--teal);transition:width .3s}
+.phase-count .pc-pct{font-size:10.5px;color:var(--muted)}
+.phase-done .pn{background:var(--ok)}
+.phase-done .pc-n{color:var(--ok)}
 
 /* form grid */
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -1208,7 +1220,11 @@ function seedIndicadores(email){
 function uid(){return 'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function inds(){return DB[USER.email].indicadores||[]}
 
-let filterTipo='all', searchQ='', indView='tablero', indScope='all';
+let filterTipo='all', searchQ='', indView='tablero', indScope='all', phaseFilter='all';
+/* Fase actual de un indicador: primer índice no cerrado (0-4); -1 => completado */
+function indPhaseIdx(i){const f=i.fases||[]; const k=f.findIndex(x=>!x); return k;}
+function indFasePct(i){const done=(i.fases||[]).filter(Boolean).length; return Math.round(done/PHASES.length*100);}
+function setPhaseFilter(p){phaseFilter=(phaseFilter===p)?'all':p; drawSub();}
 function scopedList(){
   let list=inds();
   if(indScope!=='all') list=list.filter(i=>(i.ambito||'Institucional')===indScope);
@@ -1288,10 +1304,29 @@ function drawSub(){
   if(indView==='mapa') return el.innerHTML=heatmapHTML();
   // tablero
   let tl=filterTipo==='all'?list:list.filter(i=>i.tipo===filterTipo);
+  if(phaseFilter!=='all') tl=tl.filter(i=>String(indPhaseIdx(i))===String(phaseFilter));
   const nlHint=searchQ&&searchQ.trim()?`<div class="nl-hint">🗣️ Interpretado: <b>${list.length}</b> indicador(es) coinciden con «${searchQ}»</div>`:'';
+  // Contador por fase DMAIC: cuántos indicadores están en cada fase + % de avance promedio
+  const baseList=filterTipo==='all'?list:list.filter(i=>i.tipo===filterTipo);
+  const phStats=PHASES.map((_,idx)=>{const arr=baseList.filter(i=>indPhaseIdx(i)===idx); const avg=arr.length?Math.round(arr.reduce((a,i)=>a+indFasePct(i),0)/arr.length):0; return {n:arr.length,avg};});
+  const doneArr=baseList.filter(i=>indPhaseIdx(i)===-1);
   el.innerHTML=`
     ${nlHint}
-    <div class="phases">${PHASES.map(p=>`<div class="phase"><div class="pn">${p.n}</div><b>${p.t}</b><span>${p.d}</span></div>`).join('')}</div>
+    <div class="phases">${PHASES.map((p,idx)=>{const s=phStats[idx]; const on=String(phaseFilter)===String(idx);
+      return `<div class="phase phase-count${on?' on':''}" onclick="setPhaseFilter(${idx})" title="${p.t}: ${p.d}">
+        <div class="pc-top"><div class="pn">${p.n}</div><span class="pc-n">${s.n}</span></div>
+        <b>${p.t}</b>
+        <div class="pc-bar"><div class="pc-fill" style="width:${s.avg}%"></div></div>
+        <span class="pc-pct">${s.avg}% avance${s.n?` · ${s.n} indic.`:''}</span>
+      </div>`;}).join('')}
+      <div class="phase phase-count phase-done${String(phaseFilter)==='done'?' on':''}" onclick="setPhaseFilter('done')" title="Indicadores con las 5 fases cerradas">
+        <div class="pc-top"><div class="pn">✓</div><span class="pc-n">${doneArr.length}</span></div>
+        <b>Completado</b>
+        <div class="pc-bar"><div class="pc-fill" style="width:100%;background:var(--ok)"></div></div>
+        <span class="pc-pct">100% · ${doneArr.length} indic.</span>
+      </div>
+    </div>
+    ${phaseFilter!=='all'?`<div class="nl-hint">🔎 Filtrando por fase: <b>${phaseFilter==='done'?'Completado':PHASES[phaseFilter].t}</b> · <a href="#" onclick="setPhaseFilter('${phaseFilter}');return false;" style="color:var(--teal)">quitar filtro</a></div>`:''}
     <div class="seg" style="margin-bottom:16px">
       <button class="${filterTipo==='all'?'on':''}" onclick="setFilter('all')">Todos</button>
       <button class="${filterTipo==='kpi'?'on':''}" onclick="setFilter('kpi')">KPI</button>
