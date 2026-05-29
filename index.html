@@ -379,7 +379,7 @@ textarea.fi{min-height:70px;resize:vertical}
         <div class="fld"><label>Contraseña</label><input id="lPass" type="password" placeholder="••••••••"></div>
         <button class="btn btn-primary" onclick="doLogin()">Ingresar →</button>
         <div class="err" id="lErr"></div>
-        <div class="hint">Admin: <b>admin</b> / <b>123</b> · Demo: <b>demo@gemses360.com</b> / <b>gemses</b></div>
+        <div class="hint">Demo (ve todo): <b>demo@gemses360.com</b> / <b>gemses</b><br>Admin de hospital (consolidado): <b>hospital@gemses360.com</b> / <b>hospital</b><br>Personal (solo lo suyo): <b>enfermeria@gemses360.com</b> / <b>enfermeria</b> · <b>emergencia@gemses360.com</b> / <b>emergencia</b><br>Admin plataforma: <b>admin</b> / <b>123</b></div>
       </div>
       <div id="regForm" class="hidden">
         <div class="fld"><label>Nombre completo</label><input id="rName" placeholder="Lic. Carlos Pérez"></div>
@@ -517,6 +517,7 @@ function planModulos(p){return p&&p.todos?PRODUCTS.map(x=>x.id):((p&&p.modulos)|
 /* ---------- ESTADO ---------- */
 let USER=null, DB=null;
 const LS_USERS='g360_users', LS_SESSION='g360_session', LS_DATA='g360_data';
+const HOSP_DEMO='Hospital III EsSalud — Cusco'; // hospital de demostración (datos compartidos entre su personal)
 
 /* ---------- Persistencia simple ---------- */
 function loadUsers(){try{return JSON.parse(lsGet(LS_USERS)||'[]')}catch(e){return[]}}
@@ -527,22 +528,36 @@ function saveData(){lsSet(LS_DATA,JSON.stringify(DB))}
 /* ---------- Seed usuarios por defecto (idempotente, se asegura en cada carga) ---------- */
 function seedUsers(){
   let us=loadUsers(), changed=false;
-  if(!us.find(u=>u.email==='demo@gemses360.com')){
-    us.push({name:'Demo GEMSES',email:'demo@gemses360.com',pass:'gemses',
-      tenant:'IPRESS / Hospital',org:'Hospital Demo GEMSES',plan:'ipress',
-      access:['formacion','indicadores','pae','plan','brecha','programacion','tablero']}); changed=true;
-  }
+  const ACC=['formacion','indicadores','pae','plan','brecha','programacion','tablero'];
+  // Demo: VISTA GLOBAL (ve todos los registros) — como está hoy
+  const dem=us.find(u=>u.email==='demo@gemses360.com');
+  if(!dem){
+    us.push({name:'Demo GEMSES',email:'demo@gemses360.com',pass:'gemses',verTodo:true,
+      tenant:'IPRESS / Hospital',org:'Hospital Demo GEMSES',plan:'ipress',access:[...ACC]}); changed=true;
+  } else if(!dem.verTodo){ dem.verTodo=true; changed=true; }
   const adm=us.find(u=>u.email==='admin');
   if(!adm){
     us.push({name:'Administrador',email:'admin',pass:'123',rol:'admin',
-      tenant:'Institucional / Red',org:'GEMSES360',plan:'institucional',
-      access:['formacion','indicadores','pae','plan','brecha','programacion','tablero']}); changed=true;
+      tenant:'Institucional / Red',org:'GEMSES360',plan:'institucional',access:[...ACC]}); changed=true;
   } else if(adm.pass!=='123'){ adm.pass='123'; adm.rol='admin'; changed=true; }
-  // Propietario (acceso por Gmail) — administrador con todos los módulos
+  // Propietario (acceso por Gmail) — administrador de plataforma con todos los módulos
   if(!us.find(u=>(u.email||'').toLowerCase()==='carlosperez100@gmail.com')){
     us.push({name:'Carlos Pérez',email:'carlosperez100@gmail.com',pass:'123',rol:'admin',
-      tenant:'Institucional / Red',org:'GEMSES360',plan:'institucional',
-      access:['formacion','indicadores','pae','plan','brecha','programacion','tablero']}); changed=true;
+      tenant:'Institucional / Red',org:'GEMSES360',plan:'institucional',access:[...ACC]}); changed=true;
+  }
+  // ADMINISTRADOR DE HOSPITAL (intermedio): ve TODO el hospital, pero no las configuraciones de plataforma
+  if(!us.find(u=>u.email==='hospital@gemses360.com')){
+    us.push({name:'Dirección del Hospital',email:'hospital@gemses360.com',pass:'hospital',rolOrg:'hadmin',
+      tenant:'IPRESS / Hospital',org:HOSP_DEMO,cargo:'DIRECTOR',onboarded:true,plan:'ipress',access:[...ACC]}); changed=true;
+  }
+  // PERSONAL del hospital (cada uno ve SOLO sus registros)
+  if(!us.find(u=>u.email==='enfermeria@gemses360.com')){
+    us.push({name:'Jefatura de Enfermería',email:'enfermeria@gemses360.com',pass:'enfermeria',rolOrg:'staff',
+      tenant:'Jefatura de Servicio',org:HOSP_DEMO,cargo:'JEFE_SERVICIO',area:'Departamento de Enfermería',onboarded:true,plan:'ipress',access:[...ACC]}); changed=true;
+  }
+  if(!us.find(u=>u.email==='emergencia@gemses360.com')){
+    us.push({name:'Jefatura de Emergencia',email:'emergencia@gemses360.com',pass:'emergencia',rolOrg:'staff',
+      tenant:'Jefatura de Servicio',org:HOSP_DEMO,cargo:'JEFE_SERVICIO',area:'Emergencia',onboarded:true,plan:'ipress',access:[...ACC]}); changed=true;
   }
   if(changed) saveUsers(us);
   return us;
@@ -573,8 +588,11 @@ function doRegister(){
 }
 function startSession(u){
   USER=u; lsSet(LS_SESSION,u.email);
-  DB=loadData(); if(!DB[u.email]) DB[u.email]={indicadores:[]};
-  if(!DB[u.email].indicadores.length) seedIndicadores(u.email);
+  DB=loadData();
+  seedHospitalDemo();                       // datos compartidos del hospital de demostración (una sola vez)
+  if(!DB[u.email]) DB[u.email]={indicadores:[]};
+  // El admin de hospital y la vista global NO siembran datos propios: solo consolidan los del personal
+  if(!DB[u.email].indicadores.length && !verGlobal() && !verHospital()) seedIndicadores(u.email);
   if(!DB[u.email].catalogos) DB[u.email].catalogos=defaultCatalogos();
   migrateData(u.email);
   saveData();
@@ -690,7 +708,7 @@ function nav(v){
 /* ---------- DASHBOARD ---------- */
 function renderDashboard(){
   pgTitle.textContent='Inicio'; pgSub.textContent='Tu centro de control GEMSES360';
-  const inds=DB[USER.email].indicadores||[];
+  const indsList=inds();
   const activos=PRODUCTS.filter(p=>hasAccess(p.id)).length;
   content.innerHTML=`
     <div class="welcome">
@@ -698,7 +716,7 @@ function renderDashboard(){
       <p>Gestiona todos tus productos GEMSES en un solo lugar. Estás operando como <b>${USER.tenant}</b>${USER.org&&USER.org!=='—'?' · '+USER.org:''}.</p>
       <div class="wstats">
         <div class="wstat"><b>${activos}</b><span>Módulos activos</span></div>
-        <div class="wstat"><b>${inds.length}</b><span>Indicadores cargados</span></div>
+        <div class="wstat"><b>${indsList.length}</b><span>Indicadores ${vistaScope()==='propio'?'cargados':'(consolidado)'}</span></div>
         <div class="wstat"><b>${planName(USER.plan)}</b><span>Plan actual</span></div>
       </div>
     </div>
@@ -897,6 +915,8 @@ function adminCreateCode(){
    - Origen del acceso: pago, código o asignación manual + vigencia
    ============================================================ */
 const ROLES={'':'Usuario',gestor:'Gestor',admin:'Administrador'};
+/* Visibilidad de registros (row-level): qué alcance tiene cada usuario */
+const VIS_ORG={'':'Personal (solo lo suyo)',hadmin:'Admin de Hospital (todo el hospital)',global:'Vista global (todo)'};
 function saveUserRecord(u){
   let us=loadUsers(); const i=us.findIndex(x=>(x.email||'').toLowerCase()===(u.email||'').toLowerCase());
   if(i>=0) us[i]=u; else us.push(u);
@@ -930,6 +950,9 @@ function renderAdmin(){
       <td style="padding:8px"><select class="fi" style="padding:5px;font-size:12px" onchange="adminSetRol('${u.email}',this.value)">
         ${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${(u.rol||'')===k?'selected':''}>${v}</option>`).join('')}
       </select></td>
+      <td style="padding:8px"><select class="fi" style="padding:5px;font-size:12px" onchange="adminSetVis('${u.email}',this.value)" title="${escHtml(u.org||'')}">
+        ${Object.entries(VIS_ORG).map(([k,v])=>`<option value="${k}" ${(u.rol==='admin'?'global':(u.verTodo?'global':(u.rolOrg||'')))===k?'selected':''}>${v}</option>`).join('')}
+      </select></td>
       <td style="padding:8px"><select class="fi" style="padding:5px;font-size:12px" onchange="adminSetPlan('${u.email}',this.value)">
         ${Object.entries(PLANS).map(([k,v])=>`<option value="${k}" ${u.plan===k?'selected':''}>${v.name}</option>`).join('')}
       </select></td>
@@ -958,7 +981,7 @@ function renderAdmin(){
     <div class="prod" style="padding:8px;overflow:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12.5px">
         <thead><tr style="text-align:left;border-bottom:2px solid var(--line)">
-          <th style="padding:8px">Usuario</th><th style="padding:8px">Rol</th><th style="padding:8px">Plan</th>${th}<th></th>
+          <th style="padding:8px">Usuario</th><th style="padding:8px">Rol</th><th style="padding:8px">Visibilidad</th><th style="padding:8px">Plan</th>${th}<th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1045,6 +1068,15 @@ function adminSetAccess(email,pid,on){
 function adminSetRol(email,rol){
   const us=loadUsers(); const u=us.find(x=>x.email===email); if(!u)return;
   u.rol=rol||''; saveUserRecord(u); renderAdmin(); toast('Rol actualizado: '+ROLES[rol||'']);
+}
+/* Visibilidad de registros: Personal / Admin de Hospital / Vista global */
+function adminSetVis(email,vis){
+  const us=loadUsers(); const u=us.find(x=>x.email===email); if(!u)return;
+  if(vis==='global'){ u.verTodo=true; u.rolOrg=''; }
+  else if(vis==='hadmin'){ u.rolOrg='hadmin'; u.verTodo=false;
+    if(!u.org||u.org==='—'||u.org==='GEMSES360'){ toast('⚠ Asigna primero el hospital (org) de este usuario'); }
+  } else { u.rolOrg=''; u.verTodo=false; }
+  saveUserRecord(u); renderAdmin(); toast('Visibilidad actualizada: '+VIS_ORG[vis||'']);
 }
 function adminSetPlan(email,plan){
   const us=loadUsers(); const u=us.find(x=>x.email===email); if(!u)return;
@@ -1272,11 +1304,12 @@ function userRoleScope(){
   return {rol:'Responsable de tema',alcance:'Indicadores asignados',drill:false};
 }
 
-function seedIndicadores(email){
+function seedIndicadores(email){ DB[email].indicadores=defaultIndicadores(); }
+function defaultIndicadores(){
   // periodos mensuales 2026 con fecha inicio/fin reales
   const MES=[['Ene 2026','2026-01-01','2026-01-31'],['Feb 2026','2026-02-01','2026-02-28'],['Mar 2026','2026-03-01','2026-03-31'],['Abr 2026','2026-04-01','2026-04-30'],['May 2026','2026-05-01','2026-05-31']];
   const med=(vals,metodo)=>vals.map((v,k)=>({p:MES[k][0],ini:MES[k][1],fin:MES[k][2],v,metodo:metodo||'manual'}));
-  DB[email].indicadores=[
+  return [
     {id:uid(),creado:'2025-12-15',nombre:'Oportunidad de atención en Emergencia',tipo:'kpi',dim:'Tiempo',ambito:'Emergencia',persp:'Misional',unidad:'min',
      formula:'Promedio de minutos desde triaje hasta atención médica',fuente:'Sistema de triaje',
      responsable:'Jefatura de Emergencia',frecuencia:'Mensual',meta:15,sentido:'menor',
@@ -1307,8 +1340,56 @@ function seedIndicadores(email){
      fases:[true,true,false,false,false],mediciones:med([4,5,5,6,7],'manual')},
   ];
 }
+/* Hospital de demostración: datos repartidos entre el personal del mismo hospital,
+   para mostrar el consolidado del administrador de hospital vs. lo que ve cada persona. */
+function seedHospitalDemo(){
+  if(DB.__hospitalSeed) return;                  // se ejecuta una sola vez
+  const all=defaultIndicadores();
+  const deEmergencia=['Oportunidad de atención en Emergencia','Tasa de eventos adversos','Costo promedio por egreso hospitalario'];
+  const emerInds=all.filter(i=>deEmergencia.includes(i.nombre));
+  const enfInds =all.filter(i=>!deEmergencia.includes(i.nombre));
+  DB['emergencia@gemses360.com']={indicadores:emerInds, catalogos:defaultCatalogos()};
+  DB['enfermeria@gemses360.com']={indicadores:enfInds,  catalogos:defaultCatalogos()};
+  DB.__hospitalSeed=true;
+}
 function uid(){return 'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-function inds(){return DB[USER.email].indicadores||[]}
+/* ============================================================
+   VISIBILIDAD DE REGISTROS (row-level security)
+   - Personal: ve SOLO sus registros (DB[su email]).
+   - Administrador de Hospital (rolOrg='hadmin'): ve TODOS los registros
+     de los usuarios cuyo hospital (org) coincide con el suyo.
+   - Vista global (rol='admin' de plataforma o verTodo=true como Demo): ve TODO.
+   ============================================================ */
+function verGlobal(){ return !!(USER&&(USER.rol==='admin'||USER.verTodo===true)); }
+function verHospital(){ return !!(USER&&USER.rolOrg==='hadmin'); }
+function userByEmail(e){ return loadUsers().find(x=>(x.email||'').toLowerCase()===(e||'').toLowerCase())||null; }
+function ownInds(){ return (DB[USER.email]&&DB[USER.email].indicadores)||[]; }
+/* emails cuyos registros puede ver el usuario actual */
+function ownersVisibles(){
+  const all=Object.keys(DB).filter(k=>DB[k]&&Array.isArray(DB[k].indicadores));
+  if(verGlobal()) return all;
+  if(verHospital()){
+    const org=(USER.org||'').trim().toLowerCase();
+    if(!org) return [USER.email];
+    return all.filter(e=>{const u=userByEmail(e); return u&&(u.org||'').trim().toLowerCase()===org;});
+  }
+  return [USER.email];
+}
+/* lista de indicadores visibles (etiquetados con su propietario cuando es consolidado) */
+function inds(){
+  if(!verGlobal()&&!verHospital()) return ownInds();
+  const out=[];
+  ownersVisibles().forEach(e=>{ const u=userByEmail(e);
+    (DB[e].indicadores||[]).forEach(i=>{ i._owner=e; i._ownerName=(u&&(u.name||u.org))||e; out.push(i); }); });
+  return out;
+}
+/* localiza el array (de un propietario) que contiene el indicador, para editar/eliminar */
+function indOwnerArr(id){
+  for(const e of ownersVisibles()){ const arr=DB[e]&&DB[e].indicadores; if(arr&&arr.some(x=>x.id===id)) return arr; }
+  return ownInds();
+}
+function indOwnerName(i){ return (i&&i._ownerName)||(USER&&(USER.name||USER.email))||'—'; }
+function vistaScope(){ return verGlobal()?'global':verHospital()?'hospital':'propio'; }
 
 let filterTipo='all', searchQ='', indView='tablero', indScope='all', phaseFilter='all';
 /* ---------- INFORME: estado de filtros + ponderaciones GEMSES + config IA ---------- */
@@ -1343,14 +1424,16 @@ function renderIndicadores(){
   const enMeta=list.filter(i=>statusOf(i).s==='ok').length;
   const scopeOpts=['all',...getAmbitos()].map(a=>`<option value="${a}" ${indScope===a?'selected':''}>${a==='all'?'🏥 Todos los ámbitos (consolidado)':a}</option>`).join('');
   const hospName=(USER.org&&USER.org!=='—'&&USER.org!=='GEMSES360')?USER.org:'Institución no definida';
-  const cargoLabel=USER.cargo?cargoMeta(USER.cargo).label:rs.rol;
+  const nOwners=ownersVisibles().length;
+  const cargoLabel=verGlobal()?'Vista global':verHospital()?'Administrador del Hospital':(USER.cargo?cargoMeta(USER.cargo).label:rs.rol);
   const alcance=USER.area?USER.area:(USER.cargo?cargoMeta(USER.cargo).scope:rs.alcance);
   const ambitoTxt=indScope==='all'?'Todos los ámbitos (consolidado)':indScope;
+  const visTxt=verGlobal()?`👁️ Consolidado global · ${nOwners} usuario(s)`:verHospital()?`👁️ Consolidado del hospital · ${nOwners} usuario(s)`:'🔒 Solo tus registros';
   content.innerHTML=`
     <div class="access-bar">
       <div class="ab-role">
         <div class="ab-hosp">🏥 <b>${escHtml(hospName)}</b></div>
-        <div class="ab-cargo">🔐 ${escHtml(cargoLabel)}</div>
+        <div class="ab-cargo">🔐 ${escHtml(cargoLabel)} · <span style="color:var(--navy)">${visTxt}</span></div>
         <div class="ab-alcance">Alcance: ${escHtml(alcance)} · Ámbito: ${escHtml(ambitoTxt)}</div>
       </div>
       <div class="ab-scope">
@@ -2016,15 +2099,18 @@ function renderInforme(){
       <div class="kx">${x.n} indic. · ${x.enMeta} en meta · ${x.conDato} con dato</div>
     </div>`;}).join('');
   // Tabla de indicadores
-  const tHead=`<tr><th>Indicador</th><th>Tipo</th><th>Dimensión</th><th>Ámbito</th><th>Macroproceso</th><th style="text-align:right">Meta</th><th style="text-align:right">Valor periodo</th><th style="text-align:right">Logro</th><th>Estado</th></tr>`;
+  const showOwner=verGlobal()||verHospital();
+  const tHead=`<tr><th>Indicador</th><th>Tipo</th><th>Dimensión</th><th>Ámbito</th><th>Macroproceso</th>${showOwner?'<th>Registrado por</th>':''}<th style="text-align:right">Meta</th><th style="text-align:right">Valor periodo</th><th style="text-align:right">Logro</th><th>Estado</th></tr>`;
+  const nCols=showOwner?10:9;
   const tRows=R.filas.length?R.filas.map(f=>{const c=colorLogro(f.logro);const est=f.logro==null?'Sin dato':f.logro>=100?'En meta':f.logro>=85?'En alerta':'Crítico';
     return `<tr style="cursor:pointer" onclick="openDetail('${f.i.id}')">
       <td><b>${esc(f.i.nombre)}</b></td><td>${TIPOS[f.i.tipo].l}</td><td>${esc(f.i.dim||'—')}</td>
       <td style="font-size:11px">${esc(f.i.ambito||'—')}</td><td style="font-size:11px">${esc(f.i.persp||'—')}</td>
+      ${showOwner?`<td style="font-size:11px">${esc(indOwnerName(f.i))}</td>`:''}
       <td style="text-align:right">${f.i.meta} ${esc(f.i.unidad||'')}</td>
       <td style="text-align:right">${f.valor==null?'—':esc(String(f.valor))+' '+esc(f.i.unidad||'')}</td>
       <td style="text-align:right;font-weight:800;color:${c}">${f.logro==null?'—':f.logro+'%'}</td>
-      <td><span style="color:${c};font-weight:700">${est}</span></td></tr>`;}).join(''):`<tr><td colspan="9" style="color:var(--muted)">No hay indicadores que coincidan con los filtros.</td></tr>`;
+      <td><span style="color:${c};font-weight:700">${est}</span></td></tr>`;}).join(''):`<tr><td colspan="${nCols}" style="color:var(--muted)">No hay indicadores que coincidan con los filtros.</td></tr>`;
   const idxColor=colorLogro(R.indice);
   content.innerHTML=`
     <div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="renderIndicadores()">← Volver</button>
@@ -2211,7 +2297,7 @@ function exportInformeWord(){
   const dimRows=R.DIMS.map(d=>{const x=R.porDim[d];
     return `<tr><td>${escHtml(d)}</td><td style="text-align:center">${pesoDim(d)}%</td><td style="text-align:center">${x.prom==null?'—':x.prom+'%'}</td><td style="text-align:center">${x.n}</td><td style="text-align:center">${x.enMeta}</td><td style="text-align:center">${x.conDato}</td></tr>`;}).join('');
   const indRows=R.filas.map((f,k)=>{const i=f.i; const est=f.logro==null?'Sin dato':f.logro>=100?'En meta':f.logro>=85?'En alerta':'Crítico';
-    return `<tr><td style="text-align:center">${k+1}</td><td>${escHtml(i.nombre)}</td><td>${TIPOS[i.tipo]?TIPOS[i.tipo].l:escHtml(i.tipo)}</td><td>${escHtml(i.dim||'—')}</td><td>${escHtml(i.ambito||'—')}</td><td>${escHtml(i.persp||'—')}</td><td style="text-align:right">${i.meta} ${escHtml(i.unidad||'')}</td><td style="text-align:right">${f.valor==null?'—':escHtml(String(f.valor))}</td><td style="text-align:right">${f.logro==null?'—':f.logro+'%'}</td><td>${est}</td></tr>`;}).join('');
+    return `<tr><td style="text-align:center">${k+1}</td><td>${escHtml(i.nombre)}</td><td>${TIPOS[i.tipo]?TIPOS[i.tipo].l:escHtml(i.tipo)}</td><td>${escHtml(i.dim||'—')}</td><td>${escHtml(i.ambito||'—')}</td><td>${escHtml(i.persp||'—')}</td><td>${escHtml(indOwnerName(i))}</td><td style="text-align:right">${i.meta} ${escHtml(i.unidad||'')}</td><td style="text-align:right">${f.valor==null?'—':escHtml(String(f.valor))}</td><td style="text-align:right">${f.logro==null?'—':f.logro+'%'}</td><td>${est}</td></tr>`;}).join('');
   const serie=tendenciaData();
   const trendRows=serie.length?serie.map(p=>`<tr><td>${escHtml(p.label)}</td><td style="text-align:center">${p.prom==null?'—':p.prom+'%'}</td><td style="text-align:center">${p.dimProm.Tiempo==null?'—':p.dimProm.Tiempo+'%'}</td><td style="text-align:center">${p.dimProm.Calidad==null?'—':p.dimProm.Calidad+'%'}</td><td style="text-align:center">${p.dimProm.Costo==null?'—':p.dimProm.Costo+'%'}</td><td style="text-align:center">${p.dimProm['Satisfacción']==null?'—':p.dimProm['Satisfacción']+'%'}</td><td style="text-align:center">${p.n}</td></tr>`).join(''):`<tr><td colspan="7">Sin mediciones en el periodo.</td></tr>`;
   const detalle=R.filas.map((f,k)=>{const i=f.i;
@@ -2221,7 +2307,7 @@ function exportInformeWord(){
     const plan=(i.plan||[]).map(a=>`<tr><td>${escHtml(a.what||'')}</td><td>${escHtml(a.how||'')}</td><td>${escHtml(a.who||'')}</td><td>${escHtml(a.nivel||'')}</td><td>${escHtml(a.ini||'')} → ${escHtml(a.fin||'')}</td><td>${escHtml(a.estado||'')}</td><td style="text-align:right">${a.avance==null?'—':a.avance+'%'}</td></tr>`).join('')||`<tr><td colspan="7">Sin plan 5W+2H registrado.</td></tr>`;
     const fases=(i.fases||[]).map((b,idx)=>`${PHASES[idx]?PHASES[idx].t:('F'+(idx+1))}: ${b?'✔':'○'}`).join(' · ');
     return `<h3>${k+1}. ${escHtml(i.nombre)}</h3>
-      <p><b>Tipo:</b> ${TIPOS[i.tipo]?TIPOS[i.tipo].l:escHtml(i.tipo)} · <b>Dimensión:</b> ${escHtml(i.dim||'—')} · <b>Ámbito:</b> ${escHtml(i.ambito||'—')} · <b>Macroproceso:</b> ${escHtml(i.persp||'—')}</p>
+      <p><b>Tipo:</b> ${TIPOS[i.tipo]?TIPOS[i.tipo].l:escHtml(i.tipo)} · <b>Dimensión:</b> ${escHtml(i.dim||'—')} · <b>Ámbito:</b> ${escHtml(i.ambito||'—')} · <b>Macroproceso:</b> ${escHtml(i.persp||'—')} · <b>Registrado por:</b> ${escHtml(indOwnerName(i))}</p>
       <p><b>Fórmula:</b> ${escHtml(i.formula||'—')}<br><b>Fuente:</b> ${escHtml(i.fuente||'—')} · <b>Responsable:</b> ${escHtml(i.responsable||'—')} · <b>Frecuencia:</b> ${escHtml(i.frecuencia||'—')}<br><b>Meta:</b> ${i.meta} ${escHtml(i.unidad||'')} (sentido: ${escHtml(i.sentido||'')}) · <b>Logro en el periodo:</b> ${f.logro==null?'—':f.logro+'%'}</p>
       <p><b>Fases DMAIC (${fasePct(i)}% — fase actual: ${escHtml(faseActualTxt(i))}):</b> ${fases}</p>
       <p style="margin-bottom:2px"><b>Mediciones</b></p><table border="1">${medHead}${med}</table>
@@ -2239,7 +2325,7 @@ function exportInformeWord(){
   <p class="muted">Evolución del % de logro promedio por periodo (todos los indicadores filtrados).</p>
   <table><tr><th>Periodo</th><th>Logro global</th><th>Tiempo</th><th>Calidad</th><th>Costo</th><th>Satisfacción</th><th># Mediciones</th></tr>${trendRows}</table>
   <h2>Resumen de indicadores (${R.filas.length})</h2>
-  <table><tr><th>#</th><th>Indicador</th><th>Tipo</th><th>Dim.</th><th>Ámbito</th><th>Macroproceso</th><th>Meta</th><th>Valor</th><th>Logro</th><th>Estado</th></tr>${indRows}</table>
+  <table><tr><th>#</th><th>Indicador</th><th>Tipo</th><th>Dim.</th><th>Ámbito</th><th>Macroproceso</th><th>Registrado por</th><th>Meta</th><th>Valor</th><th>Logro</th><th>Estado</th></tr>${indRows}</table>
   <h2>Ficha técnica y seguimiento por indicador</h2>
   ${detalle}
   <p class="muted" style="margin-top:20px">Documento generado automáticamente por GEMSES360 · ${escHtml(M.generado)}</p>
@@ -2279,19 +2365,19 @@ function exportInformeExcel(){
   resumen+=xHeadRow(['Dimensión','Peso %','Promedio logro %','# Indicadores','En meta','Con dato']);
   R.DIMS.forEach(d=>{const x=R.porDim[d]; resumen+=xRow([d,pesoDim(d),x.prom==null?'':x.prom,x.n,x.enMeta,x.conDato]);});
   // --- Hoja Indicadores (todos los campos) ---
-  let indSheet=xHeadRow(['#','Nombre','Tipo','Dimensión','Ámbito','Macroproceso','Unidad','Meta','Sentido','Fórmula','Fuente','Responsable','Frecuencia','Creado','Valor (periodo)','Logro % (periodo)','Estado periodo','Último valor','Logro % (último)','Fase actual','% Avance fases','# Mediciones','# Acciones plan']);
+  let indSheet=xHeadRow(['#','Registrado por','Nombre','Tipo','Dimensión','Ámbito','Macroproceso','Unidad','Meta','Sentido','Fórmula','Fuente','Responsable','Frecuencia','Creado','Valor (periodo)','Logro % (periodo)','Estado periodo','Último valor','Logro % (último)','Fase actual','% Avance fases','# Mediciones','# Acciones plan']);
   R.filas.forEach((f,k)=>{const i=f.i, st=statusOf(i);
     const est=f.logro==null?'Sin dato':f.logro>=100?'En meta':f.logro>=85?'En alerta':'Crítico';
-    indSheet+=xRow([k+1,i.nombre,TIPOS[i.tipo]?TIPOS[i.tipo].l:i.tipo,i.dim||'',i.ambito||'',i.persp||'',i.unidad||'',i.meta,i.sentido||'',i.formula||'',i.fuente||'',i.responsable||'',i.frecuencia||'',i.creado||'',f.valor==null?'':f.valor,f.logro==null?'':f.logro,est,st.last==null?'':st.last,st.last==null?'':st.pct,faseActualTxt(i),fasePct(i),(i.mediciones||[]).length,(i.plan||[]).length]);});
+    indSheet+=xRow([k+1,indOwnerName(i),i.nombre,TIPOS[i.tipo]?TIPOS[i.tipo].l:i.tipo,i.dim||'',i.ambito||'',i.persp||'',i.unidad||'',i.meta,i.sentido||'',i.formula||'',i.fuente||'',i.responsable||'',i.frecuencia||'',i.creado||'',f.valor==null?'':f.valor,f.logro==null?'':f.logro,est,st.last==null?'':st.last,st.last==null?'':st.pct,faseActualTxt(i),fasePct(i),(i.mediciones||[]).length,(i.plan||[]).length]);});
   // --- Hoja Mediciones ---
-  let medSheet=xHeadRow(['Indicador','Tipo','Dimensión','Periodo','Desde','Hasta','Valor','Unidad','Método','Servicio/Área/Unidad']);
-  list.forEach(i=>{(i.mediciones||[]).forEach(m=>{ medSheet+=xRow([i.nombre,TIPOS[i.tipo]?TIPOS[i.tipo].l:i.tipo,i.dim||'',m.p||'',m.ini||'',m.fin||'',m.v,i.unidad||'',m.metodo||'',m.lugar||'']); });});
+  let medSheet=xHeadRow(['Registrado por','Indicador','Tipo','Dimensión','Periodo','Desde','Hasta','Valor','Unidad','Método','Servicio/Área/Unidad']);
+  list.forEach(i=>{(i.mediciones||[]).forEach(m=>{ medSheet+=xRow([indOwnerName(i),i.nombre,TIPOS[i.tipo]?TIPOS[i.tipo].l:i.tipo,i.dim||'',m.p||'',m.ini||'',m.fin||'',m.v,i.unidad||'',m.metodo||'',m.lugar||'']); });});
   // --- Hoja Plan 5W2H ---
-  let planSheet=xHeadRow(['Indicador','Qué (What)','Cómo (How)','Quién (Who)','Nivel','Desde (When)','Hasta (When)','Estado','% Avance']);
-  list.forEach(i=>{(i.plan||[]).forEach(a=>{ planSheet+=xRow([i.nombre,a.what||'',a.how||'',a.who||'',a.nivel||'',a.ini||'',a.fin||'',a.estado||'',a.avance==null?'':a.avance]); });});
+  let planSheet=xHeadRow(['Registrado por','Indicador','Qué (What)','Cómo (How)','Quién (Who)','Nivel','Desde (When)','Hasta (When)','Estado','% Avance']);
+  list.forEach(i=>{(i.plan||[]).forEach(a=>{ planSheet+=xRow([indOwnerName(i),i.nombre,a.what||'',a.how||'',a.who||'',a.nivel||'',a.ini||'',a.fin||'',a.estado||'',a.avance==null?'':a.avance]); });});
   // --- Hoja Fases DMAIC ---
-  let faseSheet=xHeadRow(['Indicador','1 Definir','2 Medir','3 Analizar','4 Implementar','5 Controlar','% Avance','Fase actual']);
-  list.forEach(i=>{const f=i.fases||[]; faseSheet+=xRow([i.nombre,f[0]?'Sí':'No',f[1]?'Sí':'No',f[2]?'Sí':'No',f[3]?'Sí':'No',f[4]?'Sí':'No',fasePct(i),faseActualTxt(i)]);});
+  let faseSheet=xHeadRow(['Registrado por','Indicador','1 Definir','2 Medir','3 Analizar','4 Implementar','5 Controlar','% Avance','Fase actual']);
+  list.forEach(i=>{const f=i.fases||[]; faseSheet+=xRow([indOwnerName(i),i.nombre,f[0]?'Sí':'No',f[1]?'Sí':'No',f[2]?'Sí':'No',f[3]?'Sí':'No',f[4]?'Sí':'No',fasePct(i),faseActualTxt(i)]);});
   // --- Hoja Catálogos ---
   let catSheet=xHeadRow(['Catálogo','Valores']);
   catSheet+=xRow(['Ámbitos / Niveles',getAmbitos().join(', ')]);
@@ -2342,7 +2428,7 @@ function handleCSV(input){
     const head=rows[0].map(h=>h.trim().toLowerCase());
     const idx=n=>head.indexOf(n);
     const get=(r,n)=>{const j=idx(n);return j>=0?(r[j]||'').trim():'';};
-    const arr=inds(); let added=0;
+    const arr=ownInds(); let added=0;   // importar siempre a los registros propios
     for(let k=1;k<rows.length;k++){const r=rows[k]; const nombre=get(r,'nombre'); if(!nombre)continue;
       const tipo=(get(r,'tipo')||'kpi').toLowerCase();
       const med=[]; const ms=get(r,'mediciones');
@@ -2545,7 +2631,7 @@ function addMedicion(id){
   saveData();openDetail(id);drawIndList();
   toast(i.fases[0]?'Medición registrada':'Medición registrada — cierra antes la fase Definir');
 }
-function delInd(id){DB[USER.email].indicadores=inds().filter(x=>x.id!==id);saveData();closeModal();renderIndicadores();toast('Indicador eliminado');}
+function delInd(id){const arr=indOwnerArr(id);const k=arr.findIndex(x=>x.id===id);if(k>=0)arr.splice(k,1);saveData();closeModal();renderIndicadores();toast('Indicador eliminado');}
 
 /* ---------- FORM NUEVO/EDITAR ---------- */
 function openIndForm(id){
