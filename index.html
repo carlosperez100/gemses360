@@ -534,6 +534,7 @@ function startSession(u){
   DB=loadData(); if(!DB[u.email]) DB[u.email]={indicadores:[]};
   if(!DB[u.email].indicadores.length) seedIndicadores(u.email);
   if(!DB[u.email].catalogos) DB[u.email].catalogos=defaultCatalogos();
+  migrateData(u.email);
   saveData();
   document.getElementById('auth').style.display='none';
   app.style.display='block';
@@ -1117,15 +1118,28 @@ const TIPOS={kpi:{l:'KPI',d:'Capacidad / Rendimiento'},kri:{l:'KRI',d:'Riesgo'},
    Valores por defecto; el usuario puede agregar/quitar alternativas desde ⚙ Catálogos. */
 const DIMS_DEF=['Tiempo','Calidad','Costo','Satisfacción'];
 const AMBITOS_DEF=['Institucional','Consulta Externa','Emergencia','Hospitalización','UCI','Departamento de Enfermería']; // RBAC drill-down
-const PERSP_DEF=['Resultados al Paciente','Procesos Internos','Económico-Financiero','Aprendizaje y Personal']; // Balanced Scorecard
+const PERSP_DEF=['Estratégico','Misional','Soporte']; // Macroprocesos Modelo GEMSES
 const FREC_DEF=['Diaria','Semanal','Mensual','Trimestral','Semestral','Anual'];
 const CAT_META=[
   {key:'ambitos',label:'Ámbito / Nivel (drill-down)',icon:'📍',def:AMBITOS_DEF},
   {key:'dimensiones',label:'Dimensión GEMSES',icon:'📐',def:DIMS_DEF},
-  {key:'perspectivas',label:'Perspectiva (Balanced Scorecard)',icon:'🎯',def:PERSP_DEF},
+  {key:'perspectivas',label:'Perspectiva / Macroproceso GEMSES (Estratégico, Misional, Soporte)',icon:'🎯',def:PERSP_DEF},
   {key:'frecuencias',label:'Frecuencia de medición',icon:'⏱️',def:FREC_DEF},
 ];
 function defaultCatalogos(){return{ambitos:[...AMBITOS_DEF],dimensiones:[...DIMS_DEF],perspectivas:[...PERSP_DEF],frecuencias:[...FREC_DEF]};}
+/* Migración: Balanced Scorecard antiguo → Macroprocesos GEMSES y estados de acción */
+const PERSP_MIGRA={'Resultados al Paciente':'Misional','Procesos Internos':'Misional','Económico-Financiero':'Soporte','Aprendizaje y Personal':'Estratégico'};
+function migrateData(email){
+  const d=DB&&DB[email]; if(!d)return;
+  const oldBSC=['Resultados al Paciente','Procesos Internos','Económico-Financiero','Aprendizaje y Personal'];
+  if(d.catalogos&&Array.isArray(d.catalogos.perspectivas)&&d.catalogos.perspectivas.length===4&&oldBSC.every((x,i)=>d.catalogos.perspectivas[i]===x)){
+    d.catalogos.perspectivas=[...PERSP_DEF];
+  }
+  (d.indicadores||[]).forEach(i=>{
+    if(PERSP_MIGRA[i.persp]) i.persp=PERSP_MIGRA[i.persp];
+    (i.plan||[]).forEach(a=>{ if(a.estado==='En curso') a.estado='En proceso'; });
+  });
+}
 function catList(key){
   const c=(DB&&USER&&DB[USER.email]&&DB[USER.email].catalogos)||null;
   const meta=CAT_META.find(m=>m.key===key);
@@ -1135,7 +1149,7 @@ function getAmbitos(){return catList('ambitos');}
 function getDims(){return catList('dimensiones');}
 function getPersp(){return catList('perspectivas');}
 function getFrec(){return catList('frecuencias');}
-const PERSP_COLOR={'Resultados al Paciente':'#028090','Procesos Internos':'#7A5BD6','Económico-Financiero':'#E0A21A','Aprendizaje y Personal':'#1E9E6A'};
+const PERSP_COLOR={'Estratégico':'#7A5BD6','Misional':'#028090','Soporte':'#E0A21A'};
 const PALETTE=['#028090','#7A5BD6','#E0A21A','#1E9E6A','#00A8CC','#D64545','#F0B429','#13294B'];
 function perspColor(p){ if(PERSP_COLOR[p])return PERSP_COLOR[p]; const i=getPersp().indexOf(p); return PALETTE[(i<0?0:i)%PALETTE.length]; }
 /* Causa-raíz sugerida por dimensión (Ishikawa) */
@@ -1161,31 +1175,31 @@ function seedIndicadores(email){
   const MES=[['Ene 2026','2026-01-01','2026-01-31'],['Feb 2026','2026-02-01','2026-02-28'],['Mar 2026','2026-03-01','2026-03-31'],['Abr 2026','2026-04-01','2026-04-30'],['May 2026','2026-05-01','2026-05-31']];
   const med=(vals,metodo)=>vals.map((v,k)=>({p:MES[k][0],ini:MES[k][1],fin:MES[k][2],v,metodo:metodo||'manual'}));
   DB[email].indicadores=[
-    {id:uid(),creado:'2025-12-15',nombre:'Oportunidad de atención en Emergencia',tipo:'kpi',dim:'Tiempo',ambito:'Emergencia',persp:'Procesos Internos',unidad:'min',
+    {id:uid(),creado:'2025-12-15',nombre:'Oportunidad de atención en Emergencia',tipo:'kpi',dim:'Tiempo',ambito:'Emergencia',persp:'Misional',unidad:'min',
      formula:'Promedio de minutos desde triaje hasta atención médica',fuente:'Sistema de triaje',
      responsable:'Jefatura de Emergencia',frecuencia:'Mensual',meta:15,sentido:'menor',
      fases:[true,true,true,false,false],mediciones:med([22,20,18,17,16],'manual')},
-    {id:uid(),creado:'2025-12-15',nombre:'Satisfacción del usuario externo',tipo:'kpi',dim:'Satisfacción',ambito:'Institucional',persp:'Resultados al Paciente',unidad:'%',
+    {id:uid(),creado:'2025-12-15',nombre:'Satisfacción del usuario externo',tipo:'kpi',dim:'Satisfacción',ambito:'Institucional',persp:'Misional',unidad:'%',
      formula:'(Usuarios satisfechos / total encuestados) × 100',fuente:'Encuesta SERVQUAL',
      responsable:'Calidad',frecuencia:'Mensual',meta:85,sentido:'mayor',
      fases:[true,true,true,true,false],mediciones:med([78,80,82,84,86],'encuesta'),
      plan:[{id:uid(),what:'Reducir tiempos de espera en admisión',how:'Ventanilla preferencial + señalética',who:'Jefatura de Admisión',nivel:'Procesos',ini:'2026-04-01',fin:'2026-05-15',estado:'Hecho',avance:100},
-           {id:uid(),what:'Capacitar en trato al usuario',how:'Taller de calidez y comunicación',who:'Calidad',nivel:'Actividades',ini:'2026-04-10',fin:'2026-05-20',estado:'En curso',avance:60}]},
-    {id:uid(),creado:'2025-12-20',nombre:'Tasa de eventos adversos',tipo:'kri',dim:'Calidad',ambito:'Hospitalización',persp:'Resultados al Paciente',unidad:'x1000',
+           {id:uid(),what:'Capacitar en trato al usuario',how:'Taller de calidez y comunicación',who:'Calidad',nivel:'Actividades',ini:'2026-04-10',fin:'2026-05-20',estado:'En proceso',avance:60}]},
+    {id:uid(),creado:'2025-12-20',nombre:'Tasa de eventos adversos',tipo:'kri',dim:'Calidad',ambito:'Hospitalización',persp:'Misional',unidad:'x1000',
      formula:'(N° eventos adversos / total egresos) × 1000',fuente:'Reporte de seguridad',
      responsable:'Seguridad del paciente',frecuencia:'Mensual',meta:5,sentido:'menor',
      fases:[true,true,false,false,false],mediciones:med([9,8,7,8,6],'manual')},
-    {id:uid(),creado:'2025-11-30',nombre:'Cumplimiento de protocolos de bioseguridad',tipo:'kci',dim:'Calidad',ambito:'UCI',persp:'Procesos Internos',unidad:'%',
+    {id:uid(),creado:'2025-11-30',nombre:'Cumplimiento de protocolos de bioseguridad',tipo:'kci',dim:'Calidad',ambito:'UCI',persp:'Misional',unidad:'%',
      formula:'(Ítems cumplidos / total auditados) × 100',fuente:'Lista de verificación',
      responsable:'Supervisión de Enfermería',frecuencia:'Mensual',meta:95,sentido:'mayor',
      fases:[true,true,true,true,true],mediciones:med([88,90,93,94,96],'manual'),
      plan:[{id:uid(),what:'Auditorías semanales de bioseguridad',how:'Checklist por turno + retroalimentación',who:'Supervisión de Enfermería',nivel:'Procesos',ini:'2026-02-01',fin:'2026-04-30',estado:'Hecho',avance:100}],
      control:{verificado:true,fecha:'2026-05-10',baseV:88,postV:96,mejoro:true,observacion:'Las auditorías semanales elevaron el cumplimiento por encima de la meta (95%). Estandarizar el checklist.'}},
-    {id:uid(),creado:'2025-12-20',nombre:'Costo promedio por egreso hospitalario',tipo:'kpi',dim:'Costo',ambito:'Hospitalización',persp:'Económico-Financiero',unidad:'S/',
+    {id:uid(),creado:'2025-12-20',nombre:'Costo promedio por egreso hospitalario',tipo:'kpi',dim:'Costo',ambito:'Hospitalización',persp:'Soporte',unidad:'S/',
      formula:'Gasto total de hospitalización / N° egresos',fuente:'Sistema de costos',
      responsable:'Administración',frecuencia:'Mensual',meta:1200,sentido:'menor',
      fases:[true,true,false,false,false],mediciones:med([1450,1380,1300,1250,1220],'manual')},
-    {id:uid(),creado:'2026-01-10',nombre:'Horas de capacitación por enfermera',tipo:'kpi',dim:'Calidad',ambito:'Departamento de Enfermería',persp:'Aprendizaje y Personal',unidad:'h',
+    {id:uid(),creado:'2026-01-10',nombre:'Horas de capacitación por enfermera',tipo:'kpi',dim:'Calidad',ambito:'Departamento de Enfermería',persp:'Estratégico',unidad:'h',
      formula:'Total horas de capacitación / N° de enfermeras',fuente:'Registro de RR.HH.',
      responsable:'Departamento de Enfermería',frecuencia:'Mensual',meta:8,sentido:'mayor',
      fases:[true,true,false,false,false],mediciones:med([4,5,5,6,7],'manual')},
@@ -1227,7 +1241,7 @@ function renderIndicadores(){
     <div class="toolbar">
       <div class="seg viewseg">
         <button class="${indView==='tablero'?'on':''}" onclick="setView('tablero')">▦ Tablero</button>
-        <button class="${indView==='scorecard'?'on':''}" onclick="setView('scorecard')">🎯 Balanced Scorecard</button>
+        <button class="${indView==='scorecard'?'on':''}" onclick="setView('scorecard')">🎯 Macroprocesos GEMSES</button>
         <button class="${indView==='mapa'?'on':''}" onclick="setView('mapa')">🗺️ Mapa de calor</button>
         <button onclick="renderAnalitica()">🧠 Analítica IA</button>
       </div>
@@ -1400,7 +1414,7 @@ const NIVELES_MEJORA=[
   {k:'Procesos',d:'Mejora de Procesos (>P50 · Mandos medios)'},
   {k:'Actividades',d:'Mejora de Actividades (P25 · Colaboradores)'}
 ];
-const EST_ACC=['Pendiente','En curso','Hecho'];
+const EST_ACC=['Pendiente','En proceso','Hecho'];
 
 /* ----- FASE 2 · MEDIR: recolección con periodo (fecha inicio/fin) y método ----- */
 function medirHTML(i){
@@ -1444,7 +1458,7 @@ function planHTML(i){
   const plan=i.plan||[];
   const rows=plan.length?plan.map(a=>{
     const venc = a.fin && a.estado!=='Hecho' && a.fin<todayISO();
-    const ec = a.estado==='Hecho'?'var(--ok)':a.estado==='En curso'?'var(--warn)':'var(--muted)';
+    const ec = a.estado==='Hecho'?'var(--ok)':a.estado==='En proceso'?'var(--warn)':'var(--muted)';
     return `<div style="border:1px solid var(--line);border-left:4px solid ${ec};border-radius:8px;padding:10px 12px;margin-bottom:8px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <b style="font-size:12.5px">${esc(a.what)}</b>
@@ -1492,7 +1506,21 @@ function addAccion(id){
   i.plan.push({id:uid(),what,how:g('aHow').trim(),who,nivel:g('aNivel')||'Actividades',ini:g('aIni'),fin:g('aFin'),estado:'Pendiente',avance:0});
   saveData();openDetail(id);drawIndList();toast('Acción agregada al plan');
 }
-function setAccion(id,aid,campo,val){const i=inds().find(x=>x.id===id);if(!i)return;const a=(i.plan||[]).find(x=>x.id===aid);if(!a)return;a[campo]=val;if(campo==='estado'&&val==='Hecho')a.avance=100;saveData();if(campo==='estado')openDetail(id);drawIndList();}
+function setAccion(id,aid,campo,val){
+  const i=inds().find(x=>x.id===id);if(!i)return;
+  const a=(i.plan||[]).find(x=>x.id===aid);if(!a)return;
+  a[campo]=val;
+  if(campo==='avance'){
+    // Automatización: inicia (>0%) → En proceso · 100% → Hecho · 0% → Pendiente
+    a.avance=+val;
+    a.estado = a.avance>=100 ? 'Hecho' : (a.avance>0 ? 'En proceso' : 'Pendiente');
+  } else if(campo==='estado'){
+    if(val==='Hecho') a.avance=100;
+    else if(val==='Pendiente') a.avance=0;
+    else if(val==='En proceso' && (!a.avance || a.avance>=100)) a.avance=10;
+  }
+  saveData(); openDetail(id); drawIndList();
+}
 function delAccion(id,aid){const i=inds().find(x=>x.id===id);if(!i)return;i.plan=(i.plan||[]).filter(x=>x.id!==aid);saveData();openDetail(id);drawIndList();toast('Acción eliminada');}
 
 /* ----- FASE 5 · CONTROLAR: verificación de impacto (antes vs después del plan) ----- */
@@ -1927,7 +1955,7 @@ function openIndForm(id){
         <div><label class="flbl">Tipo</label><select class="fi" id="fTipo">${Object.entries(TIPOS).map(([k,v])=>`<option value="${k}" ${ed&&ed.tipo===k?'selected':''}>${v.l} — ${v.d}</option>`).join('')}</select></div>
         <div><label class="flbl">Dimensión GEMSES</label><select class="fi" id="fDim">${getDims().map(d=>`<option ${ed&&ed.dim===d?'selected':''}>${d}</option>`).join('')}</select></div>
         <div><label class="flbl">Ámbito / Unidad (acceso)</label><select class="fi" id="fAmbito">${getAmbitos().map(a=>`<option ${ed&&ed.ambito===a?'selected':''}>${a}</option>`).join('')}</select></div>
-        <div><label class="flbl">Perspectiva (Scorecard)</label><select class="fi" id="fPersp">${getPersp().map(pp=>`<option ${ed&&ed.persp===pp?'selected':''}>${pp}</option>`).join('')}</select></div>
+        <div><label class="flbl">Perspectiva / Macroproceso GEMSES</label><select class="fi" id="fPersp">${getPersp().map(pp=>`<option ${ed&&ed.persp===pp?'selected':''}>${pp}</option>`).join('')}</select></div>
         <div class="full"><label class="flbl">Fórmula de cálculo</label><textarea class="fi" id="fFormula" placeholder="(numerador / denominador) × 100">${ed?esc(ed.formula):''}</textarea></div>
         <div><label class="flbl">Unidad</label><input class="fi" id="fUnidad" value="${ed?esc(ed.unidad):'%'}" placeholder="%, min, S/…"></div>
         <div><label class="flbl">Meta</label><input class="fi" id="fMeta" type="number" value="${ed?ed.meta:''}" placeholder="0"></div>
