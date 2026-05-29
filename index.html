@@ -388,6 +388,7 @@ textarea.fi{min-height:70px;resize:vertical}
       <div id="navProducts"></div>
       <div class="spacer"></div>
       <button class="nav-item" data-view="billing" onclick="nav('billing')"><span class="ic">💳</span> Suscripción y pagos</button>
+      <button class="nav-item" id="navAdminBtn" data-view="admin" onclick="nav('admin')" style="display:none"><span class="ic">🛡️</span> Perfiles y accesos</button>
       <div class="side-user">
         <div class="u">
           <div class="av" id="userAv">C</div>
@@ -485,6 +486,12 @@ function seedUsers(){
       tenant:'Institucional / Red',org:'GEMSES360',plan:'institucional',
       access:['formacion','indicadores','pae','plan','brecha','programacion','tablero']}); changed=true;
   } else if(adm.pass!=='123'){ adm.pass='123'; adm.rol='admin'; changed=true; }
+  // Propietario (acceso por Gmail) — administrador con todos los módulos
+  if(!us.find(u=>(u.email||'').toLowerCase()==='carlosperez100@gmail.com')){
+    us.push({name:'Carlos Pérez',email:'carlosperez100@gmail.com',pass:'123',rol:'admin',
+      tenant:'Institucional / Red',org:'GEMSES360',plan:'institucional',
+      access:['formacion','indicadores','pae','plan','brecha','programacion','tablero']}); changed=true;
+  }
   if(changed) saveUsers(us);
   return us;
 }
@@ -544,6 +551,7 @@ function renderShell(){
       <span class="ic">${p.icon}</span> ${p.name}
       <span class="lk">${lk?'':'🔒'}</span></button>`;
   }).join('');
+  const ab=document.getElementById('navAdminBtn'); if(ab) ab.style.display=USER.rol==='admin'?'':'none';
 }
 
 /* ---------- NAV ---------- */
@@ -553,6 +561,7 @@ function nav(v){
   document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
   if(v==='dashboard') return renderDashboard();
   if(v==='billing') return renderBilling();
+  if(v==='admin'){ if(USER.rol!=='admin') return renderDashboard(); return renderAdmin(); }
   const p=PRODUCTS.find(x=>x.id===v); if(!p) return renderDashboard();
   pgTitle.textContent=p.name; pgSub.textContent=p.desc.slice(0,80)+'…';
   if(!hasAccess(p.id)) return renderLocked(p);
@@ -715,7 +724,7 @@ function renderBilling(){
           ?`<span class="badge-state s-active">● Autorizado</span>${accessVigencia(p.id)?`<div style="font-size:10.5px;color:var(--muted);margin-top:4px">Vigente hasta ${fmtDate(accessVigencia(p.id))}</div>`:''}`
           :`<button class="btn btn-gold btn-sm" onclick="openActivate('${p.id}')">Activar</button>`}</div>
       </div>`).join('')}</div>
-    ${USER.rol==='admin'?codesAdminHTML():''}`;
+    ${USER.rol==='admin'?`<div class="sec-head"><h3>🛡️ Administración</h3><div class="ln"></div></div><div class="prod" style="padding:16px"><p style="font-size:12.5px;color:var(--muted);margin:0">Genera códigos y gestiona perfiles desde <a href="#" onclick="nav('admin');return false" style="color:var(--teal);font-weight:600">Perfiles y accesos →</a></p></div>`:''}`;
 }
 /* ---------- ADMIN: generación de códigos de acceso por persona ---------- */
 let lastCode=null;
@@ -769,7 +778,118 @@ function adminCreateCode(){
   const obj=createCode({persona,modulos,costoMensual,meses});
   lastCode=obj;
   toast('✓ Código generado: '+obj.code);
-  renderBilling();
+  if(VIEW==='admin') renderAdmin(); else renderBilling();
+}
+
+/* ============================================================
+   ADMIN · GESTOR DE PERFILES Y ACCESOS (solo rol admin)
+   - Perfiles de usuario, rol y permisos por módulo
+   - Origen del acceso: pago, código o asignación manual + vigencia
+   ============================================================ */
+const ROLES={'':'Usuario',gestor:'Gestor',admin:'Administrador'};
+function saveUserRecord(u){
+  let us=loadUsers(); const i=us.findIndex(x=>(x.email||'').toLowerCase()===(u.email||'').toLowerCase());
+  if(i>=0) us[i]=u; else us.push(u);
+  saveUsers(us);
+  if(USER && (USER.email||'').toLowerCase()===(u.email||'').toLowerCase()){ USER=u; renderShell(); }
+}
+function accessOrigin(u,pid){
+  // ¿el acceso provino de un código?
+  const c=loadCodes().find(c=>c.usadoPor===u.email && (c.modulos||[]).includes(pid));
+  if(c) return {t:'Código',d:c.code,exp:c.vigenciaHasta};
+  const exp=u.accessUntil&&u.accessUntil[pid];
+  if(exp) return {t:'Pago',d:'mensual',exp};
+  return {t:'Manual',d:'—',exp:null};
+}
+function renderAdmin(){
+  pgTitle.textContent='Perfiles y accesos';
+  pgSub.textContent='Gestiona usuarios, roles y permisos por módulo (pago, código o manual)';
+  const us=loadUsers();
+  const th=PRODUCTS.map(p=>`<th style="text-align:center;font-size:11px" title="${p.name}">${p.icon}</th>`).join('');
+  const rows=us.map(u=>{
+    const cells=PRODUCTS.map(p=>{
+      const on=(u.access||[]).includes(p.id);
+      const o=accessOrigin(u,p.id);
+      const expired=o.exp&&o.exp<todayISO();
+      const tag=on?`<div style="font-size:8.5px;color:${expired?'var(--bad)':'var(--muted)'};line-height:1.1;margin-top:2px">${o.t}${o.exp?'<br>'+fmtDate(o.exp):''}</div>`:'';
+      return `<td style="text-align:center;padding:6px 4px"><input type="checkbox" ${on?'checked':''} onchange="adminSetAccess('${u.email}','${p.id}',this.checked)">${tag}</td>`;
+    }).join('');
+    const isMe=USER.email===u.email;
+    return `<tr style="border-bottom:1px solid var(--line)">
+      <td style="padding:8px"><b>${u.name}</b>${isMe?' <span style="font-size:9px;background:var(--teal);color:#fff;padding:1px 5px;border-radius:5px">tú</span>':''}<div style="font-size:11px;color:var(--muted)">${u.email}</div></td>
+      <td style="padding:8px"><select class="fi" style="padding:5px;font-size:12px" onchange="adminSetRol('${u.email}',this.value)">
+        ${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${(u.rol||'')===k?'selected':''}>${v}</option>`).join('')}
+      </select></td>
+      <td style="padding:8px"><select class="fi" style="padding:5px;font-size:12px" onchange="adminSetPlan('${u.email}',this.value)">
+        ${Object.entries(PLANS).map(([k,v])=>`<option value="${k}" ${u.plan===k?'selected':''}>${v.name}</option>`).join('')}
+      </select></td>
+      ${cells}
+      <td style="text-align:center;padding:8px">${isMe?'—':`<button class="btn btn-ghost btn-sm" style="color:var(--bad)" onclick="adminDeleteUser('${u.email}')">Eliminar</button>`}</td>
+    </tr>`;
+  }).join('');
+  content.innerHTML=`
+    <div class="welcome" style="background:linear-gradient(120deg,#13294B,#7A5BD6)">
+      <h2>🛡️ Gestor de Perfiles y Accesos</h2>
+      <p>Controla quién entra, con qué rol y a qué módulos. Los accesos pueden venir de un <b>pago</b>, de un <b>código</b> o de una <b>asignación manual</b>; cada uno con su vigencia.</p>
+    </div>
+
+    <div class="sec-head"><h3>➕ Crear usuario</h3><div class="ln"></div></div>
+    <div class="prod" style="padding:18px">
+      <div class="fgrid">
+        <div><label class="flbl">Nombre</label><input class="fi" id="auName" placeholder="Nombre y apellido"></div>
+        <div><label class="flbl">Correo / usuario</label><input class="fi" id="auEmail" placeholder="correo@ejemplo.com"></div>
+        <div><label class="flbl">Contraseña</label><input class="fi" id="auPass" placeholder="••••••"></div>
+        <div><label class="flbl">Rol</label><select class="fi" id="auRol">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+      </div>
+      <div style="margin-top:14px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="adminCreateUser()">Crear usuario</button></div>
+    </div>
+
+    <div class="sec-head"><h3>👥 Usuarios y permisos por módulo</h3><div class="ln"></div><span class="pill">${us.length} usuario(s)</span></div>
+    <div class="prod" style="padding:8px;overflow:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="text-align:left;border-bottom:2px solid var(--line)">
+          <th style="padding:8px">Usuario</th><th style="padding:8px">Rol</th><th style="padding:8px">Plan</th>${th}<th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="font-size:11px;color:var(--muted);padding:10px">Marca/desmarca para dar o quitar acceso a cada módulo. Bajo cada casilla se indica el origen (Pago / Código / Manual) y la vigencia.</p>
+    </div>
+
+    ${codesAdminHTML()}`;
+}
+function adminSetAccess(email,pid,on){
+  const us=loadUsers(); const u=us.find(x=>x.email===email); if(!u)return;
+  u.access=u.access||[];
+  if(on){ if(!u.access.includes(pid)) u.access.push(pid); }
+  else{ u.access=u.access.filter(a=>a!==pid); if(u.accessUntil) delete u.accessUntil[pid]; }
+  saveUserRecord(u); renderAdmin();
+  toast((on?'Acceso concedido: ':'Acceso retirado: ')+(PRODUCTS.find(p=>p.id===pid)||{}).name);
+}
+function adminSetRol(email,rol){
+  const us=loadUsers(); const u=us.find(x=>x.email===email); if(!u)return;
+  u.rol=rol||''; saveUserRecord(u); renderAdmin(); toast('Rol actualizado: '+ROLES[rol||'']);
+}
+function adminSetPlan(email,plan){
+  const us=loadUsers(); const u=us.find(x=>x.email===email); if(!u)return;
+  u.plan=plan;
+  if(plan==='ipress'||plan==='institucional') u.access=PRODUCTS.map(p=>p.id);
+  saveUserRecord(u); renderAdmin(); toast('Plan actualizado: '+PLANS[plan].name);
+}
+function adminCreateUser(){
+  const name=(document.getElementById('auName').value||'').trim();
+  const email=(document.getElementById('auEmail').value||'').trim().toLowerCase();
+  const pass=(document.getElementById('auPass').value||'').trim();
+  const rol=document.getElementById('auRol').value;
+  if(!name||!email||!pass){toast('Completa nombre, correo y contraseña');return;}
+  if(loadUsers().some(x=>(x.email||'').toLowerCase()===email)){toast('Ya existe una cuenta con ese correo');return;}
+  saveUserRecord({name,email,pass,rol:rol||'',tenant:'IPRESS / Hospital',org:'—',plan:'explora',access:['indicadores']});
+  renderAdmin(); toast('✓ Usuario creado: '+name);
+}
+function adminDeleteUser(email){
+  if(email===USER.email) return;
+  if(!confirm('¿Quitar a este usuario del sistema? Podrás volver a crearlo después.')) return;
+  let us=loadUsers().filter(x=>x.email!==email); saveUsers(us);
+  renderAdmin(); toast('Usuario eliminado');
 }
 function changePlan(k){
   USER.plan=k;
