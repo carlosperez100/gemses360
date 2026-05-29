@@ -1224,6 +1224,21 @@ function uid(){return 'i'+Date.now().toString(36)+Math.random().toString(36).sli
 function inds(){return DB[USER.email].indicadores||[]}
 
 let filterTipo='all', searchQ='', indView='tablero', indScope='all', phaseFilter='all';
+/* ---------- INFORME: estado de filtros + ponderaciones GEMSES + config IA ---------- */
+let rpFrom='', rpTo='', rpAmb='all', rpPersp='all', rpTipo='all', rpDim='all';
+/* Ponderaciones de impacto del Modelo GEMSES por dimensión (editables, suman 100%) */
+const PESOS_GEMSES_DEF={'Tiempo':20,'Calidad':35,'Costo':20,'Satisfacción':25};
+const LS_PESOS='g360_pesos_gemses';
+function loadPesos(){try{const s=JSON.parse(localStorage.getItem(LS_PESOS));if(s&&typeof s==='object')return Object.assign({},PESOS_GEMSES_DEF,s);}catch(e){}return {...PESOS_GEMSES_DEF};}
+function savePesos(p){localStorage.setItem(LS_PESOS,JSON.stringify(p));}
+let PESOS=loadPesos();
+function pesoDim(d){return (typeof PESOS[d]==='number')?PESOS[d]:0;}
+/* Config de IA (clave la ingresa el usuario en la app; se guarda solo en su navegador) */
+const LS_AICFG='g360_ai_cfg';
+const AI_DEF={provider:'gemini',model:'gemini-1.5-flash',key:'',endpoint:''};
+function loadAI(){try{const s=JSON.parse(localStorage.getItem(LS_AICFG));if(s&&typeof s==='object')return Object.assign({},AI_DEF,s);}catch(e){}return {...AI_DEF};}
+function saveAI(c){localStorage.setItem(LS_AICFG,JSON.stringify(c));}
+let AICFG=loadAI();
 /* Fase actual de un indicador: primer índice no cerrado (0-4); -1 => completado */
 function indPhaseIdx(i){const f=i.fases||[]; const k=f.findIndex(x=>!x); return k;}
 function indFasePct(i){const done=(i.fases||[]).filter(Boolean).length; return Math.round(done/PHASES.length*100);}
@@ -1263,6 +1278,7 @@ function renderIndicadores(){
         <button class="${indView==='scorecard'?'on':''}" onclick="setView('scorecard')">🎯 Macroprocesos GEMSES</button>
         <button class="${indView==='mapa'?'on':''}" onclick="setView('mapa')">🗺️ Mapa de calor</button>
         <button onclick="renderAnalitica()">🧠 Analítica IA</button>
+        <button onclick="renderInforme()">📄 Informe</button>
       </div>
       <div class="grow"></div>
       <button class="btn btn-ghost btn-sm" onclick="openCatalogos()">⚙ Catálogos</button>
@@ -1783,6 +1799,230 @@ function exportPBI(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gemses360_indicadores_powerbi.json';a.click();
   toast('Dataset exportado para Power BI');
 }
+
+/* ============================================================
+   INFORME COMPLETO DEL TABLERO DE INDICADORES
+   Filtros (periodo, ámbito, macroproceso, tipo, dimensión),
+   índice de cumplimiento por dimensión con ponderaciones de
+   impacto del Modelo GEMSES, y enriquecimiento con IA (API
+   configurable por el usuario).
+   ============================================================ */
+/* Valor de un indicador dentro del periodo [from,to] (última medición en rango). */
+function medEnPeriodo(i,from,to){
+  const ms=(i.mediciones||[]).slice().sort((a,b)=>(a.fin||a.ini||'').localeCompare(b.fin||b.ini||''));
+  const inRange=ms.filter(m=>{const d=m.fin||m.ini||''; if(!d)return false; if(from&&d<from)return false; if(to&&d>to)return false; return true;});
+  return inRange.length?inRange[inRange.length-1]:null;
+}
+/* Logro % de un indicador según su última medición dentro del periodo. */
+function logroPeriodo(i,from,to){
+  const m=medEnPeriodo(i,from,to); if(!m) return null;
+  let pct; if(i.sentido==='mayor') pct=i.meta?Math.min(150,(m.v/i.meta)*100):0;
+  else pct=m.v?Math.min(150,(i.meta/m.v)*100):0;
+  return Math.round(pct);
+}
+/* Lista filtrada según los filtros del informe (no aplica periodo, eso es por-indicador). */
+function informeList(){
+  return inds().filter(i=>{
+    if(rpAmb!=='all' && (i.ambito||'Institucional')!==rpAmb) return false;
+    if(rpPersp!=='all' && (i.persp||'')!==rpPersp) return false;
+    if(rpTipo!=='all' && i.tipo!==rpTipo) return false;
+    if(rpDim!=='all' && i.dim!==rpDim) return false;
+    return true;
+  });
+}
+/* Cálculo central del informe: cumplimiento por dimensión + índice ponderado GEMSES. */
+function calcInforme(){
+  const list=informeList();
+  const DIMS=['Tiempo','Calidad','Costo','Satisfacción'];
+  const porDim={}; DIMS.forEach(d=>porDim[d]={n:0,conDato:0,sumLogro:0,enMeta:0});
+  let conDato=0;
+  const filas=list.map(i=>{
+    const logro=logroPeriodo(i,rpFrom,rpTo);
+    const m=medEnPeriodo(i,rpFrom,rpTo);
+    const d=i.dim||'—';
+    if(porDim[d]){ porDim[d].n++; if(logro!=null){porDim[d].conDato++; porDim[d].sumLogro+=logro; if(logro>=100)porDim[d].enMeta++; } }
+    if(logro!=null) conDato++;
+    return {i,logro,valor:m?m.v:null,lugar:m?(m.lugar||''):''};
+  });
+  DIMS.forEach(d=>{porDim[d].prom=porDim[d].conDato?Math.round(porDim[d].sumLogro/porDim[d].conDato):null;});
+  // Índice ponderado: solo dimensiones con dato; pesos normalizados sobre las presentes.
+  let pesoTot=0, acum=0;
+  DIMS.forEach(d=>{ if(porDim[d].prom!=null){ const w=pesoDim(d); pesoTot+=w; acum+=w*porDim[d].prom; } });
+  const indice = pesoTot? Math.round(acum/pesoTot) : null;
+  return {list,filas,porDim,DIMS,indice,conDato,total:list.length};
+}
+function setRp(k,v){ if(k==='from')rpFrom=v; else if(k==='to')rpTo=v; else if(k==='amb')rpAmb=v; else if(k==='persp')rpPersp=v; else if(k==='tipo')rpTipo=v; else if(k==='dim')rpDim=v; renderInforme(); }
+function setPeso(d,v){ PESOS[d]=Math.max(0,parseFloat(v)||0); savePesos(PESOS); renderInforme(); }
+function resetPesos(){ PESOS={...PESOS_GEMSES_DEF}; savePesos(PESOS); renderInforme(); toast('Ponderaciones restablecidas'); }
+function rpClear(){ rpFrom=rpTo=''; rpAmb=rpPersp=rpTipo=rpDim='all'; renderInforme(); }
+function colorLogro(p){ return p==null?'var(--muted)':p>=100?'var(--ok)':p>=85?'var(--warn)':'var(--bad)'; }
+
+function renderInforme(){
+  pgTitle.textContent='Informe del Tablero de Indicadores';
+  pgSub.textContent='Cumplimiento, dimensiones GEMSES y análisis con IA';
+  const R=calcInforme();
+  const sumPesos=R.DIMS.reduce((a,d)=>a+pesoDim(d),0);
+  const ambOpts=['all',...getAmbitos()].map(a=>`<option value="${a}" ${rpAmb===a?'selected':''}>${a==='all'?'Todos los ámbitos':a}</option>`).join('');
+  const perspOpts=['all',...getPersp()].map(p=>`<option value="${p}" ${rpPersp===p?'selected':''}>${p==='all'?'Todos los macroprocesos':p}</option>`).join('');
+  const periodoTxt=(rpFrom||rpTo)?`${rpFrom?fmtDate(rpFrom):'inicio'} → ${rpTo?fmtDate(rpTo):'hoy'}`:'Todo el histórico';
+  // Tarjetas de dimensión
+  const DIM_COLOR={'Tiempo':'#028090','Calidad':'#7A5BD6','Costo':'#E0A21A','Satisfacción':'#1E9E6A'};
+  const dimCards=R.DIMS.map(d=>{const x=R.porDim[d]; const c=colorLogro(x.prom);
+    return `<div class="kc" style="border-top:3px solid ${DIM_COLOR[d]||'var(--teal)'}">
+      <div class="kl">${d} <span style="float:right;font-weight:700;color:var(--navy)">peso ${pesoDim(d)}%</span></div>
+      <div class="kv" style="color:${c}">${x.prom==null?'—':x.prom+'%'}</div>
+      <div class="kx">${x.n} indic. · ${x.enMeta} en meta · ${x.conDato} con dato</div>
+    </div>`;}).join('');
+  // Tabla de indicadores
+  const tHead=`<tr><th>Indicador</th><th>Tipo</th><th>Dimensión</th><th>Ámbito</th><th>Macroproceso</th><th style="text-align:right">Meta</th><th style="text-align:right">Valor periodo</th><th style="text-align:right">Logro</th><th>Estado</th></tr>`;
+  const tRows=R.filas.length?R.filas.map(f=>{const c=colorLogro(f.logro);const est=f.logro==null?'Sin dato':f.logro>=100?'En meta':f.logro>=85?'En alerta':'Crítico';
+    return `<tr style="cursor:pointer" onclick="openDetail('${f.i.id}')">
+      <td><b>${esc(f.i.nombre)}</b></td><td>${TIPOS[f.i.tipo].l}</td><td>${esc(f.i.dim||'—')}</td>
+      <td style="font-size:11px">${esc(f.i.ambito||'—')}</td><td style="font-size:11px">${esc(f.i.persp||'—')}</td>
+      <td style="text-align:right">${f.i.meta} ${esc(f.i.unidad||'')}</td>
+      <td style="text-align:right">${f.valor==null?'—':esc(String(f.valor))+' '+esc(f.i.unidad||'')}</td>
+      <td style="text-align:right;font-weight:800;color:${c}">${f.logro==null?'—':f.logro+'%'}</td>
+      <td><span style="color:${c};font-weight:700">${est}</span></td></tr>`;}).join(''):`<tr><td colspan="9" style="color:var(--muted)">No hay indicadores que coincidan con los filtros.</td></tr>`;
+  const idxColor=colorLogro(R.indice);
+  content.innerHTML=`
+    <div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="renderIndicadores()">← Volver</button>
+      <div class="grow"></div>
+      <button class="btn btn-ghost btn-sm" onclick="rpClear()">↺ Limpiar filtros</button>
+      <button class="btn btn-ghost btn-sm" onclick="imprimirInforme()">🖨️ Imprimir / PDF</button>
+    </div>
+    <div class="detail-sec">
+      <h4>🔎 Filtros del informe</h4>
+      <div class="fgrid">
+        <div><label class="flbl">Periodo — desde</label><input class="fi" type="date" value="${rpFrom}" onchange="setRp('from',this.value)"></div>
+        <div><label class="flbl">Periodo — hasta</label><input class="fi" type="date" value="${rpTo}" onchange="setRp('to',this.value)"></div>
+        <div><label class="flbl">Ámbito / Nivel</label><select class="fi" onchange="setRp('amb',this.value)">${ambOpts}</select></div>
+        <div><label class="flbl">Macroproceso GEMSES</label><select class="fi" onchange="setRp('persp',this.value)">${perspOpts}</select></div>
+        <div><label class="flbl">Tipo</label><select class="fi" onchange="setRp('tipo',this.value)">
+          <option value="all" ${rpTipo==='all'?'selected':''}>Todos</option>
+          <option value="kpi" ${rpTipo==='kpi'?'selected':''}>KPI</option>
+          <option value="kri" ${rpTipo==='kri'?'selected':''}>KRI</option>
+          <option value="kci" ${rpTipo==='kci'?'selected':''}>KCI</option></select></div>
+        <div><label class="flbl">Dimensión</label><select class="fi" onchange="setRp('dim',this.value)">
+          <option value="all" ${rpDim==='all'?'selected':''}>Todas</option>
+          <option value="Tiempo" ${rpDim==='Tiempo'?'selected':''}>Tiempo</option>
+          <option value="Calidad" ${rpDim==='Calidad'?'selected':''}>Calidad</option>
+          <option value="Costo" ${rpDim==='Costo'?'selected':''}>Costo</option>
+          <option value="Satisfacción" ${rpDim==='Satisfacción'?'selected':''}>Satisfacción</option></select></div>
+      </div>
+    </div>
+
+    <div class="detail-sec">
+      <h4>📊 Índice de cumplimiento ponderado (Modelo GEMSES)</h4>
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+        <div style="text-align:center;min-width:130px">
+          <div style="font-size:48px;font-weight:800;line-height:1;color:${idxColor}">${R.indice==null?'—':R.indice+'%'}</div>
+          <div style="font-size:11px;color:var(--muted)">Índice global<br>${R.conDato}/${R.total} indic. con dato</div>
+        </div>
+        <div style="flex:1;min-width:240px">
+          <div class="kcards" style="margin:0">${dimCards}</div>
+        </div>
+      </div>
+      <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">Periodo analizado: <b>${periodoTxt}</b>. El índice global es el promedio del logro de cada dimensión, ponderado por su peso de impacto GEMSES (solo se consideran las dimensiones con datos en el periodo).</p>
+    </div>
+
+    <div class="detail-sec">
+      <h4>⚖️ Ponderaciones de impacto GEMSES <span class="ai-tag">editable</span></h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Ajusta cuánto pesa cada dimensión en el índice global. Suma actual: <b style="color:${Math.round(sumPesos)===100?'var(--ok)':'var(--warn)'}">${sumPesos}%</b> ${Math.round(sumPesos)===100?'✓':'(idealmente 100%)'}.</p>
+      <div class="fgrid">
+        ${R.DIMS.map(d=>`<div><label class="flbl">${d}</label><input class="fi" type="number" min="0" step="1" value="${pesoDim(d)}" onchange="setPeso('${d}',this.value)"></div>`).join('')}
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:auto" onclick="resetPesos()">↺ Valores por defecto</button>
+    </div>
+
+    <div class="detail-sec">
+      <h4>📋 Detalle de indicadores (${R.filas.length})</h4>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px">${tHead}${tRows}</table></div>
+    </div>
+
+    ${aiInformeHTML()}`;
+}
+
+/* ---------- Sección de IA del informe: clave configurable por el usuario ---------- */
+function aiInformeHTML(){
+  const provLabel={gemini:'Google Gemini',openai:'OpenAI',custom:'Personalizado (otro proveedor)'};
+  const provOpts=Object.keys(provLabel).map(k=>`<option value="${k}" ${AICFG.provider===k?'selected':''}>${provLabel[k]}</option>`).join('');
+  const tieneKey=!!(AICFG.key&&AICFG.key.trim());
+  return `<div class="detail-sec">
+    <h4>🤖 Enriquecer informe con IA <span class="ai-tag">${tieneKey?'clave configurada':'sin clave'}</span></h4>
+    <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">Tu clave se guarda <b>solo en este navegador</b> (localStorage) y se envía únicamente al proveedor que elijas. Puedes cambiar de proveedor o de clave cuando quieras.</p>
+    <div class="fgrid">
+      <div><label class="flbl">Proveedor de IA</label><select class="fi" id="aiProv" onchange="aiSet('provider',this.value)">${provOpts}</select></div>
+      <div><label class="flbl">Modelo</label><input class="fi" id="aiModel" value="${esc(AICFG.model||'')}" placeholder="gemini-1.5-flash" onchange="aiSet('model',this.value)"></div>
+      <div class="full"><label class="flbl">Clave de API (API key)</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="fi" id="aiKey" type="password" style="flex:1" value="${esc(AICFG.key||'')}" placeholder="Pega aquí tu API key" onchange="aiSet('key',this.value)">
+          <button type="button" title="Mostrar/ocultar" onclick="aiToggleKey()" style="border:1px solid var(--line);background:#fff;border-radius:8px;width:38px;height:38px;cursor:pointer">👁️</button>
+        </div></div>
+      <div class="full"><label class="flbl">Endpoint (opcional — para cambiar de API a futuro)</label><input class="fi" id="aiEp" value="${esc(AICFG.endpoint||'')}" placeholder="Déjalo vacío para usar el endpoint estándar del proveedor" onchange="aiSet('endpoint',this.value)"></div>
+    </div>
+    <button class="btn btn-primary btn-sm" style="width:auto;margin-top:10px${tieneKey?'':';opacity:.5;cursor:not-allowed'}" onclick="generarInformeIA()" ${tieneKey?'':'disabled'}>✨ Generar análisis con IA</button>
+    <div id="aiOut" style="margin-top:12px"></div>
+  </div>`;
+}
+function aiSet(k,v){ AICFG[k]=v; saveAI(AICFG); if(k==='provider'){renderInforme();} }
+function aiToggleKey(){ const e=document.getElementById('aiKey'); if(e)e.type=e.type==='password'?'text':'password'; }
+
+/* Construye el resumen textual del informe para enviarlo a la IA. */
+function resumenInformeTexto(){
+  const R=calcInforme();
+  const per=(rpFrom||rpTo)?`${rpFrom||'inicio'} a ${rpTo||'hoy'}`:'todo el histórico';
+  let t=`Informe GEMSES360 — periodo: ${per}.\n`;
+  t+=`Índice global de cumplimiento ponderado (GEMSES): ${R.indice==null?'sin datos':R.indice+'%'}.\n`;
+  t+=`Ponderaciones de impacto: ${R.DIMS.map(d=>d+' '+pesoDim(d)+'%').join(', ')}.\n\nCumplimiento por dimensión:\n`;
+  R.DIMS.forEach(d=>{const x=R.porDim[d]; t+=`- ${d}: ${x.prom==null?'sin datos':x.prom+'%'} (${x.n} indicadores, ${x.enMeta} en meta).\n`;});
+  t+=`\nIndicadores (${R.filas.length}):\n`;
+  R.filas.forEach(f=>{t+=`- ${f.i.nombre} [${TIPOS[f.i.tipo].l}/${f.i.dim}] meta ${f.i.meta} ${f.i.unidad||''}, valor ${f.valor==null?'sin dato':f.valor}, logro ${f.logro==null?'s/d':f.logro+'%'}.\n`;});
+  return t;
+}
+async function generarInformeIA(){
+  const out=document.getElementById('aiOut'); if(!out)return;
+  if(!AICFG.key||!AICFG.key.trim()){out.innerHTML=`<div class="ai-diag d-warn">Configura primero tu clave de API.</div>`;return;}
+  out.innerHTML=`<div class="ai-diag">⏳ Consultando a la IA…</div>`;
+  const prompt=`Eres analista de gestión en salud (Modelo GEMSES). Analiza el siguiente informe de indicadores y entrega: (1) un diagnóstico ejecutivo en 4-6 viñetas, (2) las dimensiones y los indicadores más críticos, (3) recomendaciones priorizadas de mejora. Sé concreto y usa los números.\n\n${resumenInformeTexto()}`;
+  try{
+    const texto=await llamarIA(prompt);
+    out.innerHTML=`<div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:#fafcff">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Generado por ${esc(AICFG.provider)} · ${esc(AICFG.model||'')}</div>
+      <div style="white-space:pre-wrap;font-size:13px;line-height:1.55">${esc(texto)}</div></div>`;
+  }catch(err){
+    out.innerHTML=`<div class="ai-diag d-bad">No se pudo generar el análisis: ${esc(err.message||String(err))}.<br><small>Verifica tu clave, el modelo y la conexión.</small></div>`;
+  }
+}
+/* Llamada genérica a la IA. Soporta Gemini y OpenAI; endpoint personalizable. */
+async function llamarIA(prompt){
+  const p=AICFG.provider||'gemini', key=(AICFG.key||'').trim(), model=(AICFG.model||'').trim();
+  if(p==='openai'){
+    const url=AICFG.endpoint||'https://api.openai.com/v1/chat/completions';
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:model||'gpt-4o-mini',messages:[{role:'user',content:prompt}]})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); return (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'(respuesta vacía)';
+  }
+  if(p==='custom'){
+    if(!AICFG.endpoint) throw new Error('Indica el endpoint del proveedor personalizado');
+    const r=await fetch(AICFG.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:model,prompt:prompt,messages:[{role:'user',content:prompt}]})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    return (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)
+      || (j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts&&j.candidates[0].content.parts[0].text)
+      || (typeof j.text==='string'?j.text:JSON.stringify(j));
+  }
+  // Gemini por defecto
+  const mdl=model||'gemini-1.5-flash';
+  const url=AICFG.endpoint||('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl)+':generateContent?key='+encodeURIComponent(key));
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const j=await r.json();
+  return (j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts&&j.candidates[0].content.parts[0].text)||'(respuesta vacía)';
+}
+function imprimirInforme(){ window.print(); }
 /* ---------- IMPORTAR / EXPORTAR CSV ---------- */
 function csvCell(v){const s=(v==null?'':String(v)); return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
 function exportCSV(){
