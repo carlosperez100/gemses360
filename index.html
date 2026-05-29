@@ -1852,8 +1852,8 @@ function calcInforme(){
   return {list,filas,porDim,DIMS,indice,conDato,total:list.length};
 }
 function setRp(k,v){ if(k==='from')rpFrom=v; else if(k==='to')rpTo=v; else if(k==='amb')rpAmb=v; else if(k==='persp')rpPersp=v; else if(k==='tipo')rpTipo=v; else if(k==='dim')rpDim=v; renderInforme(); }
-function setPeso(d,v){ PESOS[d]=Math.max(0,parseFloat(v)||0); savePesos(PESOS); renderInforme(); }
-function resetPesos(){ PESOS={...PESOS_GEMSES_DEF}; savePesos(PESOS); renderInforme(); toast('Ponderaciones restablecidas'); }
+function setPeso(d,v){ if(USER.rol!=='admin')return; PESOS[d]=Math.max(0,parseFloat(v)||0); savePesos(PESOS); renderInforme(); }
+function resetPesos(){ if(USER.rol!=='admin')return; PESOS={...PESOS_GEMSES_DEF}; savePesos(PESOS); renderInforme(); toast('Ponderaciones restablecidas'); }
 function rpClear(){ rpFrom=rpTo=''; rpAmb=rpPersp=rpTipo=rpDim='all'; renderInforme(); }
 function colorLogro(p){ return p==null?'var(--muted)':p>=100?'var(--ok)':p>=85?'var(--warn)':'var(--bad)'; }
 
@@ -1925,21 +1925,21 @@ function renderInforme(){
       <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">Periodo analizado: <b>${periodoTxt}</b>. El índice global es el promedio del logro de cada dimensión, ponderado por su peso de impacto GEMSES (solo se consideran las dimensiones con datos en el periodo).</p>
     </div>
 
-    <div class="detail-sec">
-      <h4>⚖️ Ponderaciones de impacto GEMSES <span class="ai-tag">editable</span></h4>
+    ${USER.rol==='admin'?`<div class="detail-sec">
+      <h4>⚖️ Ponderaciones de impacto GEMSES <span class="ai-tag">solo administrador</span></h4>
       <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Ajusta cuánto pesa cada dimensión en el índice global. Suma actual: <b style="color:${Math.round(sumPesos)===100?'var(--ok)':'var(--warn)'}">${sumPesos}%</b> ${Math.round(sumPesos)===100?'✓':'(idealmente 100%)'}.</p>
       <div class="fgrid">
         ${R.DIMS.map(d=>`<div><label class="flbl">${d}</label><input class="fi" type="number" min="0" step="1" value="${pesoDim(d)}" onchange="setPeso('${d}',this.value)"></div>`).join('')}
       </div>
       <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:auto" onclick="resetPesos()">↺ Valores por defecto</button>
-    </div>
+    </div>`:''}
 
     <div class="detail-sec">
       <h4>📋 Detalle de indicadores (${R.filas.length})</h4>
       <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px">${tHead}${tRows}</table></div>
     </div>
 
-    ${aiInformeHTML()}`;
+    ${USER.rol==='admin'?aiInformeHTML():''}`;
 }
 
 /* ---------- Sección de IA del informe: clave configurable por el usuario ---------- */
@@ -1964,7 +1964,7 @@ function aiInformeHTML(){
     <div id="aiOut" style="margin-top:12px"></div>
   </div>`;
 }
-function aiSet(k,v){ AICFG[k]=v; saveAI(AICFG); if(k==='provider'){renderInforme();} }
+function aiSet(k,v){ if(USER.rol!=='admin')return; AICFG[k]=v; saveAI(AICFG); if(k==='provider'){renderInforme();} }
 function aiToggleKey(){ const e=document.getElementById('aiKey'); if(e)e.type=e.type==='password'?'text':'password'; }
 
 /* Construye el resumen textual del informe para enviarlo a la IA. */
@@ -1980,6 +1980,7 @@ function resumenInformeTexto(){
   return t;
 }
 async function generarInformeIA(){
+  if(USER.rol!=='admin')return;
   const out=document.getElementById('aiOut'); if(!out)return;
   if(!AICFG.key||!AICFG.key.trim()){out.innerHTML=`<div class="ai-diag d-warn">Configura primero tu clave de API.</div>`;return;}
   out.innerHTML=`<div class="ai-diag">⏳ Consultando a la IA…</div>`;
