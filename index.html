@@ -441,6 +441,18 @@ textarea.fi{min-height:70px;resize:vertical}
    GEMSES360 — Plataforma cascarón + módulo Gestión de Indicadores
    ============================================================ */
 
+/* ---------- Almacenamiento seguro ----------
+   Algunos navegadores bloquean localStorage (modo privado, cookies
+   bloqueadas, políticas de privacidad). En ese caso usamos una copia
+   en memoria para que la app NO se rompa (el login funciona; los datos
+   solo persisten durante la sesión). Todo el código usa lsGet/lsSet/lsDel. */
+let LS_OK=true;
+const MEM={};
+(function(){try{const t='__g360_test__';window.localStorage.setItem(t,'1');window.localStorage.removeItem(t);}catch(e){LS_OK=false;}})();
+function lsGet(k){ try{ return LS_OK? window.localStorage.getItem(k) : (k in MEM? MEM[k]:null);}catch(e){ return (k in MEM? MEM[k]:null);} }
+function lsSet(k,v){ MEM[k]=String(v); try{ if(LS_OK) window.localStorage.setItem(k,String(v)); }catch(e){ LS_OK=false; } }
+function lsDel(k){ delete MEM[k]; try{ if(LS_OK) window.localStorage.removeItem(k); }catch(e){} }
+
 /* ---------- Catálogo de PRODUCTOS ---------- */
 const PRODUCTS = [
   {id:'formacion', name:'Formación', icon:'🎓', color:'linear-gradient(135deg,#7A5BD6,#A78BFA)',
@@ -478,8 +490,8 @@ const PLAN_DEFAULTS = {
 };
 const LS_PLANS='g360_plans';
 const PLAN_BASE=['explora','servicio','ipress','institucional']; // no eliminables
-function loadPlans(){try{const s=JSON.parse(localStorage.getItem(LS_PLANS));if(s&&Object.keys(s).length)return s;}catch(e){}return JSON.parse(JSON.stringify(PLAN_DEFAULTS));}
-function savePlans(p){localStorage.setItem(LS_PLANS,JSON.stringify(p));}
+function loadPlans(){try{const s=JSON.parse(lsGet(LS_PLANS));if(s&&Object.keys(s).length)return s;}catch(e){}return JSON.parse(JSON.stringify(PLAN_DEFAULTS));}
+function savePlans(p){lsSet(LS_PLANS,JSON.stringify(p));}
 let PLANS=loadPlans();
 function planName(k){return (PLANS[k]&&PLANS[k].name)||k;}
 function planModulos(p){return p&&p.todos?PRODUCTS.map(x=>x.id):((p&&p.modulos)||[]);}
@@ -489,10 +501,10 @@ let USER=null, DB=null;
 const LS_USERS='g360_users', LS_SESSION='g360_session', LS_DATA='g360_data';
 
 /* ---------- Persistencia simple ---------- */
-function loadUsers(){try{return JSON.parse(localStorage.getItem(LS_USERS)||'[]')}catch(e){return[]}}
-function saveUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u))}
-function loadData(){try{return JSON.parse(localStorage.getItem(LS_DATA)||'{}')}catch(e){return{}}}
-function saveData(){localStorage.setItem(LS_DATA,JSON.stringify(DB))}
+function loadUsers(){try{return JSON.parse(lsGet(LS_USERS)||'[]')}catch(e){return[]}}
+function saveUsers(u){lsSet(LS_USERS,JSON.stringify(u))}
+function loadData(){try{return JSON.parse(lsGet(LS_DATA)||'{}')}catch(e){return{}}}
+function saveData(){lsSet(LS_DATA,JSON.stringify(DB))}
 
 /* ---------- Seed usuarios por defecto (idempotente, se asegura en cada carga) ---------- */
 function seedUsers(){
@@ -542,7 +554,7 @@ function doRegister(){
   us.push(u); saveUsers(us); startSession(u);
 }
 function startSession(u){
-  USER=u; localStorage.setItem(LS_SESSION,u.email);
+  USER=u; lsSet(LS_SESSION,u.email);
   DB=loadData(); if(!DB[u.email]) DB[u.email]={indicadores:[]};
   if(!DB[u.email].indicadores.length) seedIndicadores(u.email);
   if(!DB[u.email].catalogos) DB[u.email].catalogos=defaultCatalogos();
@@ -552,8 +564,8 @@ function startSession(u){
   app.style.display='block';
   renderShell(); nav('dashboard');
 }
-function logout(){localStorage.removeItem(LS_SESSION);location.reload();}
-(function auto(){const e=localStorage.getItem(LS_SESSION);if(e){const u=loadUsers().find(x=>x.email===e);if(u)startSession(u);}})();
+function logout(){lsDel(LS_SESSION);location.reload();}
+(function auto(){const e=lsGet(LS_SESSION);if(e){const u=loadUsers().find(x=>x.email===e);if(u)startSession(u);}})();
 
 /* ---------- SHELL ---------- */
 function hasAccess(pid){
@@ -1077,8 +1089,8 @@ function persistUser(){let us=loadUsers();const i=us.findIndex(u=>u.email===USER
 
 /* ---------- CÓDIGOS DE ACCESO (representan a una persona, con costo mensual y vigencia) ---------- */
 const LS_CODES='g360_codes';
-function loadCodes(){try{return JSON.parse(localStorage.getItem(LS_CODES)||'[]')}catch(e){return[]}}
-function saveCodes(c){localStorage.setItem(LS_CODES,JSON.stringify(c))}
+function loadCodes(){try{return JSON.parse(lsGet(LS_CODES)||'[]')}catch(e){return[]}}
+function saveCodes(c){lsSet(LS_CODES,JSON.stringify(c))}
 function genCodeStr(){const s='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const r=n=>Array.from({length:n},()=>s[Math.floor(Math.random()*s.length)]).join('');return `GEM-${r(4)}-${r(4)}`;}
 function createCode(o){
   const codes=loadCodes(); let code; do{code=genCodeStr();}while(codes.some(c=>c.code===code));
@@ -1229,15 +1241,15 @@ let rpFrom='', rpTo='', rpAmb='all', rpPersp='all', rpTipo='all', rpDim='all';
 /* Ponderaciones de impacto del Modelo GEMSES por dimensión (editables, suman 100%) */
 const PESOS_GEMSES_DEF={'Tiempo':20,'Calidad':35,'Costo':20,'Satisfacción':25};
 const LS_PESOS='g360_pesos_gemses';
-function loadPesos(){try{const s=JSON.parse(localStorage.getItem(LS_PESOS));if(s&&typeof s==='object')return Object.assign({},PESOS_GEMSES_DEF,s);}catch(e){}return {...PESOS_GEMSES_DEF};}
-function savePesos(p){localStorage.setItem(LS_PESOS,JSON.stringify(p));}
+function loadPesos(){try{const s=JSON.parse(lsGet(LS_PESOS));if(s&&typeof s==='object')return Object.assign({},PESOS_GEMSES_DEF,s);}catch(e){}return {...PESOS_GEMSES_DEF};}
+function savePesos(p){lsSet(LS_PESOS,JSON.stringify(p));}
 let PESOS=loadPesos();
 function pesoDim(d){return (typeof PESOS[d]==='number')?PESOS[d]:0;}
 /* Config de IA (clave la ingresa el usuario en la app; se guarda solo en su navegador) */
 const LS_AICFG='g360_ai_cfg';
 const AI_DEF={provider:'gemini',model:'gemini-1.5-flash',key:'',endpoint:''};
-function loadAI(){try{const s=JSON.parse(localStorage.getItem(LS_AICFG));if(s&&typeof s==='object')return Object.assign({},AI_DEF,s);}catch(e){}return {...AI_DEF};}
-function saveAI(c){localStorage.setItem(LS_AICFG,JSON.stringify(c));}
+function loadAI(){try{const s=JSON.parse(lsGet(LS_AICFG));if(s&&typeof s==='object')return Object.assign({},AI_DEF,s);}catch(e){}return {...AI_DEF};}
+function saveAI(c){lsSet(LS_AICFG,JSON.stringify(c));}
 let AICFG=loadAI();
 /* Fase actual de un indicador: primer índice no cerrado (0-4); -1 => completado */
 function indPhaseIdx(i){const f=i.fases||[]; const k=f.findIndex(x=>!x); return k;}
