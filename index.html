@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEMSES360 · Plataforma de Gestión en Salud</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0C1B2E; --navy2:#0B1E3D; --navy3:#13294B;
+  --teal:#028090; --teal2:#00A8CC; --gold:#F0B429; --gold2:#FFD66B;
+  --ink:#0C1B2E; --muted:#5A6B82; --line:#E5EAF1; --bg:#F4F7FB; --card:#FFFFFF;
+  --ok:#1E9E6A; --warn:#E0A21A; --bad:#D64545; --kpi:#028090; --kri:#D64545; --kci:#7A5BD6;
+  --rad:16px; --rad-sm:10px; --shadow:0 10px 30px rgba(12,27,46,.08); --shadow-lg:0 20px 60px rgba(12,27,46,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select,textarea{font-family:inherit}
+.hidden{display:none!important}
+a{color:inherit}
+
+/* ============ AUTH ============ */
+#auth{min-height:100vh;display:grid;grid-template-columns:1.1fr .9fr}
+@media(max-width:880px){#auth{grid-template-columns:1fr}}
+.auth-hero{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,var(--teal) 140%);color:#fff;padding:54px 56px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between}
+.auth-hero::after{content:"";position:absolute;right:-120px;top:-120px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(0,168,204,.35),transparent 70%)}
+.auth-hero::before{content:"";position:absolute;left:-80px;bottom:-100px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(240,180,41,.18),transparent 70%)}
+.brand{display:flex;align-items:center;gap:14px;z-index:2}
+.brand .logo{width:52px;height:52px;border-radius:13px;background:#fff;display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.25);overflow:hidden}
+.brand .logo img{width:42px;height:42px;object-fit:contain}
+.brand h1{font-size:25px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.brand h1 span{color:var(--gold2)}
+.brand .tag{font-size:11px;opacity:.8;letter-spacing:2px;text-transform:uppercase;font-weight:500}
+.hero-copy{z-index:2}
+.hero-copy h2{font-size:34px;font-weight:800;line-height:1.12;letter-spacing:-1px;margin-bottom:16px}
+.hero-copy h2 em{color:var(--gold2);font-style:normal}
+.hero-copy p{font-size:15px;opacity:.85;line-height:1.6;max-width:440px}
+.hero-feats{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;z-index:2}
+.hero-feats span{font-size:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);padding:7px 13px;border-radius:30px;font-weight:500}
+.hero-foot{font-size:11px;opacity:.6;z-index:2}
+.auth-panel{display:flex;align-items:center;justify-content:center;padding:40px}
+.auth-card{width:100%;max-width:400px}
+.auth-card h3{font-size:23px;font-weight:800;margin-bottom:4px}
+.auth-card .sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.tabs{display:flex;background:var(--bg);border-radius:12px;padding:5px;margin-bottom:22px}
+.tabs button{flex:1;padding:10px;border-radius:9px;font-size:13px;font-weight:600;background:transparent;color:var(--muted)}
+.tabs button.on{background:#fff;color:var(--navy);box-shadow:var(--shadow)}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.fld input,.fld select{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;font-size:14px;transition:.15s}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 4px rgba(2,128,144,.1)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;border-radius:11px;font-size:14px;font-weight:700;transition:.15s}
+.btn-primary{background:linear-gradient(135deg,var(--teal),var(--teal2));color:#fff;width:100%;box-shadow:0 8px 20px rgba(2,128,144,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(2,128,144,.4)}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--navy)}
+.btn-ghost{background:var(--bg);color:var(--navy)}
+.btn-ghost:hover{background:#e9eef5}
+.btn-sm{padding:8px 14px;font-size:12.5px;border-radius:9px}
+.err{font-size:12.5px;color:var(--bad);margin-top:10px;min-height:16px}
+.hint{font-size:11.5px;color:var(--muted);margin-top:14px;text-align:center;line-height:1.5}
+
+/* ============ APP SHELL ============ */
+#app{display:none;min-height:100vh}
+.shell{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+.side{background:var(--navy);color:#cdd7e5;padding:20px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.side .sbrand{display:flex;align-items:center;gap:11px;padding:6px 8px 18px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:12px}
+.side .sbrand .logo{width:38px;height:38px;border-radius:10px;background:#fff;display:grid;place-items:center;overflow:hidden}
+.side .sbrand .logo img{width:30px;height:30px;object-fit:contain}
+.side .sbrand b{color:#fff;font-size:17px;font-weight:800;letter-spacing:-.3px}
+.side .sbrand b span{color:var(--gold2)}
+.nav-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#5e7191;font-weight:700;margin:14px 8px 4px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;font-size:13.5px;font-weight:500;color:#cdd7e5;background:transparent;width:100%;text-align:left;transition:.13s;position:relative}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-item.on{background:linear-gradient(135deg,var(--teal),rgba(0,168,204,.6));color:#fff;font-weight:600;box-shadow:0 6px 16px rgba(2,128,144,.35)}
+.nav-item .ic{width:20px;text-align:center;font-size:15px}
+.nav-item .lk{margin-left:auto;font-size:11px;opacity:.6}
+.nav-item.locked{opacity:.55}
+.side .spacer{flex:1}
+.side-user{border-top:1px solid rgba(255,255,255,.08);padding-top:14px;margin-top:8px}
+.side-user .u{display:flex;align-items:center;gap:10px;padding:6px 8px}
+.side-user .av{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--navy);display:grid;place-items:center;font-weight:800;font-size:14px}
+.side-user .nm{font-size:13px;color:#fff;font-weight:600;line-height:1.2}
+.side-user .rl{font-size:10.5px;color:#7e91b0}
+
+.main{display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden}
+.topbar{background:#fff;border-bottom:1px solid var(--line);padding:14px 30px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:30}
+.topbar .pg-title{font-size:18px;font-weight:800}
+.topbar .pg-sub{font-size:12px;color:var(--muted)}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.tenant-chip{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);padding:7px 13px;border-radius:30px;font-size:12px;font-weight:600}
+.tenant-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.plan-badge{font-size:11px;font-weight:700;padding:5px 11px;border-radius:30px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--navy)}
+.content{padding:30px;flex:1}
+
+/* ============ DASHBOARD ============ */
+.welcome{background:linear-gradient(120deg,var(--navy) 0%,var(--navy2) 60%,var(--teal) 145%);border-radius:var(--rad);padding:30px 34px;color:#fff;margin-bottom:26px;position:relative;overflow:hidden}
+.welcome::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(0,168,204,.4),transparent 70%)}
+.welcome h2{font-size:25px;font-weight:800;letter-spacing:-.5px;z-index:2;position:relative}
+.welcome p{font-size:14px;opacity:.85;margin-top:6px;max-width:620px;z-index:2;position:relative;line-height:1.55}
+.welcome .wstats{display:flex;gap:30px;margin-top:22px;z-index:2;position:relative;flex-wrap:wrap}
+.welcome .wstat b{display:block;font-size:26px;font-weight:800;color:var(--gold2)}
+.welcome .wstat span{font-size:11.5px;opacity:.8}
+
+.sec-head{display:flex;align-items:center;gap:12px;margin:30px 0 16px}
+.sec-head h3{font-size:17px;font-weight:800}
+.sec-head .ln{flex:1;height:1px;background:var(--line)}
+.sec-head .pill{font-size:11px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:4px 11px;border-radius:30px;font-weight:600}
+
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:18px}
+.prod{background:var(--card);border:1px solid var(--line);border-radius:var(--rad);padding:22px;position:relative;transition:.18s;overflow:hidden;display:flex;flex-direction:column}
+.prod:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:transparent}
+.prod .pic{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;font-size:24px;color:#fff;margin-bottom:14px}
+.prod h4{font-size:16px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.prod p{font-size:12.5px;color:var(--muted);line-height:1.55;flex:1}
+.prod .ptags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+.prod .ptags span{font-size:10.5px;background:var(--bg);color:var(--muted);padding:4px 9px;border-radius:20px;font-weight:600}
+.prod .pfoot{display:flex;align-items:center;gap:8px;margin-top:auto}
+.badge-state{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px}
+.s-active{background:rgba(30,158,106,.12);color:var(--ok)}
+.s-locked{background:rgba(214,69,69,.1);color:var(--bad)}
+.s-soon{background:rgba(224,162,26,.14);color:var(--warn)}
+.prod.locked .pic{filter:grayscale(.4) opacity(.8)}
+.lock-ico{position:absolute;top:16px;right:16px;font-size:15px;opacity:.4}
+
+/* ============ MODAL ============ */
+.modal-bg{position:fixed;inset:0;background:rgba(12,27,46,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-bg.on{display:flex}
+.modal{background:#fff;border-radius:20px;max-width:560px;width:100%;box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto}
+.modal-head{padding:24px 28px 18px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:14px}
+.modal-head .mic{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;color:#fff;flex-shrink:0}
+.modal-head h3{font-size:19px;font-weight:800}
+.modal-head p{font-size:12.5px;color:var(--muted);margin-top:3px}
+.modal-head .x{margin-left:auto;background:var(--bg);width:32px;height:32px;border-radius:9px;font-size:16px;color:var(--muted);flex-shrink:0}
+.modal-body{padding:24px 28px}
+.modal-foot{padding:18px 28px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:8px 0}
+@media(max-width:560px){.plan-grid{grid-template-columns:1fr}}
+.plan-opt{border:2px solid var(--line);border-radius:14px;padding:16px 14px;cursor:pointer;transition:.15s;text-align:center;position:relative}
+.plan-opt:hover{border-color:var(--teal)}
+.plan-opt.sel{border-color:var(--teal);background:rgba(2,128,144,.04)}
+.plan-opt.sel::after{content:"✓";position:absolute;top:8px;right:10px;color:var(--teal);font-weight:800}
+.plan-opt .pn{font-size:13px;font-weight:800}
+.plan-opt .pp{font-size:20px;font-weight:800;color:var(--teal);margin:6px 0}
+.plan-opt .pp small{font-size:11px;color:var(--muted);font-weight:500}
+.plan-opt .pd{font-size:10.5px;color:var(--muted);line-height:1.4}
+
+/* ============ INDICADORES MODULE ============ */
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.toolbar .grow{flex:1}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;min-width:220px}
+.search input{border:none;outline:none;font-size:13px;width:100%}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:11px;padding:4px;gap:3px}
+.seg button{padding:8px 14px;font-size:12.5px;font-weight:600;border-radius:8px;color:var(--muted);background:transparent}
+.seg button.on{background:var(--navy);color:#fff}
+
+.kcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+.kc{background:#fff;border:1px solid var(--line);border-radius:var(--rad);padding:18px 20px;position:relative;overflow:hidden}
+.kc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+.kc.t-kpi::before{background:var(--kpi)}.kc.t-kri::before{background:var(--kri)}.kc.t-kci::before{background:var(--kci)}.kc.t-tot::before{background:var(--gold)}
+.kc .kl{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.kc .kv{font-size:30px;font-weight:800;margin-top:4px;line-height:1}
+.kc .kx{font-size:11.5px;color:var(--muted);margin-top:5px}
+
+.ind-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
+.ind{background:#fff;border:1px solid var(--line);border-radius:var(--rad);padding:18px 20px;transition:.15s;cursor:pointer;position:relative}
+.ind:hover{box-shadow:var(--shadow);border-color:var(--teal)}
+.ind .ih{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.tg{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;color:#fff;letter-spacing:.5px}
+.tg.kpi{background:var(--kpi)}.tg.kri{background:var(--kri)}.tg.kci{background:var(--kci)}
+.ind .dim{font-size:10.5px;color:var(--muted);font-weight:600;margin-left:auto}
+.ind h4{font-size:14.5px;font-weight:700;line-height:1.3;margin-bottom:4px}
+.ind .src{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+.ind .gauge{display:flex;align-items:center;gap:14px}
+.gring{position:relative;width:64px;height:64px;flex-shrink:0}
+.gring svg{transform:rotate(-90deg)}
+.gring .gtxt{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;font-weight:800}
+.ind .gmeta{flex:1}
+.ind .gmeta .row{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px}
+.ind .gmeta .row b{font-weight:700}
+.ind .gmeta .muted{color:var(--muted)}
+.semaforo{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;margin-top:6px}
+.sf-ok{background:rgba(30,158,106,.12);color:var(--ok)}
+.sf-warn{background:rgba(224,162,26,.14);color:var(--warn)}
+.sf-bad{background:rgba(214,69,69,.1);color:var(--bad)}
+.phase-track{display:flex;gap:3px;margin-top:14px}
+.phase-track .pt{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.phase-track .pt.done{background:var(--teal)}
+
+/* phases legend */
+.phases{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px}
+@media(max-width:760px){.phases{grid-template-columns:repeat(2,1fr)}}
+.phase{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;position:relative}
+.phase .pn{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;margin:0 auto 8px}
+.phase b{font-size:13px;display:block}
+.phase span{font-size:10.5px;color:var(--muted);line-height:1.4;display:block;margin-top:3px}
+
+/* form grid */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fgrid .full{grid-column:1/-1}
+@media(max-width:560px){.fgrid{grid-template-columns:1fr}}
+textarea.fi{min-height:70px;resize:vertical}
+.fi{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font-size:13.5px}
+.fi:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 4px rgba(2,128,144,.1)}
+.flbl{font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:5px;display:block}
+
+/* detail */
+.detail-sec{margin-bottom:22px}
+.detail-sec h4{font-size:13px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.ft-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ft-table td{padding:9px 12px;border:1px solid var(--line);vertical-align:top}
+.ft-table td.k{background:var(--bg);font-weight:600;color:var(--muted);width:38%}
+.bars{display:flex;align-items:flex-end;gap:6px;height:120px;padding:10px 0}
+.bars .bar{flex:1;background:linear-gradient(180deg,var(--teal2),var(--teal));border-radius:5px 5px 0 0;position:relative;min-height:4px;transition:.3s}
+.bars .bar span{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:10px;font-weight:700;color:var(--navy)}
+.bars .bar small{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:9.5px;color:var(--muted)}
+.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty .ei{font-size:40px;margin-bottom:10px;opacity:.5}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:13px 22px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:200;transition:.3s;opacity:0}
+.toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+/* Videoteca */
+.vid-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.vcard{background:#fff;border:1px solid var(--line);border-radius:var(--rad);overflow:hidden;transition:.15s;display:flex;flex-direction:column}
+.vcard:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.vthumb{position:relative;aspect-ratio:16/9;background:#000;cursor:pointer;overflow:hidden}
+.vthumb img{width:100%;height:100%;object-fit:cover;transition:.3s}
+.vthumb:hover img{transform:scale(1.05);opacity:.85}
+.vthumb iframe{display:block;border:0}
+.vthumb.playing{cursor:default}
+.vplay{position:absolute;inset:0;margin:auto;width:54px;height:54px;border-radius:50%;background:rgba(214,69,69,.92);color:#fff;display:grid;place-items:center;font-size:20px;padding-left:3px;box-shadow:0 6px 18px rgba(0,0,0,.4);transition:.15s}
+.vthumb:hover .vplay{transform:scale(1.12);background:#D64545}
+.vrank{position:absolute;top:10px;left:10px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--navy);font-weight:800;font-size:12px;padding:3px 9px;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.vbody{padding:14px 16px;flex:1;display:flex;flex-direction:column}
+.vtema{font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.vbody h4{font-size:13.5px;font-weight:700;line-height:1.35;flex:1}
+.vviews{font-size:11.5px;color:var(--muted);margin-top:10px;font-weight:600}
+/* Niveles de acceso / barra RBAC */
+.access-bar{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--line);border-radius:var(--rad);padding:12px 18px;margin-bottom:20px;flex-wrap:wrap}
+.ab-role{display:flex;flex-direction:column;font-size:13px;line-height:1.2}
+.ab-role b{font-weight:700}
+.ab-role span{font-size:11px;color:var(--muted)}
+.ab-scope{display:flex;flex-direction:column;gap:3px}
+.ab-scope label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.ab-scope select{border:1.5px solid var(--line);border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;font-family:inherit}
+.ab-nl{flex:1;min-width:240px;display:flex;align-items:center;gap:9px;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px}
+.ab-nl input{border:none;outline:none;background:transparent;font-size:13px;width:100%}
+.nl-hint{font-size:12px;color:var(--teal);background:rgba(2,128,144,.07);border:1px solid rgba(2,128,144,.18);padding:8px 13px;border-radius:10px;margin-bottom:14px}
+.amb{font-size:10px;color:var(--muted);font-weight:600;background:var(--bg);padding:2px 7px;border-radius:6px}
+.viewseg button{white-space:nowrap}
+/* Balanced Scorecard */
+.bsc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media(max-width:900px){.bsc-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.bsc-grid{grid-template-columns:1fr}}
+.bsc-col{background:#fff;border:1px solid var(--line);border-radius:var(--rad);overflow:hidden}
+.bsc-head{padding:13px 15px;border-top:4px solid var(--pc);display:flex;align-items:center;justify-content:space-between;background:var(--bg)}
+.bsc-head b{font-size:12.5px;line-height:1.25}
+.bsc-avg{font-size:18px;font-weight:800}
+.bsc-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--line);cursor:pointer;transition:.12s}
+.bsc-item:hover{background:var(--bg)}
+.dotc{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.bi-main{flex:1;min-width:0}
+.bi-name{font-size:12.5px;font-weight:600;line-height:1.25}
+.bi-sub{font-size:10.5px;color:var(--muted)}
+.bsc-empty{padding:18px 14px;font-size:11.5px;color:var(--muted);text-align:center}
+/* Heatmap */
+.hm-wrap{background:#fff;border:1px solid var(--line);border-radius:var(--rad);padding:18px;overflow-x:auto}
+.hm-table{width:100%;border-collapse:separate;border-spacing:4px}
+.hm-table th{font-size:11px;font-weight:700;color:var(--navy);padding:8px;text-align:center;background:var(--bg);border-radius:8px}
+.hm-table th.hm-row{text-align:left;cursor:pointer;white-space:nowrap}
+.hm-table th.hm-row:hover{background:#e9eef5}
+.hm-cell{text-align:center;font-weight:800;font-size:14px;border-radius:8px;padding:14px 8px;min-width:90px}
+.hm-cell.hm-na{background:var(--bg);color:var(--muted);font-weight:500}
+.hm-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-size:11px;color:var(--muted);align-items:center}
+.hm-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:middle}
+.hm-tip{margin-left:auto;font-style:italic}
+/* IA / ML embebido */
+.ai-tag{font-size:9px;font-weight:800;background:linear-gradient(135deg,#7A5BD6,#A78BFA);color:#fff;padding:2px 7px;border-radius:6px;letter-spacing:.5px;vertical-align:middle}
+.ai-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ai-chip{font-size:11.5px;font-weight:600;padding:6px 11px;border-radius:30px;border:1px solid var(--line)}
+.ai-chip.c-blue{background:rgba(2,128,144,.07);color:var(--teal);border-color:rgba(2,128,144,.2)}
+.ai-chip.c-ok{background:rgba(30,158,106,.1);color:var(--ok);border-color:rgba(30,158,106,.25)}
+.ai-chip.c-warn{background:rgba(224,162,26,.12);color:var(--warn);border-color:rgba(224,162,26,.3)}
+.ai-chip.c-bad{background:rgba(214,69,69,.1);color:var(--bad);border-color:rgba(214,69,69,.25)}
+.fc-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.fcc{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:12px;text-align:center}
+.fcc .fl{font-size:10.5px;color:var(--muted);font-weight:600}
+.fcc .fv{font-size:21px;font-weight:800;color:var(--teal);margin-top:3px}
+.fcc .fv small{font-size:11px;color:var(--muted);font-weight:500}
+.fcc .fb{font-size:10px;color:var(--muted);margin-top:2px}
+.ai-diag{font-size:13px;line-height:1.55;padding:13px 15px;border-radius:11px;border-left:4px solid}
+.ai-diag.d-ok{background:rgba(30,158,106,.07);border-color:var(--ok)}
+.ai-diag.d-warn{background:rgba(224,162,26,.08);border-color:var(--warn)}
+.ai-diag.d-bad{background:rgba(214,69,69,.07);border-color:var(--bad)}
+.ai-auto{font-size:12.5px;line-height:1.5;padding:13px 15px;border-radius:11px;background:linear-gradient(135deg,rgba(122,91,214,.07),rgba(2,128,144,.06));border:1px solid var(--line);color:var(--navy)}
+.an-list{display:flex;flex-direction:column;gap:12px}
+.an-row{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--line);border-radius:var(--rad);padding:14px 18px;cursor:pointer;transition:.15s}
+.an-row:hover{box-shadow:var(--shadow);border-color:var(--teal)}
+.an-risk{flex-shrink:0;width:62px;height:62px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 12%,#fff);border:2px solid var(--c)}
+.an-risk b{font-size:22px;font-weight:800;color:var(--c);line-height:1}
+.an-risk small{font-size:9px;color:var(--c);font-weight:600}
+.an-main{flex:1;min-width:0}
+.an-h{font-size:14px;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.an-sub{font-size:12px;color:var(--muted);line-height:1.4}
+.an-act{font-size:11.5px;color:var(--teal);font-weight:600;margin-top:6px}
+.an-mini{width:200px;flex-shrink:0}
+@media(max-width:760px){.an-mini{display:none}}
+.placeholder-mod{text-align:center;padding:60px 20px}
+.placeholder-mod .pmi{width:90px;height:90px;border-radius:24px;display:grid;place-items:center;font-size:42px;color:#fff;margin:0 auto 20px}
+.placeholder-mod h2{font-size:24px;font-weight:800;margin-bottom:8px}
+.placeholder-mod p{font-size:14px;color:var(--muted);max-width:520px;margin:0 auto 22px;line-height:1.6}
+.roadmap{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:600px;margin:0 auto}
+.roadmap span{font-size:12px;background:#fff;border:1px solid var(--line);padding:8px 14px;border-radius:30px;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ===================== AUTH ===================== -->
+<div id="auth">
+  <div class="auth-hero">
+    <div class="brand">
+      <div class="logo"><img src="https://i.ibb.co/tTww53cV/logo-gemses-v5.gif" alt="CIIDEG" onerror="this.style.display='none'"></div>
+      <div>
+        <h1>GEMSES<span>360</span></h1>
+        <div class="tag">Plataforma de Gestión en Salud</div>
+      </div>
+    </div>
+    <div class="hero-copy">
+      <h2>Una sola plataforma para <em>gestionar, medir y mejorar</em> los servicios de salud.</h2>
+      <p>GEMSES360 integra formación, gestión de indicadores, planes de gestión, brecha de personal, el proceso de atención de enfermería y la programación asistencial — todo bajo el Modelo GEMSES.</p>
+      <div class="hero-feats">
+        <span>🎓 Formación</span><span>📊 Indicadores</span><span>📋 Plan de Gestión</span>
+        <span>👥 Brecha de Personal</span><span>🩺 PAE</span><span>📅 Programación</span>
+      </div>
+    </div>
+    <div class="hero-foot">Escalable desde un tema específico hasta una institución con 400 IPRESS · Acceso automático al activar el servicio.</div>
+  </div>
+  <div class="auth-panel">
+    <div class="auth-card">
+      <h3 id="authTitle">Bienvenido de nuevo</h3>
+      <div class="sub" id="authSub">Ingresa para acceder a tus módulos GEMSES360.</div>
+      <div class="tabs">
+        <button id="tabLogin" class="on" onclick="switchAuth('login')">Iniciar sesión</button>
+        <button id="tabReg" onclick="switchAuth('reg')">Crear cuenta</button>
+      </div>
+      <div id="loginForm">
+        <div class="fld"><label>Correo</label><input id="lEmail" type="email" placeholder="tu@institucion.gob.pe"></div>
+        <div class="fld"><label>Contraseña</label><input id="lPass" type="password" placeholder="••••••••"></div>
+        <button class="btn btn-primary" onclick="doLogin()">Ingresar →</button>
+        <div class="err" id="lErr"></div>
+        <div class="hint">Admin: <b>admin</b> / <b>123</b> · Demo: <b>demo@gemses360.com</b> / <b>gemses</b></div>
+      </div>
+      <div id="regForm" class="hidden">
+        <div class="fld"><label>Nombre completo</label><input id="rName" placeholder="Lic. Carlos Pérez"></div>
+        <div class="fld"><label>Correo institucional</label><input id="rEmail" type="email" placeholder="tu@institucion.gob.pe"></div>
+        <div class="fld"><label>Tipo de cliente</label>
+          <select id="rTenant">
+            <option value="Institución (multi-IPRESS)">Institución (ej. EsSalud · 400 IPRESS)</option>
+            <option value="IPRESS / Hospital">IPRESS / Hospital</option>
+            <option value="Departamento / Área">Área (ej. Departamento de Enfermería)</option>
+            <option value="Servicio">Servicio</option>
+            <option value="Supervisión de Enfermería">Supervisión de Enfermería</option>
+            <option value="Jefatura de Servicio">Jefatura de Servicio</option>
+            <option value="Tema específico">Tema específico</option>
+          </select>
+        </div>
+        <div class="fld"><label>Organización</label><input id="rOrg" placeholder="Nombre de tu institución / área"></div>
+        <div class="fld"><label>Contraseña</label><input id="rPass" type="password" placeholder="Crea una contraseña"></div>
+        <button class="btn btn-primary" onclick="doRegister()">Crear cuenta gratis →</button>
+        <div class="err" id="rErr"></div>
+        <div class="hint">Tu cuenta inicia en plan <b>Explora</b>. Activa cada módulo cuando lo necesites.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+  <div class="shell">
+    <aside class="side">
+      <div class="sbrand">
+        <div class="logo"><img src="https://i.ibb.co/tTww53cV/logo-gemses-v5.gif" alt="" onerror="this.style.display='none'"></div>
+        <b>GEMSES<span>360</span></b>
+      </div>
+      <button class="nav-item on" data-view="dashboard" onclick="nav('dashboard')"><span class="ic">▦</span> Inicio</button>
+      <div class="nav-lbl">Productos</div>
+      <div id="navProducts"></div>
+      <div class="spacer"></div>
+      <button class="nav-item" data-view="billing" onclick="nav('billing')"><span class="ic">💳</span> Suscripción y pagos</button>
+      <div class="side-user">
+        <div class="u">
+          <div class="av" id="userAv">C</div>
+          <div>
+            <div class="nm" id="userName">Usuario</div>
+            <div class="rl" id="userRole">—</div>
+          </div>
+        </div>
+        <button class="nav-item" style="margin-top:6px" onclick="logout()"><span class="ic">⏻</span> Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div>
+          <div class="pg-title" id="pgTitle">Inicio</div>
+          <div class="pg-sub" id="pgSub">Tu centro de control GEMSES360</div>
+        </div>
+        <div class="right">
+          <div class="tenant-chip"><span class="dot"></span><span id="tenantLabel">—</span></div>
+          <div class="plan-badge" id="planBadge">Plan Explora</div>
+        </div>
+      </header>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Activation modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modal"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============================================================
+   GEMSES360 — Plataforma cascarón + módulo Gestión de Indicadores
+   ============================================================ */
+
+/* ---------- Catálogo de PRODUCTOS ---------- */
+const PRODUCTS = [
+  {id:'formacion', name:'Formación', icon:'🎓', color:'linear-gradient(135deg,#7A5BD6,#A78BFA)',
+   desc:'Campus de cursos organizados por temas de impacto. Incluye el curso de IA aplicada a la salud y el Modelo GEMSES, con contenidos incrustados.',
+   tags:['Cursos','IA en Salud','GEMSES','Certificación'], state:'active'},
+  {id:'indicadores', name:'Gestión de Indicadores', icon:'📊', color:'linear-gradient(135deg,#028090,#00A8CC)',
+   desc:'Sistema automatizado para definir, medir, analizar, implementar y controlar KPI, KRI y KCI en las dimensiones Tiempo, Calidad, Costo y Satisfacción.',
+   tags:['KPI / KRI / KCI','Tablero','5 Fases','Power BI'], state:'active', flagship:true},
+  {id:'plan', name:'Plan de Gestión', icon:'📋', color:'linear-gradient(135deg,#0C1B2E,#13294B)',
+   desc:'Elaboración del Plan de Gestión para concursos directivos: diagnóstico, objetivos, estrategias e indicadores alineados al Modelo GEMSES.',
+   tags:['Concursos','Diagnóstico','Estrategia'], state:'soon'},
+  {id:'brecha', name:'Brecha de Personal', icon:'👥', color:'linear-gradient(135deg,#E0A21A,#F0B429)',
+   desc:'Cálculo y proyección de la brecha de recursos humanos en salud según demanda, carga laboral y estándares de dotación.',
+   tags:['RR.HH.','Dotación','Proyección'], state:'soon'},
+  {id:'pae', name:'Sistema PAE', icon:'🩺', color:'linear-gradient(135deg,#1E9E6A,#3DD68C)',
+   desc:'Proceso de Atención de Enfermería con dictado por voz, valoración por dominios NANDA, KARDEX y gestión predictiva de días de estancia.',
+   tags:['NANDA','KARDEX','Días de estancia','Voz'], state:'active', external:'https://sistemapaegemses.netlify.app/'},
+  {id:'programacion', name:'Programación Asistencial', icon:'📅', color:'linear-gradient(135deg,#D64545,#F87171)',
+   desc:'Programación asistencial en salud: roles de turnos, cobertura de servicios y optimización de la oferta según demanda.',
+   tags:['Turnos','Cobertura','Roles'], state:'soon'},
+  {id:'tablero', name:'Tablero de Mando GEMSES', icon:'🧭', color:'linear-gradient(135deg,#0891B2,#22D3EE)',
+   desc:'Producto sugerido: tablero ejecutivo que consolida indicadores de todas las IPRESS para la alta dirección institucional.',
+   tags:['Ejecutivo','Multi-IPRESS','Benchmarking'], state:'soon', proposed:true},
+];
+
+/* ---------- PLANES ---------- */
+const PLANS = {
+  explora:{name:'Explora',price:'Gratis',per:'',desc:'1 módulo demo · datos locales'},
+  servicio:{name:'Servicio',price:'S/ 149',per:'/mes',desc:'Hasta 3 módulos · 1 servicio'},
+  ipress:{name:'IPRESS',price:'S/ 690',per:'/mes',desc:'Todos los módulos · 1 establecimiento'},
+  institucional:{name:'Institucional',price:'A medida',per:'',desc:'Multi-IPRESS · usuarios ilimitados'},
+};
+
+/* ---------- ESTADO ---------- */
+let USER=null, DB=null;
+const LS_USERS='g360_users', LS_SESSION='g360_session', LS_DATA='g360_data';
+
+/* ---------- Persistencia simple ---------- */
+function loadUsers(){try{return JSON.parse(localStorage.getItem(LS_USERS)||'[]')}catch(e){return[]}}
+function saveUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u))}
+function loadData(){try{return JSON.parse(localStorage.getItem(LS_DATA)||'{}')}catch(e){return{}}}
+function saveData(){localStorage.setItem(LS_DATA,JSON.stringify(DB))}
+
+/* ---------- Seed usuarios por defecto (idempotente, se asegura en cada carga) ---------- */
+function seedUsers(){
+  let us=loadUsers(), changed=false;
+  if(!us.find(u=>u.email==='demo@gemses360.com')){
+    us.push({name:'Demo GEMSES',email:'demo@gemses360.com',pass:'gemses',
+      tenant:'IPRESS / Hospital',org:'Hospital Demo GEMSES',plan:'ipress',
+      access:['formacion','indicadores','pae','plan','brecha','programacion','tablero']}); changed=true;
+  }
+  const adm=us.find(u=>u.email==='admin');
+  if(!adm){
+    us.push({name:'Administrador',email:'admin',pass:'123',rol:'admin',
+      tenant:'Institucional / Red',org:'GEMSES360',plan:'institucional',
+      access:['formacion','indicadores','pae','plan','brecha','programacion','tablero']}); changed=true;
+  } else if(adm.pass!=='123'){ adm.pass='123'; adm.rol='admin'; changed=true; }
+  if(changed) saveUsers(us);
+  return us;
+}
+seedUsers();
+
+/* ---------- AUTH ---------- */
+function switchAuth(m){
+  const login=m==='login';
+  tabLogin.classList.toggle('on',login); tabReg.classList.toggle('on',!login);
+  loginForm.classList.toggle('hidden',!login); regForm.classList.toggle('hidden',login);
+  authTitle.textContent=login?'Bienvenido de nuevo':'Crea tu cuenta GEMSES360';
+  authSub.textContent=login?'Ingresa para acceder a tus módulos GEMSES360.':'Empieza gratis y activa los módulos que necesites.';
+}
+function doLogin(){
+  const e=lEmail.value.trim().toLowerCase(), p=lPass.value;
+  const u=seedUsers().find(x=>(x.email||'').toLowerCase()===e&&x.pass===p);
+  if(!u){lErr.textContent='Correo o contraseña incorrectos.';return;}
+  startSession(u);
+}
+function doRegister(){
+  const name=rName.value.trim(), email=rEmail.value.trim().toLowerCase(), pass=rPass.value;
+  if(!name||!email||!pass){rErr.textContent='Completa todos los campos.';return;}
+  let us=loadUsers();
+  if(us.find(x=>x.email===email)){rErr.textContent='Ya existe una cuenta con ese correo.';return;}
+  const u={name,email,pass,tenant:rTenant.value,org:rOrg.value.trim()||'—',plan:'explora',access:['indicadores']};
+  us.push(u); saveUsers(us); startSession(u);
+}
+function startSession(u){
+  USER=u; localStorage.setItem(LS_SESSION,u.email);
+  DB=loadData(); if(!DB[u.email]) DB[u.email]={indicadores:[]};
+  if(!DB[u.email].indicadores.length) seedIndicadores(u.email);
+  if(!DB[u.email].catalogos) DB[u.email].catalogos=defaultCatalogos();
+  saveData();
+  document.getElementById('auth').style.display='none';
+  app.style.display='block';
+  renderShell(); nav('dashboard');
+}
+function logout(){localStorage.removeItem(LS_SESSION);location.reload();}
+(function auto(){const e=localStorage.getItem(LS_SESSION);if(e){const u=loadUsers().find(x=>x.email===e);if(u)startSession(u);}})();
+
+/* ---------- SHELL ---------- */
+function hasAccess(pid){
+  if(!USER.access||!USER.access.includes(pid)) return false;
+  const until=USER.accessUntil&&USER.accessUntil[pid];   // vigencia mensual (códigos)
+  if(until && until < todayISO()) return false;          // acceso expirado
+  return true;
+}
+function accessVigencia(pid){const u=USER.accessUntil&&USER.accessUntil[pid];return u||null;}
+function renderShell(){
+  userName.textContent=USER.name; userRole.textContent=USER.org||USER.tenant;
+  userAv.textContent=(USER.name||'U').trim()[0].toUpperCase();
+  tenantLabel.textContent=USER.tenant;
+  planBadge.textContent='Plan '+PLANS[USER.plan].name;
+  navProducts.innerHTML=PRODUCTS.map(p=>{
+    const lk=hasAccess(p.id);
+    return `<button class="nav-item ${lk?'':'locked'}" data-view="${p.id}" onclick="nav('${p.id}')">
+      <span class="ic">${p.icon}</span> ${p.name}
+      <span class="lk">${lk?'':'🔒'}</span></button>`;
+  }).join('');
+}
+
+/* ---------- NAV ---------- */
+let VIEW='dashboard';
+function nav(v){
+  VIEW=v;
+  document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+  if(v==='dashboard') return renderDashboard();
+  if(v==='billing') return renderBilling();
+  const p=PRODUCTS.find(x=>x.id===v); if(!p) return renderDashboard();
+  pgTitle.textContent=p.name; pgSub.textContent=p.desc.slice(0,80)+'…';
+  if(!hasAccess(p.id)) return renderLocked(p);
+  if(p.external){
+    content.innerHTML=`<div class="placeholder-mod"><div class="pmi" style="background:${p.color}">${p.icon}</div>
+      <h2>${p.name}</h2><p>${p.desc}</p>
+      <a class="btn btn-primary" style="max-width:280px;margin:0 auto" href="${p.external}" target="_blank">Abrir Sistema PAE ↗</a>
+      <p style="margin-top:18px;font-size:12px">Este módulo ya tiene un avance funcional desplegado. Se integrará nativamente en GEMSES360 en la siguiente fase.</p></div>`;
+    return;
+  }
+  if(p.id==='indicadores') return renderIndicadores();
+  if(p.id==='formacion') return renderFormacion();
+  return renderComingSoon(p);
+}
+
+/* ---------- DASHBOARD ---------- */
+function renderDashboard(){
+  pgTitle.textContent='Inicio'; pgSub.textContent='Tu centro de control GEMSES360';
+  const inds=DB[USER.email].indicadores||[];
+  const activos=PRODUCTS.filter(p=>hasAccess(p.id)).length;
+  content.innerHTML=`
+    <div class="welcome">
+      <h2>Hola, ${USER.name.split(' ')[0]} 👋</h2>
+      <p>Gestiona todos tus productos GEMSES en un solo lugar. Estás operando como <b>${USER.tenant}</b>${USER.org&&USER.org!=='—'?' · '+USER.org:''}.</p>
+      <div class="wstats">
+        <div class="wstat"><b>${activos}</b><span>Módulos activos</span></div>
+        <div class="wstat"><b>${inds.length}</b><span>Indicadores cargados</span></div>
+        <div class="wstat"><b>${PLANS[USER.plan].name}</b><span>Plan actual</span></div>
+      </div>
+    </div>
+    <div class="sec-head"><h3>Productos GEMSES360</h3><div class="ln"></div><span class="pill">Modelo GEMSES</span></div>
+    <div class="prod-grid">${PRODUCTS.map(prodCard).join('')}</div>`;
+}
+function prodCard(p){
+  const lk=hasAccess(p.id);
+  let badge = lk ? `<span class="badge-state s-active">● Activo</span>`
+    : (p.state==='soon'?`<span class="badge-state s-soon">Próximamente</span>`:`<span class="badge-state s-locked">🔒 Bloqueado</span>`);
+  if(p.proposed) badge=`<span class="badge-state s-soon">Sugerido</span>`;
+  const act = lk ? `<button class="btn btn-ghost btn-sm" onclick="nav('${p.id}')">Abrir →</button>`
+    : `<button class="btn btn-gold btn-sm" onclick="openActivate('${p.id}')">Activar</button>`;
+  return `<div class="prod ${lk?'':'locked'}">
+    ${lk?'':'<div class="lock-ico">🔒</div>'}
+    <div class="pic" style="background:${p.color}">${p.icon}</div>
+    <h4>${p.name}${p.flagship?' <span style="font-size:10px;background:var(--gold);color:var(--navy);padding:2px 7px;border-radius:6px">DEMO</span>':''}</h4>
+    <p>${p.desc}</p>
+    <div class="ptags">${p.tags.map(t=>`<span>${t}</span>`).join('')}</div>
+    <div class="pfoot">${badge}<div style="flex:1"></div>${act}</div>
+  </div>`;
+}
+function renderLocked(p){
+  content.innerHTML=`<div class="placeholder-mod"><div class="pmi" style="background:${p.color};filter:grayscale(.3)">🔒</div>
+    <h2>${p.name}</h2><p>${p.desc}</p>
+    <button class="btn btn-gold" style="max-width:300px;margin:0 auto" onclick="openActivate('${p.id}')">Activar este módulo →</button>
+    <p style="margin-top:14px;font-size:12px">El acceso se autoriza automáticamente al confirmar el pago.</p></div>`;
+}
+function renderComingSoon(p){
+  content.innerHTML=`<div class="placeholder-mod"><div class="pmi" style="background:${p.color}">${p.icon}</div>
+    <h2>${p.name}</h2><p>${p.desc}</p>
+    <div class="roadmap"><span>📐 Diseño</span><span>🔧 Construcción</span><span>🧪 Piloto</span><span>🚀 Lanzamiento</span></div>
+    <p style="margin-top:20px;font-size:12.5px">Este módulo está habilitado en tu plan y se encuentra en desarrollo. La estructura ya quedó reservada en tu plataforma.</p></div>`;
+}
+/* Videoteca CIIDEG (canal @CIIDEG) ordenada del MÁS visto al MENOS visto */
+const CIIDEG_VIDEOS=[
+  {id:'qpAxiy8CnbA',t:'Taller Gratuito: Cómo Calcular y Reducir la BRECHA de PERSONAL en SALUD',v:6600,tema:'Brecha de Personal'},
+  {id:'WTxu69427Z0',t:'4 Aspectos Clave para un PLAN DE GESTIÓN en SALUD EFICIENTE',v:3100,tema:'Plan de Gestión'},
+  {id:'-PjugUcQeek',t:'Guía práctica para la elaboración del PLAN DE GESTIÓN',v:2900,tema:'Plan de Gestión'},
+  {id:'zZxMkb3KCQU',t:'Cómo reducir la BRECHA DE PERSONAL y mejorar la eficiencia en los servicios de SALUD',v:2400,tema:'Brecha de Personal'},
+  {id:'M7pSzkJQ73k',t:'Modelo GEMSES: Gestión Moderna de los Servicios de SALUD',v:2300,tema:'Modelo GEMSES'},
+  {id:'DUWGVyp-Lj8',t:'¿Te has enfrentado a la complejidad de calcular la BRECHA de PERSONAL en SALUD?',v:1400,tema:'Brecha de Personal'},
+  {id:'8HN3LXMhsfA',t:'Tutorial: Llenado formulario NAS (Nursing Activities Score)',v:967,tema:'Indicadores'},
+  {id:'DYXwtcmbnag',t:'¡Optimiza la Gestión de PERSONAL en SALUD! Reduce la BRECHA y mejora el cuidado',v:793,tema:'Brecha de Personal'},
+  {id:'9bKZFfPerQE',t:'Taller: Introducción a BIZAGI para el Manual y Procedimientos de Enfermería',v:553,tema:'Procesos'},
+  {id:'TmxYRi7UMiY',t:'Taller: Introducción a BIZAGI para el Manual y Procedimientos de Enfermería (G1)',v:426,tema:'Procesos'},
+  {id:'t5cH1sipYFo',t:'Impactos del modelo GEMSES',v:331,tema:'Modelo GEMSES'},
+  {id:'ggi76bfJuPI',t:'Curso Internacional ISO 7101:2023 Calidad y Seguridad del Paciente y Plan de Gestión',v:309,tema:'Calidad'},
+  {id:'I5Dnd0IOl3I',t:'Video Control y Automatización GEMSES',v:209,tema:'Indicadores'},
+  {id:'1t9PySCQ1_Y',t:'Cómo la Inteligencia Artificial revoluciona la GESTIÓN en SALUD con el modelo GEMSES',v:144,tema:'IA en Salud'},
+  {id:'YpujFu99ITI',t:'Webinar gratuito: Gestión de la Información en Salud con herramientas digitales',v:138,tema:'IA en Salud'},
+  {id:'hzuHDUzm4Pc',t:'Cómo verificar si mi evaluación NAS fue realizada y enviada con éxito',v:137,tema:'Indicadores'},
+  {id:'W1xtx7mpVWM',t:'CIIDEG Corporativo',v:136,tema:'Institucional'},
+  {id:'a8uAKSRx2gk',t:'Chat de Inteligencia Artificial',v:117,tema:'IA en Salud'},
+  {id:'aA1qpx3SFUA',t:'Primer Conversatorio: Gestores de Excelencia',v:96,tema:'Conversatorios'},
+  {id:'70zqwxbvL80',t:'Segundo Conversatorio: Gestores de Excelencia',v:63,tema:'Conversatorios'},
+  {id:'OCEgUw4D17Y',t:'Brecha de Personal en Salud — Avancemos juntos',v:53,tema:'Brecha de Personal'},
+  {id:'PFsg8HYY7ZE',t:'4 puntos clave para GESTIONAR el COVID-19 en tu organización',v:43,tema:'Gestión'},
+  {id:'HAES_p3qPK8',t:'Presentación del libro GEMSES',v:31,tema:'Modelo GEMSES'},
+];
+function fmtViews(v){return v>=1000?(v/1000).toFixed(v%1000===0?0:1)+' K':v+'';}
+let vtTema='all';
+function renderFormacion(){
+  pgTitle.textContent='Formación'; pgSub.textContent='Videoteca CIIDEG · del más visto al menos visto';
+  const cursos=[
+    {t:'Inteligencia Artificial aplicada a la Salud y el Modelo GEMSES',tag:'IA · GEMSES',prog:50,url:'https://sites.google.com/view/cursointeligenciaartificialapl/buscar',ic:'🤖'},
+    {t:'Auditoría de Enfermería con enfoque GEMSES',tag:'Auditoría',prog:0,ic:'🔍'},
+    {t:'Gestión de Indicadores en Salud',tag:'Indicadores',prog:0,ic:'📊'},
+    {t:'Elaboración del Plan de Gestión para Concursos',tag:'Directivo',prog:0,ic:'📋'},
+  ];
+  const temas=['all',...Array.from(new Set(CIIDEG_VIDEOS.map(v=>v.tema)))];
+  content.innerHTML=`
+    <div class="sec-head"><h3>Rutas de aprendizaje</h3><div class="ln"></div><span class="pill">Organizado por temas de impacto</span></div>
+    <div class="prod-grid">${cursos.map(c=>`
+      <div class="prod">
+        <div class="pic" style="background:linear-gradient(135deg,#7A5BD6,#A78BFA)">${c.ic}</div>
+        <h4 style="font-size:14.5px">${c.t}</h4>
+        <div class="ptags"><span>${c.tag}</span>${c.prog>0?`<span>${c.prog}% avance</span>`:'<span>Próximamente</span>'}</div>
+        <div style="height:6px;background:var(--bg);border-radius:4px;margin:6px 0 14px"><div style="height:100%;width:${c.prog}%;background:linear-gradient(90deg,var(--teal),var(--teal2));border-radius:4px"></div></div>
+        <div class="pfoot">${c.url?`<a class="btn btn-ghost btn-sm" href="${c.url}" target="_blank">Ir al curso ↗</a>`:'<span class="badge-state s-soon">Próximamente</span>'}</div>
+      </div>`).join('')}</div>
+    <div class="sec-head"><h3>Videoteca CIIDEG ▶</h3><div class="ln"></div><span class="pill">${CIIDEG_VIDEOS.length} videos · más visto → menos visto</span></div>
+    <div class="seg" style="margin-bottom:18px;flex-wrap:wrap" id="vtSeg">
+      ${temas.map(t=>`<button class="${vtTema===t?'on':''}" onclick="vtFilter('${t}')">${t==='all'?'Todos':t}</button>`).join('')}
+    </div>
+    <div class="vid-grid" id="vidGrid"></div>`;
+  drawVideos();
+}
+function vtFilter(t){vtTema=t;document.querySelectorAll('#vtSeg button').forEach(b=>b.classList.toggle('on',b.textContent===(t==='all'?'Todos':t)));drawVideos();}
+function drawVideos(){
+  const g=document.getElementById('vidGrid'); if(!g)return;
+  let list=CIIDEG_VIDEOS.slice().sort((a,b)=>b.v-a.v);
+  if(vtTema!=='all') list=list.filter(v=>v.tema===vtTema);
+  g.innerHTML=list.map((v,idx)=>`
+    <div class="vcard">
+      <div class="vthumb" onclick="playVid(this,'${v.id}')">
+        <img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" loading="lazy" alt="">
+        <div class="vplay">▶</div>
+        ${vtTema==='all'?`<div class="vrank">#${idx+1}</div>`:''}
+      </div>
+      <div class="vbody">
+        <div class="vtema">${v.tema}</div>
+        <h4>${v.t}</h4>
+        <div class="vviews">👁 ${fmtViews(v.v)} vistas</div>
+      </div>
+    </div>`).join('');
+}
+function playVid(el,id){
+  el.outerHTML=`<div class="vthumb playing"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/${id}?autoplay=1&rel=0" title="YouTube" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>`;
+}
+
+/* ---------- BILLING ---------- */
+function renderBilling(){
+  pgTitle.textContent='Suscripción y pagos'; pgSub.textContent='Gestiona tu plan y la activación de módulos';
+  content.innerHTML=`
+    <div class="welcome" style="background:linear-gradient(120deg,#13294B,#028090)">
+      <h2>Plan ${PLANS[USER.plan].name}</h2>
+      <p>${PLANS[USER.plan].desc}. El acceso a cada módulo se autoriza <b>automáticamente</b> al confirmar el pago — sin esperas ni activaciones manuales.</p>
+    </div>
+    <div class="sec-head"><h3>Planes disponibles</h3><div class="ln"></div></div>
+    <div class="prod-grid">${Object.entries(PLANS).map(([k,v])=>`
+      <div class="prod">
+        <h4>${v.name}</h4>
+        <div style="font-size:26px;font-weight:800;color:var(--teal);margin:6px 0">${v.price}<small style="font-size:13px;color:var(--muted);font-weight:500">${v.per}</small></div>
+        <p>${v.desc}</p>
+        <div class="pfoot">${USER.plan===k?'<span class="badge-state s-active">Plan actual</span>':`<button class="btn btn-gold btn-sm" onclick="changePlan('${k}')">Elegir plan</button>`}</div>
+      </div>`).join('')}</div>
+    <div class="sec-head"><h3>Acceso a módulos</h3><div class="ln"></div></div>
+    <div class="prod-grid">${PRODUCTS.map(p=>`
+      <div class="prod" style="padding:16px 18px">
+        <h4 style="font-size:14px">${p.icon} ${p.name}</h4>
+        <div class="pfoot" style="margin-top:12px">${hasAccess(p.id)
+          ?`<span class="badge-state s-active">● Autorizado</span>${accessVigencia(p.id)?`<div style="font-size:10.5px;color:var(--muted);margin-top:4px">Vigente hasta ${fmtDate(accessVigencia(p.id))}</div>`:''}`
+          :`<button class="btn btn-gold btn-sm" onclick="openActivate('${p.id}')">Activar</button>`}</div>
+      </div>`).join('')}</div>
+    ${USER.rol==='admin'?codesAdminHTML():''}`;
+}
+/* ---------- ADMIN: generación de códigos de acceso por persona ---------- */
+let lastCode=null;
+function codesAdminHTML(){
+  const codes=loadCodes();
+  const lc=lastCode?`<div id="cgResult" style="margin-top:12px"><div style="background:#0B1E3D;border:1px solid var(--teal);border-radius:8px;padding:12px 14px">
+    <div style="font-size:11px;color:var(--muted)">Código generado para <b>${lastCode.persona}</b></div>
+    <div style="font-family:monospace;font-size:20px;font-weight:800;color:var(--teal);letter-spacing:2px;margin:4px 0">${lastCode.code}</div>
+    <div style="font-size:11px;color:var(--muted)">${lastCode.modulos.join(', ')} · S/${lastCode.costoMensual}/mes · ${lastCode.meses} mes(es) de vigencia</div></div></div>`:'<div id="cgResult" style="margin-top:12px"></div>';
+  const mods=PRODUCTS.map(p=>`<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;margin:0 10px 6px 0"><input type="checkbox" class="cgMod" value="${p.id}" ${p.id==='indicadores'?'checked':''}> ${p.icon} ${p.name}</label>`).join('');
+  const rows=codes.length?codes.slice().reverse().map(c=>`
+    <tr>
+      <td style="font-family:monospace;font-weight:700;color:var(--teal)">${c.code}</td>
+      <td>${c.persona}</td>
+      <td style="font-size:11px">${(c.modulos||[]).join(', ')}</td>
+      <td style="text-align:right">S/${c.costoMensual}</td>
+      <td style="text-align:center">${c.meses}m</td>
+      <td style="text-align:center">${c.estado==='usado'
+        ?`<span class="badge-state s-warn">Usado</span><div style="font-size:10px;color:var(--muted)">${c.usadoPor||''}${c.vigenciaHasta?' · vence '+fmtDate(c.vigenciaHasta):''}</div>`
+        :'<span class="badge-state s-active">Disponible</span>'}</td>
+    </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">Aún no has generado códigos.</td></tr>';
+  return `
+    <div class="sec-head"><h3>⚙ Administración de códigos de acceso</h3><div class="ln"></div></div>
+    <div class="prod" style="padding:18px">
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px">Genera un código por persona. Cada código abre los módulos seleccionados con un costo mensual y una vigencia. La persona lo canjea desde <b>Activar → Tengo un código</b>.</p>
+      <div class="fgrid">
+        <div><label class="flbl">Persona / asignación</label><input class="fi" id="cgPersona" placeholder="Nombre o cargo"></div>
+        <div><label class="flbl">Costo mensual (S/)</label><input class="fi" id="cgCosto" type="number" step="any" placeholder="0.00"></div>
+        <div><label class="flbl">Meses de vigencia</label><input class="fi" id="cgMeses" type="number" min="1" value="1"></div>
+      </div>
+      <div style="margin-top:12px"><label class="flbl">Módulos que habilita</label><div style="margin-top:6px">${mods}</div></div>
+      <div style="margin-top:14px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="adminCreateCode()">🔑 Generar código</button></div>
+      ${lc}
+      <div style="overflow:auto;margin-top:16px">
+        <table class="tbl" style="width:100%;border-collapse:collapse;font-size:12.5px">
+          <thead><tr style="text-align:left;border-bottom:2px solid var(--line)">
+            <th style="padding:6px">Código</th><th>Persona</th><th>Módulos</th><th style="text-align:right">Costo</th><th style="text-align:center">Vig.</th><th style="text-align:center">Estado</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+function adminCreateCode(){
+  const persona=(document.getElementById('cgPersona').value||'').trim();
+  const costoMensual=parseFloat(document.getElementById('cgCosto').value)||0;
+  const meses=parseInt(document.getElementById('cgMeses').value)||1;
+  const modulos=Array.from(document.querySelectorAll('.cgMod:checked')).map(c=>c.value);
+  if(!persona){toast('Indica la persona o asignación');return;}
+  if(!modulos.length){toast('Selecciona al menos un módulo');return;}
+  const obj=createCode({persona,modulos,costoMensual,meses});
+  lastCode=obj;
+  toast('✓ Código generado: '+obj.code);
+  renderBilling();
+}
+function changePlan(k){
+  USER.plan=k;
+  // plan upgrades grant access automatically
+  if(k==='ipress'||k==='institucional') USER.access=PRODUCTS.map(p=>p.id);
+  else if(k==='servicio'){USER.access=Array.from(new Set([...(USER.access||[]),'indicadores','pae','formacion']));}
+  persistUser(); renderShell(); renderBilling();
+  toast('Plan actualizado a '+PLANS[k].name+' · accesos autorizados automáticamente');
+}
+
+/* ---------- ACTIVATION (payment-gated) ---------- */
+let pendingProduct=null, selPlan='servicio';
+const PLAN_PRICE={servicio:149,ipress:690,institucional:0}; // institucional = a medida
+function openActivate(pid){
+  pendingProduct=pid; selPlan='ipress';
+  const p=PRODUCTS.find(x=>x.id===pid);
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="mic" style="background:${p.color}">${p.icon}</div>
+      <div><h3>Activar: ${p.name}</h3><p>Paga el monto o ingresa un código para autorizar el acceso automáticamente.</p></div>
+      <button class="x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="seg" style="margin-bottom:14px">
+        <button id="payTab1" class="on" onclick="payMode('monto')">💳 Pagar monto</button>
+        <button id="payTab2" onclick="payMode('codigo')">🔑 Tengo un código</button>
+      </div>
+      <div id="payMonto">
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Modelo escalable: paga solo por el alcance que necesitas. Al ingresar el monto correcto, el módulo se abre automáticamente.</p>
+        <div class="plan-grid" id="planGrid">
+          <div class="plan-opt" data-p="servicio" onclick="selectPlan('servicio')"><div class="pn">Servicio</div><div class="pp">S/149<small>/mes</small></div><div class="pd">1 servicio · este módulo</div></div>
+          <div class="plan-opt sel" data-p="ipress" onclick="selectPlan('ipress')"><div class="pn">IPRESS</div><div class="pp">S/690<small>/mes</small></div><div class="pd">Todo el establecimiento</div></div>
+          <div class="plan-opt" data-p="institucional" onclick="selectPlan('institucional')"><div class="pn">Institucional</div><div class="pp">A medida</div><div class="pd">Multi-IPRESS (EsSalud)</div></div>
+        </div>
+        <div class="fgrid" style="margin-top:14px">
+          <div><label class="flbl">Monto a pagar (S/)</label><input class="fi" id="payAmount" type="number" step="any" placeholder="0.00"></div>
+          <div><label class="flbl">Método de pago</label><select class="fi" id="payMethod"><option>Tarjeta de crédito / débito</option><option>Transferencia / factura institucional</option><option>Orden de compra (SIAF)</option><option>Yape / Plin</option></select></div>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:6px">Monto requerido para <b id="reqPlanName">IPRESS</b>: <b id="reqAmount">S/690</b>/mes.</p>
+      </div>
+      <div id="payCodigo" style="display:none">
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Ingresa el código asignado a tu persona. Cada código tiene un costo mensual y una vigencia; al canjearlo se abre el módulo automáticamente.</p>
+        <div class="fld"><label class="flbl">Código de acceso</label><input class="fi" id="codeInput" placeholder="GEM-XXXX-XXXX" style="text-transform:uppercase;letter-spacing:1px"></div>
+        <div id="codeMsg" style="font-size:12px;margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="payBtn" style="width:auto" onclick="confirmPayment()">💳 Confirmar pago y activar</button>
+    </div>`;
+  selectPlan('ipress'); modalBg.classList.add('on');
+}
+function payMode(m){
+  const monto=m==='monto';
+  document.getElementById('payMonto').style.display=monto?'':'none';
+  document.getElementById('payCodigo').style.display=monto?'none':'';
+  document.getElementById('payTab1').classList.toggle('on',monto);
+  document.getElementById('payTab2').classList.toggle('on',!monto);
+  const btn=document.getElementById('payBtn');
+  btn.textContent=monto?'💳 Confirmar pago y activar':'🔑 Canjear código y activar';
+  btn.setAttribute('onclick',monto?'confirmPayment()':'redeemCode()');
+}
+function selectPlan(k){
+  selPlan=k;
+  document.querySelectorAll('#planGrid .plan-opt').forEach(o=>o.classList.toggle('sel',o.dataset.p===k));
+  const rn=document.getElementById('reqPlanName'), ra=document.getElementById('reqAmount');
+  if(rn)rn.textContent=PLANS[k].name;
+  if(ra)ra.textContent=k==='institucional'?'a convenir':('S/'+PLAN_PRICE[k]);
+}
+function confirmPayment(){
+  const amount=parseFloat((document.getElementById('payAmount')||{}).value);
+  const req=PLAN_PRICE[selPlan];
+  if(selPlan!=='institucional'){
+    if(isNaN(amount)||amount<=0){toast('Ingresa el monto a pagar');return;}
+    if(amount<req){toast(`El monto ingresado (S/${amount}) es menor al requerido (S/${req}) para el plan ${PLANS[selPlan].name}`);return;}
+  }
+  // PAGO CONFIRMADO -> AUTORIZACIÓN AUTOMÁTICA
+  if(selPlan==='ipress'||selPlan==='institucional'){USER.access=PRODUCTS.map(p=>p.id);USER.plan=selPlan;}
+  else{USER.access=Array.from(new Set([...(USER.access||[]),pendingProduct]));if(USER.plan==='explora')USER.plan='servicio';}
+  // vigencia mensual desde hoy
+  const hasta=addMonths(todayISO(),1);
+  USER.accessUntil=USER.accessUntil||{};
+  (selPlan==='servicio'?[pendingProduct]:PRODUCTS.map(p=>p.id)).forEach(id=>USER.accessUntil[id]=hasta);
+  persistUser(); closeModal(); renderShell();
+  toast('✓ Pago confirmado · acceso autorizado automáticamente hasta '+fmtDate(hasta));
+  nav(pendingProduct);
+}
+function addMonths(iso,n){const d=new Date(iso+'T00:00:00');d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10);}
+function closeModal(){modalBg.classList.remove('on');}
+modalBg.addEventListener('click',e=>{if(e.target===modalBg)closeModal();});
+function persistUser(){let us=loadUsers();const i=us.findIndex(u=>u.email===USER.email);if(i>=0){us[i]=USER;saveUsers(us);}}
+
+/* ---------- CÓDIGOS DE ACCESO (representan a una persona, con costo mensual y vigencia) ---------- */
+const LS_CODES='g360_codes';
+function loadCodes(){try{return JSON.parse(localStorage.getItem(LS_CODES)||'[]')}catch(e){return[]}}
+function saveCodes(c){localStorage.setItem(LS_CODES,JSON.stringify(c))}
+function genCodeStr(){const s='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const r=n=>Array.from({length:n},()=>s[Math.floor(Math.random()*s.length)]).join('');return `GEM-${r(4)}-${r(4)}`;}
+function createCode(o){
+  const codes=loadCodes(); let code; do{code=genCodeStr();}while(codes.some(c=>c.code===code));
+  const obj={code,persona:o.persona||'—',modulos:(o.modulos&&o.modulos.length)?o.modulos:['indicadores'],
+    costoMensual:+o.costoMensual||0,meses:+o.meses||1,creado:todayISO(),estado:'activo',usadoPor:null,vigenciaHasta:null};
+  codes.push(obj); saveCodes(codes); return obj;
+}
+function redeemCode(){
+  const el=document.getElementById('codeInput'), msg=document.getElementById('codeMsg');
+  const code=(el?el.value:'').trim().toUpperCase();
+  const fail=t=>{if(msg){msg.style.color='var(--bad)';msg.textContent=t;}};
+  if(!code)return fail('Ingresa un código.');
+  const codes=loadCodes(), c=codes.find(x=>x.code===code);
+  if(!c)return fail('Código no válido o inexistente.');
+  if(c.estado==='usado' && c.usadoPor && c.usadoPor!==USER.email) return fail('Este código ya fue asignado a otra persona.');
+  const hasta=addMonths(todayISO(),c.meses||1);
+  USER.access=Array.from(new Set([...(USER.access||[]),...c.modulos]));
+  USER.accessUntil=USER.accessUntil||{}; c.modulos.forEach(id=>USER.accessUntil[id]=hasta);
+  if(USER.plan==='explora')USER.plan='servicio';
+  c.estado='usado'; c.usadoPor=USER.email; c.vigenciaHasta=hasta; saveCodes(codes);
+  persistUser(); closeModal(); renderShell();
+  toast('✓ Código canjeado · acceso autorizado hasta '+fmtDate(hasta));
+  nav(c.modulos[0]||pendingProduct);
+}
+
+/* ---------- TOAST ---------- */
+let tT;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('on'),2800);}
+
+/* ============================================================
+   MÓDULO: GESTIÓN DE INDICADORES (basado en LIBRO GEMSES Cap 9.4)
+   ============================================================ */
+/* Fases del modelo GEMSES (libro, secc. 9.4.1 — DMAIC).
+   Secuenciales y dependientes: cada fase exige el cierre de la anterior. */
+const PHASES=[
+  {n:1,t:'Definir',d:'Proceso/SIPOC, descripción del indicador, objetivo, meta, ficha técnica e instrumento de recolección.',
+   act:['Definir y diagramar el proceso (cadena de valor)','Herramienta SIPOC','Descripción del indicador (KPI/KRI/KCI)','Objetivo y meta','Ficha técnica','Instrumento de recolección']},
+  {n:2,t:'Medir',d:'Elaboración e implementación de la recolección de datos: validación, muestreo y aprobación del indicador.',
+   act:['Técnica e instrumento de recolección','Validación por juicio de expertos','Muestreo','Estandarización de quien recolecta','Prueba piloto','Aprobación del indicador']},
+  {n:3,t:'Analizar',d:'Procesamiento estadístico: bases de datos, métodos, comparación estatus vs. meta y matriz de priorización.',
+   act:['Base de datos de mediciones','Pruebas/validación estadística','Comparación actual vs. meta','Matriz de priorización (P25/P50/P75)']},
+  {n:4,t:'Implementar',d:'Planes de mejora 5W+2H por nivel de prioridad (Proyecto >P75, Procesos >P50, Actividades P25).',
+   act:['Plan de mejora 5W+2H','Asignar nivel: Proyecto / Procesos / Actividades','Ejecutar acciones de mejora']},
+  {n:5,t:'Controlar',d:'Monitoreo sistematizado de los procesos en función de las metas; estandarización de la mejora.',
+   act:['Monitoreo sistematizado','Seguimiento vs. meta','Estandarizar la mejora lograda']},
+];
+const TIPOS={kpi:{l:'KPI',d:'Capacidad / Rendimiento'},kri:{l:'KRI',d:'Riesgo'},kci:{l:'KCI',d:'Control'}};
+/* ---------- CATÁLOGOS EDITABLES (guardados por usuario en la base de datos) ----------
+   Valores por defecto; el usuario puede agregar/quitar alternativas desde ⚙ Catálogos. */
+const DIMS_DEF=['Tiempo','Calidad','Costo','Satisfacción'];
+const AMBITOS_DEF=['Institucional','Consulta Externa','Emergencia','Hospitalización','UCI','Departamento de Enfermería']; // RBAC drill-down
+const PERSP_DEF=['Resultados al Paciente','Procesos Internos','Económico-Financiero','Aprendizaje y Personal']; // Balanced Scorecard
+const FREC_DEF=['Diaria','Semanal','Mensual','Trimestral','Semestral','Anual'];
+const CAT_META=[
+  {key:'ambitos',label:'Ámbito / Nivel (drill-down)',icon:'📍',def:AMBITOS_DEF},
+  {key:'dimensiones',label:'Dimensión GEMSES',icon:'📐',def:DIMS_DEF},
+  {key:'perspectivas',label:'Perspectiva (Balanced Scorecard)',icon:'🎯',def:PERSP_DEF},
+  {key:'frecuencias',label:'Frecuencia de medición',icon:'⏱️',def:FREC_DEF},
+];
+function defaultCatalogos(){return{ambitos:[...AMBITOS_DEF],dimensiones:[...DIMS_DEF],perspectivas:[...PERSP_DEF],frecuencias:[...FREC_DEF]};}
+function catList(key){
+  const c=(DB&&USER&&DB[USER.email]&&DB[USER.email].catalogos)||null;
+  const meta=CAT_META.find(m=>m.key===key);
+  return (c&&Array.isArray(c[key])&&c[key].length)?c[key]:(meta?meta.def:[]);
+}
+function getAmbitos(){return catList('ambitos');}
+function getDims(){return catList('dimensiones');}
+function getPersp(){return catList('perspectivas');}
+function getFrec(){return catList('frecuencias');}
+const PERSP_COLOR={'Resultados al Paciente':'#028090','Procesos Internos':'#7A5BD6','Económico-Financiero':'#E0A21A','Aprendizaje y Personal':'#1E9E6A'};
+const PALETTE=['#028090','#7A5BD6','#E0A21A','#1E9E6A','#00A8CC','#D64545','#F0B429','#13294B'];
+function perspColor(p){ if(PERSP_COLOR[p])return PERSP_COLOR[p]; const i=getPersp().indexOf(p); return PALETTE[(i<0?0:i)%PALETTE.length]; }
+/* Causa-raíz sugerida por dimensión (Ishikawa) */
+const CAUSAS={
+ 'Tiempo':['Flujo del proceso / cuellos de botella','Dotación de personal','Disponibilidad de recursos y equipos','Programación y turnos','Demoras en triaje / admisión'],
+ 'Calidad':['Adherencia a protocolos','Competencias del personal','Insumos y equipos','Supervisión y control','Registro y documentación'],
+ 'Costo':['Consumo de insumos','Estancia prolongada','Reprocesos / reingresos','Abastecimiento y compras','Productividad del recurso'],
+ 'Satisfacción':['Trato y comunicación','Tiempos de espera','Información al usuario','Confort e infraestructura','Gestión de quejas y reclamos']
+};
+/* Rol según tipo de cliente -> alcance (row-level security) */
+function userRoleScope(){
+  const t=USER.tenant||'';
+  if(t.includes('Institución')) return {rol:'Dirección Institucional',alcance:'Consolidado de IPRESS',drill:true};
+  if(t.includes('IPRESS')) return {rol:'Dirección de IPRESS',alcance:'Todo el establecimiento',drill:true};
+  if(t.includes('Área')||t.includes('Departamento')) return {rol:'Jefatura de Departamento',alcance:'Departamento de Enfermería',drill:true};
+  if(t.includes('Supervisión')) return {rol:'Supervisión de Enfermería',alcance:'Servicios asignados',drill:true};
+  if(t.includes('Jefatura')) return {rol:'Jefatura de Servicio',alcance:'Hospitalización',drill:false};
+  return {rol:'Responsable de tema',alcance:'Indicadores asignados',drill:false};
+}
+
+function seedIndicadores(email){
+  // periodos mensuales 2026 con fecha inicio/fin reales
+  const MES=[['Ene 2026','2026-01-01','2026-01-31'],['Feb 2026','2026-02-01','2026-02-28'],['Mar 2026','2026-03-01','2026-03-31'],['Abr 2026','2026-04-01','2026-04-30'],['May 2026','2026-05-01','2026-05-31']];
+  const med=(vals,metodo)=>vals.map((v,k)=>({p:MES[k][0],ini:MES[k][1],fin:MES[k][2],v,metodo:metodo||'manual'}));
+  DB[email].indicadores=[
+    {id:uid(),creado:'2025-12-15',nombre:'Oportunidad de atención en Emergencia',tipo:'kpi',dim:'Tiempo',ambito:'Emergencia',persp:'Procesos Internos',unidad:'min',
+     formula:'Promedio de minutos desde triaje hasta atención médica',fuente:'Sistema de triaje',
+     responsable:'Jefatura de Emergencia',frecuencia:'Mensual',meta:15,sentido:'menor',
+     fases:[true,true,true,false,false],mediciones:med([22,20,18,17,16],'manual')},
+    {id:uid(),creado:'2025-12-15',nombre:'Satisfacción del usuario externo',tipo:'kpi',dim:'Satisfacción',ambito:'Institucional',persp:'Resultados al Paciente',unidad:'%',
+     formula:'(Usuarios satisfechos / total encuestados) × 100',fuente:'Encuesta SERVQUAL',
+     responsable:'Calidad',frecuencia:'Mensual',meta:85,sentido:'mayor',
+     fases:[true,true,true,true,false],mediciones:med([78,80,82,84,86],'encuesta'),
+     plan:[{id:uid(),what:'Reducir tiempos de espera en admisión',how:'Ventanilla preferencial + señalética',who:'Jefatura de Admisión',nivel:'Procesos',ini:'2026-04-01',fin:'2026-05-15',estado:'Hecho',avance:100},
+           {id:uid(),what:'Capacitar en trato al usuario',how:'Taller de calidez y comunicación',who:'Calidad',nivel:'Actividades',ini:'2026-04-10',fin:'2026-05-20',estado:'En curso',avance:60}]},
+    {id:uid(),creado:'2025-12-20',nombre:'Tasa de eventos adversos',tipo:'kri',dim:'Calidad',ambito:'Hospitalización',persp:'Resultados al Paciente',unidad:'x1000',
+     formula:'(N° eventos adversos / total egresos) × 1000',fuente:'Reporte de seguridad',
+     responsable:'Seguridad del paciente',frecuencia:'Mensual',meta:5,sentido:'menor',
+     fases:[true,true,false,false,false],mediciones:med([9,8,7,8,6],'manual')},
+    {id:uid(),creado:'2025-11-30',nombre:'Cumplimiento de protocolos de bioseguridad',tipo:'kci',dim:'Calidad',ambito:'UCI',persp:'Procesos Internos',unidad:'%',
+     formula:'(Ítems cumplidos / total auditados) × 100',fuente:'Lista de verificación',
+     responsable:'Supervisión de Enfermería',frecuencia:'Mensual',meta:95,sentido:'mayor',
+     fases:[true,true,true,true,true],mediciones:med([88,90,93,94,96],'manual'),
+     plan:[{id:uid(),what:'Auditorías semanales de bioseguridad',how:'Checklist por turno + retroalimentación',who:'Supervisión de Enfermería',nivel:'Procesos',ini:'2026-02-01',fin:'2026-04-30',estado:'Hecho',avance:100}],
+     control:{verificado:true,fecha:'2026-05-10',baseV:88,postV:96,mejoro:true,observacion:'Las auditorías semanales elevaron el cumplimiento por encima de la meta (95%). Estandarizar el checklist.'}},
+    {id:uid(),creado:'2025-12-20',nombre:'Costo promedio por egreso hospitalario',tipo:'kpi',dim:'Costo',ambito:'Hospitalización',persp:'Económico-Financiero',unidad:'S/',
+     formula:'Gasto total de hospitalización / N° egresos',fuente:'Sistema de costos',
+     responsable:'Administración',frecuencia:'Mensual',meta:1200,sentido:'menor',
+     fases:[true,true,false,false,false],mediciones:med([1450,1380,1300,1250,1220],'manual')},
+    {id:uid(),creado:'2026-01-10',nombre:'Horas de capacitación por enfermera',tipo:'kpi',dim:'Calidad',ambito:'Departamento de Enfermería',persp:'Aprendizaje y Personal',unidad:'h',
+     formula:'Total horas de capacitación / N° de enfermeras',fuente:'Registro de RR.HH.',
+     responsable:'Departamento de Enfermería',frecuencia:'Mensual',meta:8,sentido:'mayor',
+     fases:[true,true,false,false,false],mediciones:med([4,5,5,6,7],'manual')},
+  ];
+}
+function uid(){return 'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function inds(){return DB[USER.email].indicadores||[]}
+
+let filterTipo='all', searchQ='', indView='tablero', indScope='all';
+function scopedList(){
+  let list=inds();
+  if(indScope!=='all') list=list.filter(i=>(i.ambito||'Institucional')===indScope);
+  return list;
+}
+function renderIndicadores(){
+  pgTitle.textContent='Gestión de Indicadores'; pgSub.textContent='Definir · Medir · Analizar · Implementar · Controlar';
+  const rs=userRoleScope();
+  const list=scopedList();
+  const k=t=>list.filter(i=>i.tipo===t).length;
+  const enMeta=list.filter(i=>statusOf(i).s==='ok').length;
+  const scopeOpts=['all',...getAmbitos()].map(a=>`<option value="${a}" ${indScope===a?'selected':''}>${a==='all'?'🏥 Todos los ámbitos (consolidado)':a}</option>`).join('');
+  content.innerHTML=`
+    <div class="access-bar">
+      <div class="ab-role">🔐 <b>${rs.rol}</b><span>${rs.alcance}</span></div>
+      <div class="ab-scope">
+        <label>Nivel / ámbito (drill-down)</label>
+        <select onchange="indScope=this.value;renderIndicadores()">${scopeOpts}</select>
+      </div>
+      <div class="ab-nl">
+        <span>🗣️</span><input id="nlSearch" placeholder="Pregunta: «indicadores en riesgo», «KRI con anomalías», «calidad crítico»…" value="${searchQ.replace(/"/g,'&quot;')}" oninput="searchQ=this.value;drawSub()">
+      </div>
+    </div>
+    <div class="kcards">
+      <div class="kc t-tot"><div class="kl">Indicadores (${indScope==='all'?'consolidado':indScope})</div><div class="kv">${list.length}</div><div class="kx">${enMeta} en meta · ${list.length-enMeta} con brecha</div></div>
+      <div class="kc t-kpi"><div class="kl">KPI · Rendimiento</div><div class="kv">${k('kpi')}</div><div class="kx">Capacidad / desempeño</div></div>
+      <div class="kc t-kri"><div class="kl">KRI · Riesgo</div><div class="kv">${k('kri')}</div><div class="kx">Alertas tempranas</div></div>
+      <div class="kc t-kci"><div class="kl">KCI · Control</div><div class="kv">${k('kci')}</div><div class="kx">Cumplimiento</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="seg viewseg">
+        <button class="${indView==='tablero'?'on':''}" onclick="setView('tablero')">▦ Tablero</button>
+        <button class="${indView==='scorecard'?'on':''}" onclick="setView('scorecard')">🎯 Balanced Scorecard</button>
+        <button class="${indView==='mapa'?'on':''}" onclick="setView('mapa')">🗺️ Mapa de calor</button>
+        <button onclick="renderAnalitica()">🧠 Analítica IA</button>
+      </div>
+      <div class="grow"></div>
+      <button class="btn btn-ghost btn-sm" onclick="openCatalogos()">⚙ Catálogos</button>
+      <button class="btn btn-ghost btn-sm" onclick="importCSV()">⬆ Importar CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ Exportar CSV</button>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="openIndForm()">＋ Nuevo indicador</button>
+    </div>
+    <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none" onchange="handleCSV(this)">
+    <div id="indSub"></div>`;
+  drawSub();
+}
+function setView(v){indView=v;renderIndicadores();}
+function setFilter(t){filterTipo=t;drawSub();}
+/* Buscador en lenguaje natural — virtud ThoughtSpot / Basedash */
+function nlFilter(list,q){
+  if(!q||!q.trim()) return list;
+  const s=q.toLowerCase();
+  const kw=/(crit|rojo|riesgo|alerta|amarill|ambar|ámbar|cumpl|en meta|verde|anomal|baja|descend|empeora|sube|ascend|mejora|kpi|kri|kci|tiempo|calidad|costo|satisfac)/.test(s);
+  return list.filter(i=>{
+    const st=statusOf(i), ins=buildInsight(i);
+    if(/crit|rojo/.test(s)&&st.s!=='bad')return false;
+    if(/(riesgo|alerta|amarill|ambar|ámbar)/.test(s)&&!(st.s==='warn'||st.s==='bad'))return false;
+    if(/(cumpl|en meta|verde)/.test(s)&&st.s!=='ok')return false;
+    if(/anomal/.test(s)&&!(ins&&ins.anomalies.length))return false;
+    if(/(baja|descend|empeora)/.test(s)&&!(ins&&ins.trend==='descendente'))return false;
+    if(/(sube|ascend|mejora)/.test(s)&&!(ins&&ins.trend==='ascendente'))return false;
+    if(/\bkpi\b/.test(s)&&i.tipo!=='kpi')return false;
+    if(/\bkri\b/.test(s)&&i.tipo!=='kri')return false;
+    if(/\bkci\b/.test(s)&&i.tipo!=='kci')return false;
+    if(/tiempo/.test(s)&&i.dim!=='Tiempo')return false;
+    if(/calidad/.test(s)&&i.dim!=='Calidad')return false;
+    if(/costo/.test(s)&&i.dim!=='Costo')return false;
+    if(/satisfac/.test(s)&&i.dim!=='Satisfacción')return false;
+    if(!kw) return i.nombre.toLowerCase().includes(s)||(i.ambito||'').toLowerCase().includes(s)||(i.responsable||'').toLowerCase().includes(s);
+    return true;
+  });
+}
+function drawSub(){
+  const el=document.getElementById('indSub'); if(!el)return;
+  let list=nlFilter(scopedList(),searchQ);
+  if(indView==='scorecard') return el.innerHTML=scorecardHTML(list);
+  if(indView==='mapa') return el.innerHTML=heatmapHTML();
+  // tablero
+  let tl=filterTipo==='all'?list:list.filter(i=>i.tipo===filterTipo);
+  const nlHint=searchQ&&searchQ.trim()?`<div class="nl-hint">🗣️ Interpretado: <b>${list.length}</b> indicador(es) coinciden con «${searchQ}»</div>`:'';
+  el.innerHTML=`
+    ${nlHint}
+    <div class="phases">${PHASES.map(p=>`<div class="phase"><div class="pn">${p.n}</div><b>${p.t}</b><span>${p.d}</span></div>`).join('')}</div>
+    <div class="seg" style="margin-bottom:16px">
+      <button class="${filterTipo==='all'?'on':''}" onclick="setFilter('all')">Todos</button>
+      <button class="${filterTipo==='kpi'?'on':''}" onclick="setFilter('kpi')">KPI</button>
+      <button class="${filterTipo==='kri'?'on':''}" onclick="setFilter('kri')">KRI</button>
+      <button class="${filterTipo==='kci'?'on':''}" onclick="setFilter('kci')">KCI</button>
+    </div>
+    ${tl.length?`<div class="ind-grid">${tl.map(indCard).join('')}</div>`:`<div class="empty"><div class="ei">📊</div>No hay indicadores que coincidan.</div>`}`;
+}
+/* Balanced Scorecard de salud */
+function scorecardHTML(list){
+  return `<div class="bsc-grid">${getPersp().map(p=>{
+    const items=list.filter(i=>(i.persp||'Procesos Internos')===p);
+    const avg=items.length?Math.round(items.reduce((a,i)=>a+statusOf(i).pct,0)/items.length):0;
+    const col=avg>=100?'var(--ok)':avg>=85?'var(--warn)':items.length?'var(--bad)':'var(--muted)';
+    return `<div class="bsc-col">
+      <div class="bsc-head" style="--pc:${perspColor(p)}"><b>${p}</b><span class="bsc-avg" style="color:${col}">${avg}%</span></div>
+      ${items.length?items.map(i=>{const st=statusOf(i);const c=st.s==='ok'?'var(--ok)':st.s==='warn'?'var(--warn)':'var(--bad)';
+        return `<div class="bsc-item" onclick="openDetail('${i.id}')"><span class="dotc" style="background:${c}"></span>
+          <div class="bi-main"><div class="bi-name">${i.nombre}</div><div class="bi-sub">${TIPOS[i.tipo].l} · ${i.ambito||'—'}</div></div>
+          <b style="color:${c}">${st.pct}%</b></div>`;}).join(''):'<div class="bsc-empty">Sin indicadores en esta perspectiva</div>'}
+    </div>`;
+  }).join('')}</div>`;
+}
+/* Mapa de calor / benchmark: ámbito × perspectiva (virtud Health Catalyst) */
+function heatmapHTML(){
+  const list=nlFilter(inds(),searchQ); // mapa siempre muestra todos los ámbitos para comparar
+  const ambs=getAmbitos().filter(a=>list.some(i=>(i.ambito||'Institucional')===a));
+  const cell=(a,p)=>{
+    const items=list.filter(i=>(i.ambito||'Institucional')===a&&(i.persp||'Procesos Internos')===p);
+    if(!items.length)return `<td class="hm-cell hm-na">—</td>`;
+    const avg=Math.round(items.reduce((s,i)=>s+statusOf(i).pct,0)/items.length);
+    const bg=avg>=100?'#1E9E6A':avg>=90?'#7BC47F':avg>=85?'#E0A21A':avg>=70?'#EF8A4B':'#D64545';
+    return `<td class="hm-cell" style="background:${bg};color:#fff;cursor:pointer" title="${items.length} indicador(es)" onclick="indScope='${a}';indView='tablero';renderIndicadores()">${avg}%</td>`;
+  };
+  return `<div class="hm-wrap"><table class="hm-table">
+    <tr><th>Ámbito \\ Perspectiva</th>${getPersp().map(p=>`<th>${p}</th>`).join('')}</tr>
+    ${ambs.map(a=>`<tr><th class="hm-row" onclick="indScope='${a}';indView='tablero';renderIndicadores()">${a}</th>${getPersp().map(p=>cell(a,p)).join('')}</tr>`).join('')}
+  </table>
+  <div class="hm-legend"><span><i style="background:#1E9E6A"></i>≥100%</span><span><i style="background:#7BC47F"></i>≥90%</span><span><i style="background:#E0A21A"></i>≥85%</span><span><i style="background:#EF8A4B"></i>≥70%</span><span><i style="background:#D64545"></i>&lt;70%</span><span class="hm-tip">Clic en una celda o fila para hacer drill-down al ámbito</span></div></div>`;
+}
+function statusOf(i){
+  const last=i.mediciones&&i.mediciones.length?i.mediciones[i.mediciones.length-1].v:null;
+  if(last===null) return {s:'na',pct:0,last:null};
+  let pct;
+  if(i.sentido==='mayor') pct=i.meta?Math.min(150,(last/i.meta)*100):0;
+  else pct=last?Math.min(150,(i.meta/last)*100):0;
+  let s = pct>=100?'ok':(pct>=85?'warn':'bad');
+  return {s,pct:Math.round(pct),last};
+}
+
+/* ============================================================
+   MOTOR DE IA / MACHINE LEARNING EMBEBIDO (in-browser)
+   Regresión lineal · pronóstico · detección de patrones y
+   anomalías · diagnóstico · plan 5W+2H · automatización
+   ============================================================ */
+function linReg(ys){
+  const n=ys.length; if(n<2)return{m:0,b:ys[0]||0,r2:0,mean:ys[0]||0,resStd:0};
+  let sx=0,sy=0,sxy=0,sxx=0;
+  for(let x=0;x<n;x++){sx+=x;sy+=ys[x];sxy+=x*ys[x];sxx+=x*x;}
+  const m=(n*sxy-sx*sy)/((n*sxx-sx*sx)||1);
+  const b=(sy-m*sx)/n, mean=sy/n;
+  let ssTot=0,ssRes=0;
+  for(let x=0;x<n;x++){const yh=m*x+b;ssRes+=(ys[x]-yh)**2;ssTot+=(ys[x]-mean)**2;}
+  return{m,b,r2:ssTot?Math.max(0,1-ssRes/ssTot):0,mean,resStd:Math.sqrt(ssRes/Math.max(1,n-2))};
+}
+function buildInsight(i){
+  const ms=i.mediciones||[], ys=ms.map(m=>m.v), n=ys.length;
+  if(n<2) return null;
+  const reg=linReg(ys), last=ys[n-1];
+  const sd=Math.sqrt(ys.reduce((a,b)=>a+(b-reg.mean)**2,0)/n), cv=reg.mean?sd/reg.mean*100:0;
+  const fc=[]; for(let k=1;k<=3;k++) fc.push(Math.max(0,reg.m*(n-1+k)+reg.b));
+  const band=1.96*reg.resStd; // ~95%
+  const anomalies=[]; ms.forEach((m,x)=>{const z=reg.resStd?Math.abs(m.v-(reg.m*x+reg.b))/reg.resStd:0;if(z>2)anomalies.push(m.p);});
+  const slopePct=reg.mean?reg.m/reg.mean*100:0;
+  const trend=Math.abs(slopePct)<1?'estable':(reg.m>0?'ascendente':'descendente');
+  const towardMeta=i.sentido==='mayor'?reg.m>0:reg.m<0;
+  let eta='—';
+  if(Math.abs(reg.m)>1e-9){
+    const ahead=((i.meta-reg.b)/reg.m)-(n-1);
+    if((i.sentido==='mayor'?last>=i.meta:last<=i.meta)) eta='Meta ya alcanzada';
+    else if(towardMeta && ahead>0 && ahead<60) eta=`~${Math.ceil(ahead)} periodo(s)`;
+    else eta='No se alcanza con la tendencia actual';
+  } else eta=(i.sentido==='mayor'?last>=i.meta:last<=i.meta)?'Meta ya alcanzada':'Sin cambio';
+  // Estacionalidad: cambios de signo en las variaciones consecutivas (patrón oscilante)
+  let signs=0; for(let x=2;x<n;x++){const d1=ys[x]-ys[x-1], d0=ys[x-1]-ys[x-2]; if(d1*d0<0) signs++;}
+  const seasonal = n>=4 && (signs/(n-2))>=0.6;
+  return{reg,fc,band,anomalies,trend,towardMeta,cv,sd,last,eta,n,fc1:fc[0],seasonal};
+}
+function riskScore(i){
+  const st=statusOf(i), ins=buildInsight(i);
+  let r=Math.max(0,100-st.pct);                 // brecha
+  if(ins){ if(!ins.towardMeta) r+=20; r+=Math.min(20,ins.cv/2); if(ins.anomalies.length) r+=10; }
+  return Math.round(Math.min(100,r));
+}
+function buildPlan(i,ins,st){
+  const f1=ins?ins.fc1.toFixed(1):'—';
+  let diag;
+  if(st.s==='ok') diag=`Cumple la meta (${st.last} ${i.unidad}, logro ${st.pct}%). ${ins&&!ins.towardMeta?'Atención: tendencia '+ins.trend+', vigilar sostenibilidad.':'Tendencia '+(ins?ins.trend:'—')+' favorable.'}`;
+  else if(st.s==='warn') diag=`Zona de riesgo (logro ${st.pct}%). Pronóstico próximo periodo ≈ ${f1} ${i.unidad}. ${ins&&ins.towardMeta?'Se acerca a la meta.':'No mejora hacia la meta.'}`;
+  else diag=`Desempeño crítico: ${st.last} ${i.unidad} vs meta ${i.sentido==='menor'?'≤':'≥'}${i.meta} (logro ${st.pct}%). ${ins&&ins.towardMeta?'Mejora pero insuficiente.':'Brecha persistente ('+(ins?ins.trend:'—')+').'} ETA a meta: ${ins?ins.eta:'—'}.`;
+  const A=[];
+  if(st.s!=='ok') A.push({w:`Reducir la brecha de "${i.nombre}"`,y:`Logro ${st.pct}% por debajo de la meta`,o:i.responsable,n:`Próximo ciclo (${i.frecuencia})`,h:'Análisis causa-raíz (Ishikawa / 5 porqués) + acción correctiva'});
+  if(ins&&ins.anomalies.length) A.push({w:`Investigar anomalías: ${ins.anomalies.join(', ')}`,y:'Valores fuera del patrón estadístico (>2σ)',o:i.responsable,n:'Inmediato',h:'Validar dato fuente y documentar causa'});
+  if(ins&&!ins.towardMeta&&st.s!=='ok') A.push({w:'Revertir la tendencia desfavorable',y:`Pendiente ${ins.trend} alejándose de la meta`,o:i.responsable,n:'2 periodos',h:'Plan de mejora 5W+2H + monitoreo de mayor frecuencia'});
+  if(st.s==='ok') A.push({w:'Estandarizar y sostener el resultado',y:'Meta cumplida',o:i.responsable,n:'Continuo',h:'Documentar buenas prácticas y control estadístico de proceso'});
+  const seg=`Próxima medición ${i.frecuencia.toLowerCase()} · alerta automática si ${i.sentido==='menor'?'>':'<'} ${i.meta} ${i.unidad} · responsable: ${i.responsable}.`;
+  return{diag,A,seg};
+}
+/* ============================================================
+   FLUJO DMAIC PASO A PASO (libro GEMSES 9.4.1)
+   Fechas reales por periodo · recolección manual/encuesta ·
+   plan con responsable+fechas+control · verificación de impacto
+   ============================================================ */
+function todayISO(){return new Date().toISOString().slice(0,10);}
+function fmtDate(d){ if(!d)return '—'; const x=new Date(d+'T00:00:00'); if(isNaN(x))return d; return x.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}); }
+function fmtPeriodo(m){ if(m&&m.ini&&m.fin) return `${fmtDate(m.ini)} → ${fmtDate(m.fin)}`; if(m&&m.ini) return fmtDate(m.ini); return (m&&m.p)||'—'; }
+function cumpleMeta(i,v){ return i.sentido==='mayor'? v>=i.meta : v<=i.meta; }
+const NIVELES_MEJORA=[
+  {k:'Proyecto',d:'Proyecto de Mejora (>P75 · Alta Dirección)'},
+  {k:'Procesos',d:'Mejora de Procesos (>P50 · Mandos medios)'},
+  {k:'Actividades',d:'Mejora de Actividades (P25 · Colaboradores)'}
+];
+const EST_ACC=['Pendiente','En curso','Hecho'];
+
+/* ----- FASE 2 · MEDIR: recolección con periodo (fecha inicio/fin) y método ----- */
+function medirHTML(i){
+  const ms=i.mediciones||[];
+  const rows=ms.length?ms.map((m,idx)=>`<tr>
+      <td>${esc(m.p||('M'+(idx+1)))}</td>
+      <td style="font-size:11px;color:var(--muted)">${fmtPeriodo(m)}</td>
+      <td>${m.metodo==='encuesta'?'📋 Encuesta':'✍️ Manual'}${m.metodo==='encuesta'&&m.muestra?` <small style="color:var(--muted)">n=${m.muestra}</small>`:''}</td>
+      <td style="text-align:right"><b>${m.v}</b> ${esc(i.unidad)}</td>
+      <td style="text-align:right"><button title="Eliminar" onclick="delMed('${i.id}',${idx})" style="border:none;background:rgba(214,69,69,.12);color:var(--bad);border-radius:50%;width:20px;height:20px;cursor:pointer">✕</button></td></tr>`).join(''):`<tr><td colspan="5" style="color:var(--muted);font-size:12px">Aún no hay mediciones. Registra la primera abajo.</td></tr>`;
+  return `<div class="detail-sec">
+    <h4>📏 Fase 2 · Medir — recolección de datos</h4>
+    <table class="ft-table" style="font-size:12px"><tr><th>Periodo</th><th>Fechas</th><th>Método</th><th style="text-align:right">Valor</th><th></th></tr>${rows}</table>
+    <div style="border:1px dashed var(--line);border-radius:10px;padding:12px;margin-top:10px">
+      <div class="fgrid">
+        <div><label class="flbl">Etiqueta del periodo</label><input class="fi" id="mP" placeholder="Ej. Junio 2026 / S23"></div>
+        <div><label class="flbl">Método de recolección</label>
+          <select class="fi" id="mMetodo" onchange="toggleMetodo()">
+            <option value="manual">✍️ Ingreso manual del resultado</option>
+            <option value="encuesta">📋 Encuesta (favorables / total)</option>
+          </select></div>
+        <div><label class="flbl">Fecha inicio del periodo</label><input class="fi" id="mIni" type="date" value="${todayISO()}"></div>
+        <div><label class="flbl">Fecha fin del periodo</label><input class="fi" id="mFin" type="date" value="${todayISO()}"></div>
+        <div id="grpManual"><label class="flbl">Valor (${esc(i.unidad)})</label><input class="fi" id="mV" type="number" step="any" placeholder="0"></div>
+        <div id="grpEnc" style="display:none"><label class="flbl">Respuestas favorables</label><input class="fi" id="mFav" type="number" step="any" placeholder="0"></div>
+        <div id="grpEnc2" style="display:none"><label class="flbl">Total encuestados (muestra)</label><input class="fi" id="mTot" type="number" step="any" placeholder="0"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="width:100%;margin-top:10px" onclick="addMedicion('${i.id}')">Guardar medición</button>
+    </div>
+  </div>`;
+}
+function toggleMetodo(){
+  const enc=document.getElementById('mMetodo').value==='encuesta';
+  const man=document.getElementById('grpManual'), e1=document.getElementById('grpEnc'), e2=document.getElementById('grpEnc2');
+  if(man)man.style.display=enc?'none':''; if(e1)e1.style.display=enc?'':'none'; if(e2)e2.style.display=enc?'':'none';
+}
+function delMed(id,idx){const i=inds().find(x=>x.id===id);if(!i)return;if(!confirm('¿Eliminar esta medición?'))return;i.mediciones.splice(idx,1);saveData();openDetail(id);drawIndList();toast('Medición eliminada');}
+
+/* ----- FASE 4 · IMPLEMENTAR: plan 5W+2H con responsable, fechas y control ----- */
+function planHTML(i){
+  const plan=i.plan||[];
+  const rows=plan.length?plan.map(a=>{
+    const venc = a.fin && a.estado!=='Hecho' && a.fin<todayISO();
+    const ec = a.estado==='Hecho'?'var(--ok)':a.estado==='En curso'?'var(--warn)':'var(--muted)';
+    return `<div style="border:1px solid var(--line);border-left:4px solid ${ec};border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <b style="font-size:12.5px">${esc(a.what)}</b>
+        <span class="ai-tag" style="background:var(--navy)">${esc(a.nivel||'Actividades')}</span>
+        ${venc?'<span class="ai-chip c-bad" style="padding:1px 8px">⏰ Vencida</span>':''}
+      </div>
+      ${a.how?`<div style="font-size:11.5px;color:var(--muted);margin:3px 0">⚙️ ${esc(a.how)}</div>`:''}
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:4px">
+        <span>👤 <b style="color:var(--text)">${esc(a.who||'—')}</b></span>
+        <span>📅 ${fmtDate(a.ini)} → ${fmtDate(a.fin)}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <select class="fi" style="height:30px;font-size:11.5px;width:auto" onchange="setAccion('${i.id}','${a.id}','estado',this.value)">
+          ${EST_ACC.map(e=>`<option ${a.estado===e?'selected':''}>${e}</option>`).join('')}</select>
+        <input type="range" min="0" max="100" step="10" value="${a.avance||0}" oninput="this.nextElementSibling.textContent=this.value+'%'" onchange="setAccion('${i.id}','${a.id}','avance',+this.value)" style="flex:1">
+        <span style="font-size:11.5px;width:38px;text-align:right">${a.avance||0}%</span>
+        <button title="Eliminar" onclick="delAccion('${i.id}','${a.id}')" style="border:none;background:rgba(214,69,69,.12);color:var(--bad);border-radius:50%;width:22px;height:22px;cursor:pointer">✕</button>
+      </div>
+    </div>`;
+  }).join(''):`<p style="font-size:12px;color:var(--muted)">Sin acciones de mejora. Agrega la primera (técnica 5W+2H).</p>`;
+  const prog = plan.length?Math.round(plan.reduce((s,a)=>s+(a.avance||0),0)/plan.length):0;
+  return `<div class="detail-sec">
+    <h4>🛠️ Fase 4 · Implementar — plan de mejora (5W+2H)</h4>
+    ${plan.length?`<div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Avance global del plan: <b style="color:var(--teal)">${prog}%</b></div>`:''}
+    ${rows}
+    <div style="border:1px dashed var(--line);border-radius:10px;padding:12px;margin-top:8px">
+      <div class="fgrid">
+        <div class="full"><label class="flbl">Qué — acción de mejora *</label><input class="fi" id="aWhat" placeholder="Ej. Implementar triaje rápido en horas pico"></div>
+        <div class="full"><label class="flbl">Cómo — método / recurso</label><input class="fi" id="aHow" placeholder="Ej. Reasignar 1 enfermera 18:00–22:00 + checklist"></div>
+        <div><label class="flbl">Responsable (Who) *</label><input class="fi" id="aWho" placeholder="Cargo / persona"></div>
+        <div><label class="flbl">Nivel de mejora</label><select class="fi" id="aNivel">${NIVELES_MEJORA.map(n=>`<option value="${n.k}">${n.d}</option>`).join('')}</select></div>
+        <div><label class="flbl">Fecha inicio (When)</label><input class="fi" id="aIni" type="date" value="${todayISO()}"></div>
+        <div><label class="flbl">Fecha fin (When)</label><input class="fi" id="aFin" type="date" value="${todayISO()}"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="width:100%;margin-top:10px" onclick="addAccion('${i.id}')">＋ Agregar acción al plan</button>
+    </div>
+  </div>`;
+}
+function addAccion(id){
+  const i=inds().find(x=>x.id===id);if(!i)return; const g=k=>{const e=document.getElementById(k);return e?e.value:''};
+  const what=g('aWhat').trim(), who=g('aWho').trim();
+  if(!what){toast('Describe la acción (Qué)');return;}
+  if(!who){toast('Indica el responsable (Who)');return;}
+  if(!i.plan)i.plan=[];
+  i.plan.push({id:uid(),what,how:g('aHow').trim(),who,nivel:g('aNivel')||'Actividades',ini:g('aIni'),fin:g('aFin'),estado:'Pendiente',avance:0});
+  saveData();openDetail(id);drawIndList();toast('Acción agregada al plan');
+}
+function setAccion(id,aid,campo,val){const i=inds().find(x=>x.id===id);if(!i)return;const a=(i.plan||[]).find(x=>x.id===aid);if(!a)return;a[campo]=val;if(campo==='estado'&&val==='Hecho')a.avance=100;saveData();if(campo==='estado')openDetail(id);drawIndList();}
+function delAccion(id,aid){const i=inds().find(x=>x.id===id);if(!i)return;i.plan=(i.plan||[]).filter(x=>x.id!==aid);saveData();openDetail(id);drawIndList();toast('Acción eliminada');}
+
+/* ----- FASE 5 · CONTROLAR: verificación de impacto (antes vs después del plan) ----- */
+function computeImpact(i){
+  const plan=i.plan||[]; const ms=(i.mediciones||[]).slice().sort((a,b)=>(a.ini||a.p||'').localeCompare(b.ini||b.p||''));
+  if(ms.length<2) return null;
+  const starts=plan.map(a=>a.ini).filter(Boolean).sort();
+  const start=starts[0]||null;
+  let base,post;
+  if(start){ base=ms.filter(m=>(m.ini||'')<start).pop()||ms[0]; post=ms.filter(m=>(m.ini||'')>=start).pop(); }
+  else { base=ms[0]; post=ms[ms.length-1]; }
+  if(!base||!post||base===post) return {base,post:null,start};
+  const better = i.sentido==='mayor'? post.v>base.v : post.v<base.v;
+  return {base,post,start,delta:+(post.v-base.v).toFixed(2),better,baseMeta:cumpleMeta(i,base.v),postMeta:cumpleMeta(i,post.v)};
+}
+function controlHTML(i){
+  const imp=computeImpact(i);
+  let body;
+  if(!imp||!imp.post){
+    body=`<p style="font-size:12px;color:var(--muted)">Para verificar el impacto necesitas una medición <b>antes</b> y otra <b>después</b> de iniciar el plan de mejora. Registra una nueva medición (control) en la fase Medir.</p>`;
+  } else {
+    const dirOK=imp.better, pct=Math.abs(imp.base.v?imp.delta/imp.base.v*100:0).toFixed(1);
+    body=`<div class="fgrid" style="grid-template-columns:1fr 1fr">
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div class="flbl">Línea base ${imp.start?'(antes del plan)':''}</div><div style="font-size:20px;font-weight:800">${imp.base.v} <small style="font-size:11px;color:var(--muted)">${esc(i.unidad)}</small></div><div style="font-size:11px;color:var(--muted)">${fmtPeriodo(imp.base)}</div></div>
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div class="flbl">Medición de control (después)</div><div style="font-size:20px;font-weight:800;color:${dirOK?'var(--ok)':'var(--bad)'}">${imp.post.v} <small style="font-size:11px;color:var(--muted)">${esc(i.unidad)}</small></div><div style="font-size:11px;color:var(--muted)">${fmtPeriodo(imp.post)}</div></div>
+      </div>
+      <div class="ai-diag ${dirOK?'d-ok':'d-bad'}" style="margin-top:10px">${dirOK?'✅ SÍ hubo impacto':'⚠️ NO hubo impacto favorable'}: el indicador ${imp.delta>=0?'subió':'bajó'} ${Math.abs(imp.delta)} ${esc(i.unidad)} (${pct}%) tras el plan. ${imp.postMeta?'Ahora cumple la meta.':'Aún no cumple la meta.'}</div>
+      <textarea class="fi" id="ctrlObs" placeholder="Observación de control / estandarización…" style="margin-top:8px">${i.control&&i.control.observacion?esc(i.control.observacion):''}</textarea>
+      <button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px" onclick="verifyImpact('${i.id}')">${i.control&&i.control.verificado?'✓ Impacto verificado — actualizar':'Verificar impacto y estandarizar'}</button>
+      ${i.control&&i.control.verificado?`<div style="font-size:11px;color:var(--ok);margin-top:6px">Verificado el ${fmtDate(i.control.fecha)} · impacto ${i.control.mejoro?'positivo':'no logrado'}.</div>`:''}`;
+  }
+  return `<div class="detail-sec"><h4>🎛️ Fase 5 · Controlar — verificación de impacto</h4>${body}</div>`;
+}
+function verifyImpact(id){
+  const i=inds().find(x=>x.id===id);if(!i)return; const imp=computeImpact(i);
+  if(!imp||!imp.post){toast('Falta una medición posterior al plan');return;}
+  const obs=document.getElementById('ctrlObs');
+  i.control={verificado:true,fecha:todayISO(),baseV:imp.base.v,postV:imp.post.v,mejoro:imp.better,observacion:obs?obs.value.trim():''};
+  saveData();openDetail(id);drawIndList();toast(imp.better?'✓ Impacto verificado: hubo mejora':'Registrado: el plan no logró impacto, revisar causa-raíz');
+}
+
+/* ----- LÍNEA DE TIEMPO de hitos (definición → mediciones → plan → control) ----- */
+function timelineHTML(i){
+  const ev=[];
+  if(i.creado) ev.push({d:i.creado,ic:'🗂️',c:'var(--teal)',t:'Indicador definido',s:i.nombre});
+  (i.mediciones||[]).forEach(m=>ev.push({d:m.fin||m.ini||'',ic:m.metodo==='encuesta'?'📋':'📏',c:'var(--navy)',t:`Medición: ${m.v} ${i.unidad}`,s:`${m.p||''} · ${fmtPeriodo(m)}`}));
+  (i.plan||[]).forEach(a=>{ev.push({d:a.ini||'',ic:'🛠️',c:'var(--warn)',t:`Inicio acción: ${a.what}`,s:`${a.who||''} · ${a.nivel||''}`});
+    if(a.fin)ev.push({d:a.fin,ic:a.estado==='Hecho'?'✅':'⏳',c:a.estado==='Hecho'?'var(--ok)':'var(--muted)',t:`Fin previsto: ${a.what}`,s:`${a.estado} · ${a.avance||0}%`});});
+  if(i.control&&i.control.verificado) ev.push({d:i.control.fecha,ic:i.control.mejoro?'🎯':'⚠️',c:i.control.mejoro?'var(--ok)':'var(--bad)',t:i.control.mejoro?'Control: impacto verificado':'Control: sin impacto',s:`${i.control.baseV} → ${i.control.postV} ${i.unidad}`});
+  if(!ev.length) return '';
+  ev.sort((a,b)=>(a.d||'').localeCompare(b.d||''));
+  const items=ev.map(e=>`<div style="display:flex;gap:10px;padding:6px 0">
+      <div style="flex:0 0 22px;text-align:center"><span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:50%;background:${e.c};color:#fff;font-size:11px">${e.ic}</span></div>
+      <div style="flex:1;border-left:2px solid var(--line);padding-left:10px;margin-left:-12px">
+        <div style="font-size:12px;font-weight:600">${esc(e.t)}</div>
+        <div style="font-size:11px;color:var(--muted)">${fmtDate(e.d)}${e.s?' · '+esc(e.s):''}</div>
+      </div></div>`).join('');
+  return `<div class="detail-sec"><h4>🕒 Línea de tiempo de hitos</h4>${items}</div>`;
+}
+function chartSVG(i,ins){
+  const ys=i.mediciones.map(m=>m.v), labels=i.mediciones.map(m=>m.p);
+  const all=[...ys,...ins.fc,i.meta]; let mn=Math.min(...all),mx=Math.max(...all);
+  if(mn===mx){mn-=1;mx+=1;} const p=(mx-mn)*0.12; mn-=p;mx+=p;
+  const W=360,H=160,L=10,R=46,T=14,B=24, total=ys.length+ins.fc.length;
+  const X=x=>L+(x/(total-1))*(W-L-R), Y=v=>T+(1-(v-mn)/(mx-mn))*(H-T-B);
+  const hist=ys.map((v,x)=>`${X(x)},${Y(v)}`).join(' ');
+  const s=ys.length-1, fc=[`${X(s)},${Y(ys[s])}`,...ins.fc.map((v,k)=>`${X(s+1+k)},${Y(v)}`)].join(' ');
+  const bandPts=[...ins.fc.map((v,k)=>`${X(s+1+k)},${Y(v+ins.band)}`),...ins.fc.slice().reverse().map((v,k)=>`${X(s+ins.fc.length-k)},${Y(v-ins.band)}`)].join(' ');
+  const metaY=Y(i.meta);
+  const dots=ys.map((v,x)=>{const an=ins.anomalies.includes(i.mediciones[x].p);return `<circle cx="${X(x)}" cy="${Y(v)}" r="${an?4.5:3}" fill="${an?'#D64545':'#028090'}"/>`+(an?`<circle cx="${X(x)}" cy="${Y(v)}" r="7" fill="none" stroke="#D64545" stroke-width="1"/>`:'')}).join('');
+  const fdots=ins.fc.map((v,k)=>`<circle cx="${X(s+1+k)}" cy="${Y(v)}" r="3" fill="#F0B429"/>`).join('');
+  const lab=labels.map((pp,x)=>`<text x="${X(x)}" y="${H-7}" font-size="8" fill="#5A6B82" text-anchor="middle">${pp}</text>`).join('')
+    +ins.fc.map((v,k)=>`<text x="${X(s+1+k)}" y="${H-7}" font-size="8" fill="#C9981A" text-anchor="middle">P+${k+1}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="background:#fff;border-radius:8px">
+    <polygon points="${bandPts}" fill="rgba(240,180,41,.15)"/>
+    <line x1="${L}" y1="${metaY}" x2="${W-R}" y2="${metaY}" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="${W-R+3}" y="${metaY+3}" font-size="8" fill="#94A3B8">Meta ${i.meta}</text>
+    <polyline points="${hist}" fill="none" stroke="#028090" stroke-width="2.2"/>
+    <polyline points="${fc}" fill="none" stroke="#F0B429" stroke-width="2.2" stroke-dasharray="6 4"/>
+    ${dots}${fdots}${lab}</svg>`;
+}
+function insightHTML(i){
+  const g=faseGate(i);
+  if(!g.f[0]) return `<div class="detail-sec"><h4>🧠 Análisis con IA <span class="ai-tag">bloqueado</span></h4><div class="ai-diag d-warn">🔒 Según el modelo GEMSES no puedes <b>Analizar</b> sin haber <b>Definido</b> el indicador. ${esc(g.why[0]||'Cierra primero la fase 1 · Definir.')}</div></div>`;
+  const ins=buildInsight(i), st=statusOf(i);
+  if(!ins) return `<div class="detail-sec"><h4>🧠 Análisis con IA</h4><p style="font-size:12.5px;color:var(--muted)">Registra al menos 2 mediciones para activar el pronóstico predictivo y la detección de patrones.</p></div>`;
+  if(g.nMed<3) return `<div class="detail-sec"><h4>🧠 Análisis con IA <span class="ai-tag">parcial</span></h4><div class="ai-diag d-warn">⏳ El modelo GEMSES requiere al menos <b>3 mediciones</b> para un análisis estadístico válido (tienes ${g.nMed}). Vista preliminar:</div>${chartSVG(i,ins)}</div>`;
+  const plan=buildPlan(i,ins,st);
+  const strength=ins.reg.r2>0.7?'fuerte':ins.reg.r2>0.4?'moderada':'débil';
+  const volTxt=ins.cv<10?'baja':ins.cv<25?'media':'alta';
+  const chips=[
+    {ic:ins.trend==='ascendente'?'📈':ins.trend==='descendente'?'📉':'➖',t:`Tendencia ${ins.trend}`,c:'c-blue'},
+    {ic:'🎯',t:`Ajuste R²=${ins.reg.r2.toFixed(2)} (${strength})`,c:'c-blue'},
+    {ic:'📊',t:`Volatilidad ${ins.cv.toFixed(0)}% (${volTxt})`,c:ins.cv<25?'c-blue':'c-warn'},
+    {ic:ins.anomalies.length?'⚠️':'✅',t:ins.anomalies.length?`${ins.anomalies.length} anomalía(s): ${ins.anomalies.join(', ')}`:'Sin anomalías',c:ins.anomalies.length?'c-bad':'c-ok'},
+    {ic:ins.towardMeta?'➡️':'🛑',t:ins.towardMeta?'Evoluciona hacia la meta':'No mejora hacia la meta',c:ins.towardMeta?'c-ok':'c-bad'},
+    {ic:'⏱️',t:`Proyección a meta: ${ins.eta}`,c:'c-blue'},
+  ];
+  if(ins.seasonal) chips.push({ic:'🔁',t:'Patrón oscilante (posible estacionalidad)',c:'c-warn'});
+  const causas=CAUSAS[i.dim]||[];
+  const causaSec = (st.s!=='ok' && causas.length) ? `
+    <div class="detail-sec">
+      <h4>🐟 Causa-raíz sugerida <span class="ai-tag">Ishikawa · ${i.dim}</span></h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Posibles factores a investigar para la dimensión <b>${i.dim}</b>:</p>
+      <div class="ai-chips">${causas.map(c=>`<span class="ai-chip c-warn">🔧 ${c}</span>`).join('')}</div>
+    </div>` : '';
+  return `
+    <div class="detail-sec">
+      <h4>🧠 Análisis con IA <span class="ai-tag">ML embebido</span></h4>
+      ${chartSVG(i,ins)}
+      <div style="display:flex;justify-content:center;gap:16px;font-size:10px;color:var(--muted);margin-top:6px">
+        <span>━ <b style="color:#028090">Histórico</b></span><span>┅ <b style="color:#C9981A">Pronóstico</b></span>
+        <span>▦ Banda 95%</span><span>● <b style="color:#D64545">Anomalía</b></span></div>
+    </div>
+    <div class="detail-sec">
+      <h4>🔎 Patrones detectados</h4>
+      <div class="ai-chips">${chips.map(c=>`<span class="ai-chip ${c.c}">${c.ic} ${c.t}</span>`).join('')}</div>
+      <div class="fc-cards">${ins.fc.map((v,k)=>`<div class="fcc"><div class="fl">Periodo +${k+1}</div><div class="fv">${v.toFixed(1)}<small> ${i.unidad}</small></div><div class="fb">±${ins.band.toFixed(1)}</div></div>`).join('')}</div>
+    </div>
+    <div class="detail-sec">
+      <h4>🩺 Diagnóstico automático</h4>
+      <div class="ai-diag ${st.s==='ok'?'d-ok':st.s==='warn'?'d-warn':'d-bad'}">${plan.diag}</div>
+    </div>
+    ${causaSec}
+    <div class="detail-sec">
+      <h4>📋 Plan de acción sugerido (5W + 2H)</h4>
+      <table class="ft-table"><tr><td class="k">What / Qué</td><td class="k">Why / Por qué</td><td class="k">Who</td><td class="k">When</td><td class="k">How</td></tr>
+      ${plan.A.map(a=>`<tr><td>${a.w}</td><td>${a.y}</td><td>${a.o}</td><td>${a.n}</td><td>${a.h}</td></tr>`).join('')}</table>
+    </div>
+    <div class="detail-sec">
+      <h4>🤖 Seguimiento y automatización</h4>
+      <div class="ai-auto">${plan.seg}</div>
+    </div>`;
+}
+
+/* ---------- VISTA: ANALÍTICA IA (portafolio, estilo Power BI) ---------- */
+function renderAnalitica(){
+  pgTitle.textContent='Analítica IA · Indicadores'; pgSub.textContent='Predictividad y patrones de todo el portafolio';
+  const list=inds().slice();
+  const ranked=list.map(i=>({i,r:riskScore(i),ins:buildInsight(i),st:statusOf(i)})).sort((a,b)=>b.r-a.r);
+  const enRiesgo=ranked.filter(x=>x.r>=40).length;
+  const predBreach=ranked.filter(x=>x.ins&&!x.ins.towardMeta&&x.st.s!=='ok').length;
+  const anom=ranked.reduce((a,x)=>a+(x.ins?x.ins.anomalies.length:0),0);
+  content.innerHTML=`
+    <div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="renderIndicadores()">← Volver</button>
+      <div class="grow"></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportPBI()">⬇ Exportar dataset (Power BI)</button>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="toast('Reentrenando modelos…');setTimeout(()=>{renderAnalitica();toast('✓ Modelos actualizados con las últimas mediciones')},700)">🔄 Reentrenar modelos</button>
+    </div>
+    <div class="kcards">
+      <div class="kc t-tot"><div class="kl">Indicadores analizados</div><div class="kv">${list.length}</div><div class="kx">Motor ML en navegador</div></div>
+      <div class="kc t-kri"><div class="kl">En riesgo</div><div class="kv">${enRiesgo}</div><div class="kx">Score de riesgo ≥ 40</div></div>
+      <div class="kc t-kci"><div class="kl">Predicción de incumplimiento</div><div class="kv">${predBreach}</div><div class="kx">No mejoran hacia la meta</div></div>
+      <div class="kc t-kpi"><div class="kl">Anomalías detectadas</div><div class="kv">${anom}</div><div class="kx">Valores fuera de patrón</div></div>
+    </div>
+    <div class="sec-head"><h3>Priorización predictiva</h3><div class="ln"></div><span class="pill">Mayor riesgo primero</span></div>
+    <div class="an-list">${ranked.map(x=>{
+      const c=x.r>=60?'var(--bad)':x.r>=40?'var(--warn)':'var(--ok)';
+      const plan=x.ins?buildPlan(x.i,x.ins,x.st):null;
+      return `<div class="an-row" onclick="openDetail('${x.i.id}')">
+        <div class="an-risk" style="--c:${c}"><b>${x.r}</b><small>riesgo</small></div>
+        <div class="an-main">
+          <div class="an-h"><span class="tg ${x.i.tipo}">${TIPOS[x.i.tipo].l}</span> <b>${x.i.nombre}</b></div>
+          <div class="an-sub">${x.ins?`Pronóstico próx.: <b>${x.ins.fc1.toFixed(1)} ${x.i.unidad}</b> · tendencia ${x.ins.trend} · ${x.ins.towardMeta?'hacia meta':'aleja de meta'} · ETA ${x.ins.eta}`:'Sin datos suficientes para pronóstico'}</div>
+          ${plan?`<div class="an-act">💡 ${plan.A[0].w}</div>`:''}
+        </div>
+        <div class="an-mini">${x.ins?chartSVG(x.i,x.ins):''}</div>
+      </div>`;
+    }).join('')}</div>`;
+}
+function exportPBI(){
+  const data=inds().map(i=>{const ins=buildInsight(i),st=statusOf(i);
+    return{nombre:i.nombre,tipo:TIPOS[i.tipo].l,dimension:i.dim,unidad:i.unidad,meta:i.meta,sentido:i.sentido,
+      responsable:i.responsable,frecuencia:i.frecuencia,actual:st.last,logro_pct:st.pct,estado:st.s,
+      riesgo:riskScore(i),tendencia:ins?ins.trend:null,r2:ins?+ins.reg.r2.toFixed(3):null,volatilidad_pct:ins?+ins.cv.toFixed(1):null,
+      anomalias:ins?ins.anomalies.join(','):'',pronostico:ins?ins.fc.map(v=>+v.toFixed(2)):[],eta_meta:ins?ins.eta:null,
+      mediciones:i.mediciones};});
+  const blob=new Blob([JSON.stringify({generado:new Date().toISOString(),fuente:'GEMSES360',indicadores:data},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gemses360_indicadores_powerbi.json';a.click();
+  toast('Dataset exportado para Power BI');
+}
+/* ---------- IMPORTAR / EXPORTAR CSV ---------- */
+function csvCell(v){const s=(v==null?'':String(v)); return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function exportCSV(){
+  const cols=['nombre','tipo','dimension','ambito','perspectiva','unidad','formula','fuente','responsable','frecuencia','meta','sentido','actual','logro_pct','estado','mediciones'];
+  const rows=[cols.join(';')];
+  inds().forEach(i=>{const st=statusOf(i);
+    const med=(i.mediciones||[]).map(m=>`${m.p}=${m.v}`).join('|');
+    rows.push([i.nombre,i.tipo,i.dim,i.ambito||'',i.persp||'',i.unidad,i.formula||'',i.fuente||'',i.responsable||'',i.frecuencia||'',i.meta,i.sentido,st.last!==null?st.last:'',st.pct,st.s,med].map(csvCell).join(';'));
+  });
+  const blob=new Blob(['﻿'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gemses360_indicadores.csv';a.click();
+  toast('Indicadores exportados a CSV');
+}
+function importCSV(){ const el=document.getElementById('csvFile'); if(el){el.value='';el.click();} }
+function parseCSV(txt){
+  txt=txt.replace(/^﻿/,'');
+  const rows=[]; let row=[], cell='', q=false;
+  for(let k=0;k<txt.length;k++){const ch=txt[k];
+    if(q){ if(ch==='"'){ if(txt[k+1]==='"'){cell+='"';k++;} else q=false; } else cell+=ch; }
+    else { if(ch==='"')q=true; else if(ch===';'||ch===','){row.push(cell);cell='';}
+      else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell='';}
+      else if(ch==='\r'){} else cell+=ch; }
+  }
+  if(cell.length||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+function handleCSV(input){
+  const f=input.files&&input.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    const rows=parseCSV(rd.result); if(rows.length<2){toast('CSV sin datos');return;}
+    const head=rows[0].map(h=>h.trim().toLowerCase());
+    const idx=n=>head.indexOf(n);
+    const get=(r,n)=>{const j=idx(n);return j>=0?(r[j]||'').trim():'';};
+    const arr=inds(); let added=0;
+    for(let k=1;k<rows.length;k++){const r=rows[k]; const nombre=get(r,'nombre'); if(!nombre)continue;
+      const tipo=(get(r,'tipo')||'kpi').toLowerCase();
+      const med=[]; const ms=get(r,'mediciones');
+      if(ms) ms.split('|').forEach(p=>{const[per,val]=p.split('='); if(per&&val!=null&&val!=='')med.push({p:per.trim(),v:+val});});
+      arr.push({id:uid(),nombre,tipo:TIPOS[tipo]?tipo:'kpi',dim:get(r,'dimension')||'Calidad',
+        ambito:get(r,'ambito')||'Institucional',persp:get(r,'perspectiva')||'Procesos',
+        unidad:get(r,'unidad')||'%',formula:get(r,'formula'),fuente:get(r,'fuente')||'Importado CSV',
+        responsable:get(r,'responsable'),frecuencia:get(r,'frecuencia')||'Mensual',
+        meta:+(get(r,'meta')||0),sentido:(get(r,'sentido')||'mayor').toLowerCase()==='menor'?'menor':'mayor',
+        fases:[true,med.length>0,false,false,false],mediciones:med});
+      added++;
+    }
+    saveData(); renderIndicadores(); toast(`✓ ${added} indicador(es) importado(s)`);
+  }catch(e){ toast('Error al leer el CSV'); } };
+  rd.readAsText(f,'utf-8');
+}
+/* ---------- FICHA TÉCNICA IMPRIMIBLE ---------- */
+function printFicha(id){
+  const i=inds().find(x=>x.id===id); if(!i)return;
+  const st=statusOf(i), ins=buildInsight(i);
+  const plan=ins?buildPlan(i,ins,st):null;
+  const estTxt=st.s==='ok'?'En meta':st.s==='warn'?'En riesgo':st.s==='bad'?'Crítico':'Sin dato';
+  const medRows=(i.mediciones||[]).map(m=>`<tr><td>${esc(m.p)}</td><td style="text-align:right">${m.v} ${esc(i.unidad)}</td></tr>`).join('')||'<tr><td colspan="2">Sin mediciones</td></tr>';
+  const causas=(st.s!=='ok'&&CAUSAS[i.dim])?CAUSAS[i.dim]:null;
+  const w=window.open('','_blank'); if(!w){toast('Habilita las ventanas emergentes para imprimir');return;}
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ficha técnica · ${esc(i.nombre)}</title>
+  <style>
+    *{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}
+    body{margin:28px;color:#13294B}
+    h1{font-size:18px;margin:0 0 2px;color:#0B1E3D} .sub{color:#5b6b82;font-size:12px;margin:0 0 16px}
+    .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;color:#fff}
+    table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+    td,th{border:1px solid #ccd3de;padding:6px 9px;text-align:left;vertical-align:top}
+    td.k{background:#f1f4f9;font-weight:700;width:170px;color:#0B1E3D}
+    h2{font-size:13px;color:#028090;border-bottom:2px solid #028090;padding-bottom:3px;margin:18px 0 6px}
+    .diag{background:#f6f8fb;border-left:4px solid #028090;padding:9px 12px;font-size:12px;border-radius:4px}
+    ul{margin:6px 0;padding-left:18px;font-size:12px} li{margin:2px 0}
+    .ft{margin-top:26px;font-size:10px;color:#8a97a8;border-top:1px solid #ddd;padding-top:8px}
+    @media print{body{margin:14mm}}
+  </style></head><body>
+  <h1>Ficha Técnica del Indicador</h1>
+  <p class="sub">GEMSES360 · Gestión de Indicadores · Generado ${new Date().toLocaleDateString('es-PE')}</p>
+  <table>
+    <tr><td class="k">Nombre</td><td><b>${esc(i.nombre)}</b></td></tr>
+    <tr><td class="k">Tipo</td><td>${TIPOS[i.tipo]?TIPOS[i.tipo].l:esc(i.tipo)}</td></tr>
+    <tr><td class="k">Dimensión</td><td>${esc(i.dim)}</td></tr>
+    <tr><td class="k">Ámbito</td><td>${esc(i.ambito||'—')}</td></tr>
+    <tr><td class="k">Perspectiva (BSC)</td><td>${esc(i.persp||'—')}</td></tr>
+    <tr><td class="k">Fórmula de cálculo</td><td>${esc(i.formula||'—')}</td></tr>
+    <tr><td class="k">Unidad</td><td>${esc(i.unidad)}</td></tr>
+    <tr><td class="k">Meta</td><td>${i.sentido==='menor'?'≤':'≥'} ${i.meta} ${esc(i.unidad)}</td></tr>
+    <tr><td class="k">Fuente de datos</td><td>${esc(i.fuente||'—')}</td></tr>
+    <tr><td class="k">Responsable</td><td>${esc(i.responsable||'—')}</td></tr>
+    <tr><td class="k">Frecuencia</td><td>${esc(i.frecuencia||'—')}</td></tr>
+    <tr><td class="k">Valor actual</td><td>${st.last!==null?st.last+' '+esc(i.unidad):'—'}</td></tr>
+    <tr><td class="k">Logro</td><td>${st.pct}% &nbsp; <span class="badge" style="background:${st.s==='ok'?'#1E9E6A':st.s==='warn'?'#E0A21A':st.s==='bad'?'#D64545':'#8a97a8'}">${estTxt}</span></td></tr>
+  </table>
+  <h2>Historial de mediciones</h2>
+  <table><tr><th>Periodo</th><th style="text-align:right">Valor</th></tr>${medRows}</table>
+  ${ins?`<h2>Diagnóstico automático (IA / ML)</h2><div class="diag">${esc(plan.diag)}</div>
+    <ul><li><b>Tendencia:</b> ${ins.trend}</li><li><b>Ajuste R²:</b> ${ins.reg.r2.toFixed(2)}</li><li><b>Volatilidad:</b> ${ins.cv.toFixed(0)}%</li><li><b>Proyección a meta:</b> ${esc(ins.eta)}</li>${ins.anomalies.length?`<li><b>Anomalías:</b> ${esc(ins.anomalies.join(', '))}</li>`:''}${ins.seasonal?'<li><b>Patrón:</b> oscilante (posible estacionalidad)</li>':''}</ul>`:''}
+  ${causas?`<h2>Causa-raíz sugerida (Ishikawa · ${esc(i.dim)})</h2><ul>${causas.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>`:''}
+  <p class="ft">Documento generado automáticamente por GEMSES360. Modelo GEMSES de gestión de indicadores.</p>
+  </body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),350);
+}
+function indCard(i){
+  const st=statusOf(i), col=st.s==='ok'?'var(--ok)':st.s==='warn'?'var(--warn)':st.s==='bad'?'var(--bad)':'var(--muted)';
+  const sf=st.s==='ok'?'sf-ok':st.s==='warn'?'sf-warn':'sf-bad';
+  const sfTxt=st.s==='ok'?'En meta':st.s==='warn'?'En riesgo':st.s==='bad'?'Crítico':'Sin dato';
+  const r=26, c=2*Math.PI*r, off=c-(Math.min(st.pct,100)/100)*c;
+  const fasesDone=(i.fases||[]).filter(Boolean).length;
+  return `<div class="ind" onclick="openDetail('${i.id}')">
+    <div class="ih"><span class="tg ${i.tipo}">${TIPOS[i.tipo].l}</span>${i.ambito?`<span class="amb">📍${i.ambito}</span>`:''}<span class="dim">${i.dim}</span></div>
+    <h4>${i.nombre}</h4>
+    <div class="src">${i.fuente} · ${i.frecuencia}</div>
+    <div class="gauge">
+      <div class="gring">
+        <svg width="64" height="64"><circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/>
+        <circle cx="32" cy="32" r="${r}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg>
+        <div class="gtxt" style="color:${col}">${st.last!==null?st.last:'—'}</div>
+      </div>
+      <div class="gmeta">
+        <div class="row"><span class="muted">Meta</span><b>${i.sentido==='menor'?'≤':'≥'} ${i.meta} ${i.unidad}</b></div>
+        <div class="row"><span class="muted">Actual</span><b>${st.last!==null?st.last+' '+i.unidad:'—'}</b></div>
+        <div class="row"><span class="muted">Logro</span><b style="color:${col}">${st.pct}%</b></div>
+        <span class="semaforo ${sf}">● ${sfTxt}</span>
+      </div>
+    </div>
+    <div class="phase-track" title="${fasesDone}/5 fases">${PHASES.map((_,idx)=>`<div class="pt ${(i.fases||[])[idx]?'done':''}"></div>`).join('')}</div>
+  </div>`;
+}
+
+/* ---------- DETALLE / FICHA TÉCNICA ---------- */
+function openDetail(id){
+  const i=inds().find(x=>x.id===id); if(!i)return;
+  const st=statusOf(i);
+  const maxV=Math.max(...i.mediciones.map(m=>m.v),i.meta)*1.1||1;
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="mic" style="background:${i.tipo==='kpi'?'var(--kpi)':i.tipo==='kri'?'var(--kri)':'var(--kci)'}">${TIPOS[i.tipo].l}</div>
+      <div><h3>${i.nombre}</h3><p>${TIPOS[i.tipo].d} · Dimensión ${i.dim}</p></div>
+      <button class="x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      ${insightHTML(i)}
+      <div class="detail-sec">
+        <h4>🗂️ Ficha técnica del indicador</h4>
+        <table class="ft-table">
+          <tr><td class="k">Nombre</td><td>${i.nombre}</td></tr>
+          <tr><td class="k">Tipo</td><td>${TIPOS[i.tipo].l} — ${TIPOS[i.tipo].d}</td></tr>
+          <tr><td class="k">Dimensión GEMSES</td><td>${i.dim}</td></tr>
+          <tr><td class="k">Fórmula de cálculo</td><td>${i.formula}</td></tr>
+          <tr><td class="k">Unidad de medida</td><td>${i.unidad}</td></tr>
+          <tr><td class="k">Meta</td><td>${i.sentido==='menor'?'≤':'≥'} ${i.meta} ${i.unidad}</td></tr>
+          <tr><td class="k">Fuente de datos</td><td>${i.fuente}</td></tr>
+          <tr><td class="k">Frecuencia</td><td>${i.frecuencia}</td></tr>
+          <tr><td class="k">Responsable</td><td>${i.responsable}</td></tr>
+        </table>
+      </div>
+      <div class="detail-sec">
+        <h4>✅ Fases del ciclo GEMSES <span class="ai-tag">secuencial · DMAIC</span></h4>
+        ${(()=>{const g=faseGate(i);
+          const nextLocked=g.f.findIndex((d,k)=>!d&&!g.can[k]);
+          const tiles=PHASES.map((p,idx)=>{
+            const done=g.f[idx], can=g.can[idx], locked=!done&&!can;
+            const bg=done?'var(--teal)':locked?'#9aa6b6':'var(--navy)';
+            const cell=done?'border-color:var(--teal);background:rgba(2,128,144,.05)':locked?'opacity:.55;background:rgba(154,166,182,.08)':'';
+            const ico=done?'✓':locked?'🔒':p.n;
+            const acts=(p.act||[]).join(' · ');
+            return `<div class="phase" title="${esc(p.t)}: ${esc(acts)}${locked?' — '+esc(g.why[idx]):''}" style="padding:10px 6px;cursor:pointer;${cell}" onclick="toggleFase('${i.id}',${idx})">
+              <div class="pn" style="width:24px;height:24px;font-size:11px;background:${bg}">${ico}</div>
+              <b style="font-size:11px">${p.t}</b></div>`;
+          }).join('');
+          const note = nextLocked>=0 ? `<div style="margin-top:8px;font-size:11.5px;color:var(--warn);display:flex;gap:6px;align-items:flex-start"><span>🔒</span><span><b>Siguiente paso bloqueado (${PHASES[nextLocked].t}):</b> ${g.why[nextLocked]}</span></div>`
+            : (g.f.every(Boolean)?`<div style="margin-top:8px;font-size:11.5px;color:var(--ok)">✓ Ciclo GEMSES completo: indicador definido, medido, analizado, mejorado y en control.</div>`:'');
+          return `<div class="phases" style="grid-template-columns:repeat(5,1fr);gap:6px">${tiles}</div>${note}
+            <p style="margin:8px 0 0;font-size:11px;color:var(--muted)">Marca una fase solo cuando completes sus entregables; al reabrir una fase se reinician las posteriores (dependen de ella).</p>`;
+        })()}
+      </div>
+      ${medirHTML(i)}
+      ${i.fases[2]?planHTML(i):''}
+      ${i.fases[3]?controlHTML(i):''}
+      ${timelineHTML(i)}
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" onclick="delInd('${i.id}')" style="color:var(--bad)">Eliminar</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" onclick="printFicha('${i.id}')">🖨️ Imprimir ficha</button>
+      <button class="btn btn-ghost btn-sm" onclick="openIndForm('${i.id}')">Editar ficha</button>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="closeModal()">Cerrar</button>
+    </div>`;
+  modalBg.classList.add('on');
+}
+/* ---------- GATING DE FASES (modelo GEMSES: secuencial y dependiente) ---------- */
+function fichaCompleta(i){
+  return !!(i.nombre && i.formula && i.fuente && i.unidad && i.responsable && i.frecuencia && i.dim && (i.meta!=='' && i.meta!=null));
+}
+function faseGate(i){
+  const f=i.fases||[false,false,false,false,false];
+  const nMed=(i.mediciones||[]).length, fc=fichaCompleta(i);
+  const planOK=(i.plan||[]).some(a=>a.what&&a.who&&a.ini);            // plan con responsable y fecha
+  const ctrlOK=!!(i.control&&i.control.verificado);                   // impacto verificado
+  const can=[ fc, f[0]&&nMed>=1, f[1]&&nMed>=3, f[2]&&planOK, f[3]&&ctrlOK ];  // requisito para PODER cerrar cada fase
+  const why=[
+    fc?'':'Completa la ficha técnica (fórmula, fuente, unidad, meta, responsable, frecuencia) para cerrar Definir.',
+    !f[0]?'Primero cierra la fase 1 · Definir.':(nMed<1?'Registra al menos 1 medición con su periodo (fechas) para cerrar Medir.':''),
+    !f[1]?'Primero cierra la fase 2 · Medir.':(nMed<3?`Registra al menos 3 mediciones (tienes ${nMed}) para poder Analizar.`:''),
+    !f[2]?'Primero cierra la fase 3 · Analizar.':(!planOK?'Agrega al menos una acción de mejora con responsable y fecha para cerrar Implementar.':''),
+    !f[3]?'Primero cierra la fase 4 · Implementar.':(!ctrlOK?'Registra una medición posterior y verifica el impacto para cerrar Controlar.':'')
+  ];
+  return {f,can,why,nMed,fc,planOK,ctrlOK};
+}
+function toggleFase(id,idx){
+  const i=inds().find(x=>x.id===id); if(!i)return;
+  if(!i.fases)i.fases=[false,false,false,false,false];
+  const g=faseGate(i);
+  if(!i.fases[idx]){
+    if(!g.can[idx]){ toast('🔒 '+(g.why[idx]||'Fase bloqueada por el modelo GEMSES')); return; }
+    i.fases[idx]=true;
+  } else {
+    for(let k=idx;k<i.fases.length;k++) i.fases[k]=false;   // reabrir cascada: las fases posteriores dependen de ésta
+  }
+  saveData();openDetail(id);drawIndList();
+}
+function addMedicion(id){
+  const i=inds().find(x=>x.id===id);if(!i)return; const g=k=>{const e=document.getElementById(k);return e?e.value:''};
+  const metodo=g('mMetodo')||'manual', ini=g('mIni'), fin=g('mFin'); let v, extra={};
+  if(metodo==='encuesta'){
+    const fav=parseFloat(g('mFav')), tot=parseFloat(g('mTot'));
+    if(isNaN(fav)||isNaN(tot)||tot<=0){toast('Ingresa respuestas favorables y total encuestados');return;}
+    v=Math.round((fav/tot)*1000)/10; extra={favorables:fav,muestra:tot};
+  } else { v=parseFloat(g('mV')); if(isNaN(v)){toast('Ingresa el valor medido');return;} }
+  if(!ini){toast('Indica la fecha de inicio del periodo');return;}
+  const label=g('mP').trim()|| (fin?fmtDate(fin):fmtDate(ini));
+  i.mediciones.push({p:label,v,ini,fin:fin||ini,metodo,...extra});
+  i.mediciones.sort((a,b)=>(a.ini||'').localeCompare(b.ini||''));
+  if(i.fases[0]&&!i.fases[1]&&i.mediciones.length>=1)i.fases[1]=true;
+  saveData();openDetail(id);drawIndList();
+  toast(i.fases[0]?'Medición registrada':'Medición registrada — cierra antes la fase Definir');
+}
+function delInd(id){DB[USER.email].indicadores=inds().filter(x=>x.id!==id);saveData();closeModal();renderIndicadores();toast('Indicador eliminado');}
+
+/* ---------- FORM NUEVO/EDITAR ---------- */
+function openIndForm(id){
+  const ed=id?inds().find(x=>x.id===id):null;
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="mic" style="background:linear-gradient(135deg,var(--teal),var(--teal2))">${ed?'✎':'＋'}</div>
+      <div><h3>${ed?'Editar indicador':'Nuevo indicador'}</h3><p>Fase 1: Definir — completa la ficha técnica</p></div>
+      <button class="x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fgrid">
+        <div class="full"><label class="flbl">Nombre del indicador *</label><input class="fi" id="fNombre" value="${ed?esc(ed.nombre):''}" placeholder="Ej. Oportunidad de atención"></div>
+        <div><label class="flbl">Tipo</label><select class="fi" id="fTipo">${Object.entries(TIPOS).map(([k,v])=>`<option value="${k}" ${ed&&ed.tipo===k?'selected':''}>${v.l} — ${v.d}</option>`).join('')}</select></div>
+        <div><label class="flbl">Dimensión GEMSES</label><select class="fi" id="fDim">${getDims().map(d=>`<option ${ed&&ed.dim===d?'selected':''}>${d}</option>`).join('')}</select></div>
+        <div><label class="flbl">Ámbito / Unidad (acceso)</label><select class="fi" id="fAmbito">${getAmbitos().map(a=>`<option ${ed&&ed.ambito===a?'selected':''}>${a}</option>`).join('')}</select></div>
+        <div><label class="flbl">Perspectiva (Scorecard)</label><select class="fi" id="fPersp">${getPersp().map(pp=>`<option ${ed&&ed.persp===pp?'selected':''}>${pp}</option>`).join('')}</select></div>
+        <div class="full"><label class="flbl">Fórmula de cálculo</label><textarea class="fi" id="fFormula" placeholder="(numerador / denominador) × 100">${ed?esc(ed.formula):''}</textarea></div>
+        <div><label class="flbl">Unidad</label><input class="fi" id="fUnidad" value="${ed?esc(ed.unidad):'%'}" placeholder="%, min, S/…"></div>
+        <div><label class="flbl">Meta</label><input class="fi" id="fMeta" type="number" value="${ed?ed.meta:''}" placeholder="0"></div>
+        <div><label class="flbl">Sentido de la meta</label><select class="fi" id="fSentido"><option value="mayor" ${ed&&ed.sentido==='mayor'?'selected':''}>Mayor es mejor (≥)</option><option value="menor" ${ed&&ed.sentido==='menor'?'selected':''}>Menor es mejor (≤)</option></select></div>
+        <div><label class="flbl">Frecuencia</label><select class="fi" id="fFrec">${getFrec().map(f=>`<option ${ed&&ed.frecuencia===f?'selected':''}>${f}</option>`).join('')}</select></div>
+        <div><label class="flbl">Fuente de datos</label><input class="fi" id="fFuente" value="${ed?esc(ed.fuente):''}" placeholder="Sistema / registro"></div>
+        <div><label class="flbl">Responsable</label><input class="fi" id="fResp" value="${ed?esc(ed.responsable):''}" placeholder="Área / cargo"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" onclick="${ed?`openDetail('${ed.id}')`:'closeModal()'}">Cancelar</button>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="saveInd('${id||''}')">${ed?'Guardar cambios':'Crear indicador'}</button>
+    </div>`;
+  modalBg.classList.add('on');
+}
+function esc(s){return (s||'').replace(/"/g,'&quot;')}
+function saveInd(id){
+  const get=x=>document.getElementById(x).value;
+  const nombre=get('fNombre').trim();
+  if(!nombre){toast('El nombre es obligatorio');return;}
+  const data={nombre,tipo:get('fTipo'),dim:get('fDim'),ambito:get('fAmbito'),persp:get('fPersp'),formula:get('fFormula').trim(),unidad:get('fUnidad').trim()||'%',
+    meta:parseFloat(get('fMeta'))||0,sentido:get('fSentido'),frecuencia:get('fFrec'),fuente:get('fFuente').trim()||'—',responsable:get('fResp').trim()||'—'};
+  if(id){const i=inds().find(x=>x.id===id);Object.assign(i,data);if(!i.fases[0])i.fases[0]=true;saveData();openDetail(id);}
+  else{DB[USER.email].indicadores.push({id:uid(),creado:todayISO(),...data,fases:[true,false,false,false,false],mediciones:[],plan:[]});saveData();closeModal();renderIndicadores();}
+  toast('Indicador guardado');
+}
+/* ---------- GESTIÓN DE CATÁLOGOS (menús desplegables editables, guardados en BD) ---------- */
+function ensureCat(){
+  if(!DB[USER.email].catalogos) DB[USER.email].catalogos=defaultCatalogos();
+  CAT_META.forEach(m=>{ if(!Array.isArray(DB[USER.email].catalogos[m.key])) DB[USER.email].catalogos[m.key]=[...m.def]; });
+  return DB[USER.email].catalogos;
+}
+function catUsage(key,val){
+  const map={ambitos:'ambito',dimensiones:'dim',perspectivas:'persp',frecuencias:'frecuencia'}, f=map[key]; if(!f)return 0;
+  return inds().filter(i=>(i[f]||(f==='ambito'?'Institucional':''))===val).length;
+}
+function openCatalogos(){
+  ensureCat();
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="mic" style="background:linear-gradient(135deg,var(--navy),var(--teal))">⚙</div>
+      <div><h3>Catálogos de los menús</h3><p>Agrega o quita las alternativas de los desplegables. Se guardan en tu base de datos.</p></div>
+      <button class="x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="catBody">${catalogosHTML()}</div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" onclick="resetCat()">↺ Restaurar por defecto</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="closeModal();renderIndicadores()">Listo</button>
+    </div>`;
+  modalBg.classList.add('on');
+}
+function catalogosHTML(){
+  const c=ensureCat();
+  return CAT_META.map(m=>{
+    const items=(c[m.key]||[]).map(v=>{
+      const u=catUsage(m.key,v);
+      return `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(2,128,144,.08);border:1px solid var(--line);border-radius:16px;padding:3px 6px 3px 11px;font-size:12px">
+        ${esc(v)}${u?`<small style="color:var(--muted)" title="${u} indicador(es) lo usan">·${u}</small>`:''}
+        <button title="Quitar" data-v="${esc(v)}" onclick="delCatItem('${m.key}',this.dataset.v)" style="border:none;background:rgba(214,69,69,.12);color:var(--bad);border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px;line-height:1">✕</button></span>`;
+    }).join('');
+    return `<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:9px">${m.icon} <b>${m.label}</b>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);background:var(--line);border-radius:10px;padding:1px 8px">${(c[m.key]||[]).length}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${items||'<span style="font-size:12px;color:var(--muted)">Sin opciones</span>'}</div>
+      <div style="display:flex;gap:6px">
+        <input class="fi" style="flex:1" id="catin-${m.key}" placeholder="Nueva alternativa…" onkeydown="if(event.key==='Enter'){addCatItem('${m.key}')}">
+        <button class="btn btn-ghost btn-sm" onclick="addCatItem('${m.key}')">＋ Agregar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function refreshCat(){const b=document.getElementById('catBody');if(b)b.innerHTML=catalogosHTML();}
+function addCatItem(key){
+  const el=document.getElementById('catin-'+key); if(!el)return;
+  const v=el.value.trim(); if(!v){toast('Escribe una alternativa');return;}
+  const c=ensureCat();
+  if(c[key].some(x=>x.toLowerCase()===v.toLowerCase())){toast('Esa alternativa ya existe');return;}
+  c[key].push(v); saveData(); el.value=''; refreshCat(); toast('✓ Alternativa agregada');
+}
+function delCatItem(key,val){
+  const c=ensureCat(), u=catUsage(key,val);
+  if(u>0 && !confirm(`"${val}" está en uso por ${u} indicador(es). ¿Quitarlo del menú? Los indicadores conservarán el valor que ya tienen.`)) return;
+  c[key]=c[key].filter(x=>x!==val); saveData(); refreshCat(); toast('Alternativa eliminada');
+}
+function resetCat(){
+  if(!confirm('¿Restaurar todos los catálogos a los valores por defecto del modelo GEMSES?'))return;
+  DB[USER.email].catalogos=defaultCatalogos(); saveData(); refreshCat(); toast('Catálogos restaurados');
+}
+</script>
+</body>
+</html>
