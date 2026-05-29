@@ -565,7 +565,7 @@ function startSession(u){
   renderShell(); nav('dashboard');
 }
 function logout(){lsDel(LS_SESSION);location.reload();}
-(function auto(){const e=lsGet(LS_SESSION);if(e){const u=loadUsers().find(x=>x.email===e);if(u)startSession(u);}})();
+function autoLogin(){const e=lsGet(LS_SESSION);if(e){const u=loadUsers().find(x=>x.email===e);if(u)startSession(u);}}
 
 /* ---------- SHELL ---------- */
 function hasAccess(pid){
@@ -2380,6 +2380,11 @@ function resetCat(){
   if(!confirm('¿Restaurar todos los catálogos a los valores por defecto del modelo GEMSES?'))return;
   DB[USER.email].catalogos=defaultCatalogos(); saveData(); refreshCat(); toast('Catálogos restaurados');
 }
+
+/* ---------- ARRANQUE ----------
+   Se invoca al final, cuando TODAS las const/función del script ya están
+   inicializadas (evita el TDZ con PERSP_DEF y otras const declaradas más abajo). */
+autoLogin();
 </script>
 </body>
 </html>
