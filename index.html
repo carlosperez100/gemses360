@@ -250,9 +250,13 @@ textarea.fi{min-height:70px;resize:vertical}
 .vviews{font-size:11.5px;color:var(--muted);margin-top:10px;font-weight:600}
 /* Niveles de acceso / barra RBAC */
 .access-bar{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--line);border-radius:var(--rad);padding:12px 18px;margin-bottom:20px;flex-wrap:wrap}
-.ab-role{display:flex;flex-direction:column;font-size:13px;line-height:1.2}
+.ab-role{display:flex;flex-direction:column;font-size:13px;line-height:1.25;gap:2px;max-width:300px}
 .ab-role b{font-weight:700}
 .ab-role span{font-size:11px;color:var(--muted)}
+.ab-hosp{font-size:14px;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:5px}
+.ab-hosp b{font-weight:800}
+.ab-cargo{font-size:11.5px;color:var(--teal);font-weight:700}
+.ab-alcance{font-size:11px;color:var(--muted)}
 .ab-scope{display:flex;flex-direction:column;gap:3px}
 .ab-scope label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .ab-scope select{border:1.5px solid var(--line);border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;font-family:inherit}
@@ -1338,11 +1342,19 @@ function renderIndicadores(){
   const k=t=>list.filter(i=>i.tipo===t).length;
   const enMeta=list.filter(i=>statusOf(i).s==='ok').length;
   const scopeOpts=['all',...getAmbitos()].map(a=>`<option value="${a}" ${indScope===a?'selected':''}>${a==='all'?'🏥 Todos los ámbitos (consolidado)':a}</option>`).join('');
+  const hospName=(USER.org&&USER.org!=='—'&&USER.org!=='GEMSES360')?USER.org:'Institución no definida';
+  const cargoLabel=USER.cargo?cargoMeta(USER.cargo).label:rs.rol;
+  const alcance=USER.area?USER.area:(USER.cargo?cargoMeta(USER.cargo).scope:rs.alcance);
+  const ambitoTxt=indScope==='all'?'Todos los ámbitos (consolidado)':indScope;
   content.innerHTML=`
     <div class="access-bar">
-      <div class="ab-role">🔐 <b>${rs.rol}</b><span>${rs.alcance}</span></div>
+      <div class="ab-role">
+        <div class="ab-hosp">🏥 <b>${escHtml(hospName)}</b></div>
+        <div class="ab-cargo">🔐 ${escHtml(cargoLabel)}</div>
+        <div class="ab-alcance">Alcance: ${escHtml(alcance)} · Ámbito: ${escHtml(ambitoTxt)}</div>
+      </div>
       <div class="ab-scope">
-        <label>Nivel / ámbito (drill-down)</label>
+        <label>Nivel / ámbito de alcance (drill-down)</label>
         <select onchange="indScope=this.value;renderIndicadores()">${scopeOpts}</select>
       </div>
       <div class="ab-nl">
@@ -1940,6 +1952,53 @@ function resetPesos(){ if(USER.rol!=='admin')return; PESOS={...PESOS_GEMSES_DEF}
 function rpClear(){ rpFrom=rpTo=''; rpAmb=rpPersp=rpTipo=rpDim='all'; renderInforme(); }
 function colorLogro(p){ return p==null?'var(--muted)':p>=100?'var(--ok)':p>=85?'var(--warn)':'var(--bad)'; }
 
+/* ---------- Tendencia en el tiempo (logro % por periodo) ---------- */
+function logroMedicion(i,m){ let lo; if(i.sentido==='mayor') lo=i.meta?Math.min(150,(m.v/i.meta)*100):0; else lo=m.v?Math.min(150,(i.meta/m.v)*100):0; return Math.round(lo); }
+function tendenciaData(){
+  const list=informeList(); const buckets={};
+  list.forEach(i=>{(i.mediciones||[]).forEach(m=>{
+    const d=m.fin||m.ini||''; if(!d) return;
+    if(rpFrom && d<rpFrom) return; if(rpTo && d>rpTo) return;
+    const key=d.slice(0,7); const lo=logroMedicion(i,m);
+    if(!buckets[key]) buckets[key]={key,label:m.p||key,all:[],dims:{}};
+    buckets[key].all.push(lo);
+    const dd=i.dim||'—'; (buckets[key].dims[dd]=buckets[key].dims[dd]||[]).push(lo);
+  });});
+  const avg=arr=>arr.length?Math.round(arr.reduce((a,c)=>a+c,0)/arr.length):null;
+  return Object.keys(buckets).sort().map(k=>{const b=buckets[k]; const dimProm={};
+    Object.keys(b.dims).forEach(d=>dimProm[d]=avg(b.dims[d]));
+    return {key:k,label:b.label,prom:avg(b.all),n:b.all.length,dimProm};});
+}
+function trendChartSVG(serie){
+  if(!serie.length) return `<p style="color:var(--muted);font-size:12.5px">No hay mediciones en el periodo seleccionado para construir la tendencia.</p>`;
+  const W=720,H=260,padL=42,padR=18,padT=18,padB=44, plotW=W-padL-padR, plotH=H-padT-padB, n=serie.length;
+  let maxV=110; serie.forEach(p=>{ if(p.prom!=null&&p.prom>maxV)maxV=p.prom; Object.values(p.dimProm||{}).forEach(v=>{if(v!=null&&v>maxV)maxV=v;}); });
+  maxV=Math.ceil(maxV/10)*10;
+  const X=i=> padL + (n===1? plotW/2 : plotW*i/(n-1));
+  const Y=v=> padT + plotH - (v/maxV)*plotH;
+  let grid=''; for(let g=0; g<=maxV; g+=20){ const yy=Y(g); grid+=`<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${W-padR}" y2="${yy.toFixed(1)}" stroke="#eaeef5"/><text x="${padL-6}" y="${(yy+3).toFixed(1)}" text-anchor="end" font-size="9" fill="#8893a6">${g}%</text>`; }
+  const y100=Y(100); const metaLine=`<line x1="${padL}" y1="${y100.toFixed(1)}" x2="${W-padR}" y2="${y100.toFixed(1)}" stroke="#1E9E6A" stroke-dasharray="4 3" stroke-width="1.2"/><text x="${W-padR}" y="${(y100-4).toFixed(1)}" text-anchor="end" font-size="9" fill="#1E9E6A">meta 100%</text>`;
+  let xlab=''; serie.forEach((p,i)=>{ xlab+=`<text x="${X(i).toFixed(1)}" y="${H-padB+16}" text-anchor="middle" font-size="9" fill="#667085">${escHtml(p.label)}</text>`; });
+  const DIM_COLOR={'Tiempo':'#028090','Calidad':'#7A5BD6','Costo':'#E0A21A','Satisfacción':'#1E9E6A'};
+  let dimLines='';
+  ['Tiempo','Calidad','Costo','Satisfacción'].forEach(d=>{
+    const dp=serie.map((p,i)=>({x:X(i),y:(p.dimProm&&p.dimProm[d]!=null)?Y(p.dimProm[d]):null})).filter(p=>p.y!=null);
+    if(dp.length>1) dimLines+=`<path d="M${dp.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' L')}" fill="none" stroke="${DIM_COLOR[d]}" stroke-width="1" opacity=".55"/>`;
+  });
+  const pts=serie.map((p,i)=>({x:X(i),y:p.prom==null?null:Y(p.prom),v:p.prom})).filter(p=>p.y!=null);
+  let path='',area='',dots='';
+  if(pts.length){
+    path='M'+pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L');
+    area='M'+pts[0].x.toFixed(1)+','+Y(0).toFixed(1)+' L'+pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L')+` L${pts[pts.length-1].x.toFixed(1)},${Y(0).toFixed(1)} Z`;
+    dots=pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.2" fill="#028090"/><text x="${p.x.toFixed(1)}" y="${(p.y-8).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#13294B">${p.v}%</text>`).join('');
+  }
+  const legend=['Tiempo','Calidad','Costo','Satisfacción'].map(d=>`<span style="font-size:11px;color:var(--muted);margin-right:10px"><i style="display:inline-block;width:12px;height:3px;background:${DIM_COLOR[d]};vertical-align:middle;margin-right:4px"></i>${d}</span>`).join('');
+  return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;height:auto" preserveAspectRatio="xMidYMid meet">
+    ${grid}${metaLine}<path d="${area}" fill="rgba(2,128,144,.08)"/>${dimLines}<path d="${path}" fill="none" stroke="#028090" stroke-width="2.5" stroke-linejoin="round"/>${dots}${xlab}
+  </svg></div>
+  <div style="margin-top:6px"><span style="font-size:11px;color:#13294B;font-weight:700;margin-right:12px"><i style="display:inline-block;width:14px;height:3px;background:#028090;vertical-align:middle;margin-right:4px"></i>Logro global promedio</span>${legend}</div>`;
+}
+
 function renderInforme(){
   pgTitle.textContent='Informe del Tablero de Indicadores';
   pgSub.textContent='Cumplimiento, dimensiones GEMSES y análisis con IA';
@@ -2013,6 +2072,12 @@ function renderInforme(){
         </div>
       </div>
       <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">Periodo analizado: <b>${periodoTxt}</b>. El índice global es el promedio del logro de cada dimensión, ponderado por su peso de impacto GEMSES (solo se consideran las dimensiones con datos en el periodo).</p>
+    </div>
+
+    <div class="detail-sec">
+      <h4>📈 Tendencia de cumplimiento en el tiempo</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Evolución del % de logro promedio por periodo (todos los indicadores filtrados). La línea gruesa es el logro global; las líneas finas, cada dimensión GEMSES.</p>
+      ${trendChartSVG(tendenciaData())}
     </div>
 
     ${USER.rol==='admin'?`<div class="detail-sec">
@@ -2147,6 +2212,8 @@ function exportInformeWord(){
     return `<tr><td>${escHtml(d)}</td><td style="text-align:center">${pesoDim(d)}%</td><td style="text-align:center">${x.prom==null?'—':x.prom+'%'}</td><td style="text-align:center">${x.n}</td><td style="text-align:center">${x.enMeta}</td><td style="text-align:center">${x.conDato}</td></tr>`;}).join('');
   const indRows=R.filas.map((f,k)=>{const i=f.i; const est=f.logro==null?'Sin dato':f.logro>=100?'En meta':f.logro>=85?'En alerta':'Crítico';
     return `<tr><td style="text-align:center">${k+1}</td><td>${escHtml(i.nombre)}</td><td>${TIPOS[i.tipo]?TIPOS[i.tipo].l:escHtml(i.tipo)}</td><td>${escHtml(i.dim||'—')}</td><td>${escHtml(i.ambito||'—')}</td><td>${escHtml(i.persp||'—')}</td><td style="text-align:right">${i.meta} ${escHtml(i.unidad||'')}</td><td style="text-align:right">${f.valor==null?'—':escHtml(String(f.valor))}</td><td style="text-align:right">${f.logro==null?'—':f.logro+'%'}</td><td>${est}</td></tr>`;}).join('');
+  const serie=tendenciaData();
+  const trendRows=serie.length?serie.map(p=>`<tr><td>${escHtml(p.label)}</td><td style="text-align:center">${p.prom==null?'—':p.prom+'%'}</td><td style="text-align:center">${p.dimProm.Tiempo==null?'—':p.dimProm.Tiempo+'%'}</td><td style="text-align:center">${p.dimProm.Calidad==null?'—':p.dimProm.Calidad+'%'}</td><td style="text-align:center">${p.dimProm.Costo==null?'—':p.dimProm.Costo+'%'}</td><td style="text-align:center">${p.dimProm['Satisfacción']==null?'—':p.dimProm['Satisfacción']+'%'}</td><td style="text-align:center">${p.n}</td></tr>`).join(''):`<tr><td colspan="7">Sin mediciones en el periodo.</td></tr>`;
   const detalle=R.filas.map((f,k)=>{const i=f.i;
     const medHead=`<tr><th>Periodo</th><th>Desde</th><th>Hasta</th><th>Valor</th><th>Método</th><th>Servicio/Área/Unidad</th></tr>`;
     const med=(i.mediciones||[]).map(m=>`<tr><td>${escHtml(m.p||'')}</td><td>${escHtml(m.ini||'')}</td><td>${escHtml(m.fin||'')}</td><td style="text-align:right">${escHtml(String(m.v))} ${escHtml(i.unidad||'')}</td><td>${escHtml(m.metodo||'')}</td><td>${escHtml(m.lugar||'')}</td></tr>`).join('')||`<tr><td colspan="6">Sin mediciones registradas.</td></tr>`;
@@ -2168,6 +2235,9 @@ function exportInformeWord(){
   <p>Índice global de cumplimiento: <b style="font-size:16pt;color:#028090">${R.indice==null?'—':R.indice+'%'}</b> &nbsp;·&nbsp; ${R.conDato}/${R.total} indicadores con dato en el periodo.</p>
   <table><tr><th>Dimensión</th><th>Peso de impacto</th><th>Promedio de logro</th><th># Indicadores</th><th>En meta</th><th>Con dato</th></tr>${dimRows}</table>
   <p class="muted">El índice global es el promedio del logro de cada dimensión ponderado por su peso de impacto GEMSES (solo dimensiones con datos).</p>
+  <h2>Tendencia de cumplimiento en el tiempo</h2>
+  <p class="muted">Evolución del % de logro promedio por periodo (todos los indicadores filtrados).</p>
+  <table><tr><th>Periodo</th><th>Logro global</th><th>Tiempo</th><th>Calidad</th><th>Costo</th><th>Satisfacción</th><th># Mediciones</th></tr>${trendRows}</table>
   <h2>Resumen de indicadores (${R.filas.length})</h2>
   <table><tr><th>#</th><th>Indicador</th><th>Tipo</th><th>Dim.</th><th>Ámbito</th><th>Macroproceso</th><th>Meta</th><th>Valor</th><th>Logro</th><th>Estado</th></tr>${indRows}</table>
   <h2>Ficha técnica y seguimiento por indicador</h2>
