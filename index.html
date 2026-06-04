@@ -842,14 +842,15 @@ const PG_SECTIONS=[
   {k:'diagnostico',label:'6· Diagnóstico',ic:'🔬'},
   {k:'pestel',label:'7· PESTEL',ic:'🌐'},
   {k:'foda',label:'8· FODA matemático',ic:'📊'},
-  {k:'prioriz',label:'9· Priorización',ic:'⚖️'},
-  {k:'came',label:'10· Estrategias (CAME)',ic:'♟️'},
-  {k:'crono',label:'11· Cronograma',ic:'📅'},
-  {k:'monitoreo',label:'12· Monitoreo',ic:'📈'},
-  {k:'seguimiento',label:'13· Seguimiento (ejecución)',ic:'📍'},
-  {k:'rendicion',label:'14· Rendición de cuentas',ic:'📑'},
-  {k:'conclusiones',label:'15· Conclusiones',ic:'✅'},
-  {k:'resumen',label:'16· Resumen ejecutivo',ic:'📄'}
+  {k:'nivel',label:'9· Nivel de Gestión',ic:'🚦'},
+  {k:'prioriz',label:'10· Priorización',ic:'⚖️'},
+  {k:'came',label:'11· Estrategias (CAME)',ic:'♟️'},
+  {k:'crono',label:'12· Cronograma',ic:'📅'},
+  {k:'monitoreo',label:'13· Monitoreo',ic:'📈'},
+  {k:'seguimiento',label:'14· Seguimiento (ejecución)',ic:'📍'},
+  {k:'rendicion',label:'15· Rendición de cuentas',ic:'📑'},
+  {k:'conclusiones',label:'16· Conclusiones',ic:'✅'},
+  {k:'resumen',label:'17· Resumen ejecutivo',ic:'📄'}
 ];
 const PESTEL_DIMS=[['politico','Político'],['economico','Económico'],['social','Social'],['tecnologico','Tecnológico'],['ecologico','Ecológico / Ambiental'],['legal','Legal']];
 const RRHH_GRADOS=['Jefa de Departamento','Supervisoras','Jefas de UUHH','Enfermeras','Técnicas de enfermería','Auxiliares de enfermería','CAS / Locadores'];
@@ -1004,6 +1005,55 @@ function pgZona(m){
   if(interno>=0&&externo>=0) return {z:'Zona de ventaja competitiva',c:'var(--ok)',interno,externo};
   if(interno<0&&externo<0) return {z:'Zona de riesgo',c:'var(--bad)',interno,externo};
   return {z:'Terreno de juego',c:'var(--warn)',interno,externo};
+}
+
+/* ---------- Nivel de Gestión (KPI ejecutivo del FODA — modelo tablero Power BI GEMSES) ---------- */
+function fodaSumP(d,m,q){ return ((d&&d.foda&&d.foda[m]&&d.foda[m][q])||[]).reduce((a,x)=>a+((+x.peso||0)*(+x.val||0)),0); }
+function fodaPesoP(d,m,q){ return ((d&&d.foda&&d.foda[m]&&d.foda[m][q])||[]).reduce((a,x)=>a+(+x.peso||0),0); }
+function pgNivelMacro(d,m){
+  const F=fodaSumP(d,m,'F'),D=fodaSumP(d,m,'D'),O=fodaSumP(d,m,'O'),A=fodaSumP(d,m,'A');
+  const pF=fodaPesoP(d,m,'F'),pD=fodaPesoP(d,m,'D'),pO=fodaPesoP(d,m,'O'),pA=fodaPesoP(d,m,'A');
+  const items=['F','D','O','A'].reduce((a,q)=>a+(((d&&d.foda&&d.foda[m]&&d.foda[m][q])||[]).length),0);
+  const net=(F+O)-(D+A);                 // neto FODA = (Fortalezas+Oportunidades) − (Debilidades+Amenazas)
+  const posMax=(pF+pO)*4, negMax=(pD+pA)*4;   // máximos alcanzables (peso × valoración 4)
+  let nivel=null;
+  if(items>0){
+    nivel = net>=0 ? (posMax>0?50+50*net/posMax:50) : (negMax>0?50+50*net/negMax:50);
+    nivel = Math.max(0,Math.min(100,Math.round(nivel*10)/10));   // 50% = neutro, 0–100
+  }
+  return {m,F,D,O,A,pInt:pF+pD,pExt:pO+pA,net,nivel,items};
+}
+function pgNivelGestion(d){
+  d=d||pgData();
+  const macros=PG_MACROS.map(m=>pgNivelMacro(d,m));
+  const con=macros.filter(x=>x.nivel!==null);
+  const overall=con.length?Math.round(con.reduce((a,x)=>a+x.nivel,0)/con.length*10)/10:null;
+  return {macros,overall,conData:con.length,
+    F:macros.reduce((a,x)=>a+x.F,0),D:macros.reduce((a,x)=>a+x.D,0),
+    O:macros.reduce((a,x)=>a+x.O,0),A:macros.reduce((a,x)=>a+x.A,0)};
+}
+function nivelSemaforo(n){
+  if(n===null||n===undefined) return {c:'#94a3b8',t:'Sin datos',d:'Completa el FODA matemático (paso 8)'};
+  if(n<50) return {c:'var(--bad)',t:'Crítico',d:'Por debajo del 50% recomendado — requiere intervención'};
+  if(n<70) return {c:'var(--warn)',t:'En desarrollo',d:'Gestión en consolidación'};
+  if(n<85) return {c:'#2e9e6a',t:'Sólido',d:'Gestión sólida'};
+  return {c:'var(--ok)',t:'Excelencia',d:'Nivel de excelencia operacional'};
+}
+/* Consolidado multi-IPRESS respetando la seguridad por filas */
+function planOwnersVisibles(){
+  const all=Object.keys(DB).filter(k=>DB[k]&&Array.isArray(DB[k].planes)&&DB[k].planes.length);
+  if(verGlobal()) return all;
+  if(verHospital()){ const org=(USER.org||'').trim().toLowerCase(); if(!org) return [USER.email].filter(e=>DB[e]);
+    return all.filter(e=>{const u=userByEmail(e); return u&&(u.org||'').trim().toLowerCase()===org;}); }
+  return [USER.email].filter(e=>DB[e]);
+}
+function pgNivelConsolidado(){
+  const out=[];
+  planOwnersVisibles().forEach(email=>{ const rec=DB[email]; if(!rec||!Array.isArray(rec.planes))return; const u=userByEmail(email);
+    rec.planes.forEach(p=>{ const ng=pgNivelGestion(p); if(ng.overall===null)return;
+      out.push({email,autor:(u&&u.name)||email,ipress:(p.info&&p.info.ipress)||(u&&u.org)||'—',unidad:(p.info&&p.info.unidad)||(u&&u.area)||'',plan:p.nombre||'Plan',nivel:ng.overall}); }); });
+  out.sort((a,b)=>b.nivel-a.nivel);
+  return out;
 }
 
 /* ---------- Priorización de problemas (matriz de impactos GEMSES) ---------- */
@@ -1392,6 +1442,7 @@ function pgStepDone(k){ const d=pgData();
     case 'objetivos': return d.objetivos.length>0;
     case 'diagnostico': return !!(d.diag.organizacion||d.diag.produccion||d.dotacion.cap||d.diagInterno||d.diagExterno);
     case 'foda': return PG_MACROS.some(m=>['D','A','F','O'].some(q=>d.foda[m][q].length));
+    case 'nivel': return pgNivelGestion(d).overall!==null;
     case 'prioriz': return d.prioriz.length>0;
     case 'came': return !!(d.came.corregir||d.came.afrontar||d.came.mantener||d.came.explotar);
     case 'crono': return d.crono.length>0;
@@ -1544,6 +1595,54 @@ function pgSectionHTML(k){
       <p style="font-size:11.5px;color:var(--muted);margin:0 0 12px">Cada factor: <b>Peso × Valoración = P×V</b>. Puedes usar la escala del libro (peso % que suma 100 × valoración 0–4) o la práctica (peso 1–5 × valoración 1–5). El posicionamiento resulta de Interno (ΣF−ΣD) y Externo (ΣO−ΣA).</p>
       ${macroBlocks}`;
   }
+  if(k==='nivel'){
+    const ng=pgNivelGestion(d); const sem=nivelSemaforo(ng.overall);
+    const mcol={'Estratégico':'#1f6feb','Misional':'#e0a21a','Soporte':'#d64545'};
+    const cards=ng.macros.map(x=>{const s=nivelSemaforo(x.nivel);
+      return `<div style="flex:1;min-width:148px;border:1px solid var(--line);border-top:3px solid ${mcol[x.m]||'var(--navy)'};border-radius:10px;padding:10px 12px;background:var(--card)">
+        <div style="font-weight:800;color:var(--navy);font-size:12.5px">${x.m}</div>
+        <div style="font-size:26px;font-weight:800;color:${s.c};line-height:1.15">${x.nivel===null?'—':x.nivel+'%'}</div>
+        <div style="font-size:10px;color:var(--muted)">${x.items} factores FODA · ${s.t}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.55">🟢 F×P ${Math.round(x.F)} · O×P ${Math.round(x.O)}<br>🔴 D×P ${Math.round(x.D)} · A×P ${Math.round(x.A)}</div>
+      </div>`;}).join('');
+    const medRows=ng.macros.map(x=>`<tr><td><b>${x.m}</b></td>
+      <td style="text-align:center;color:#16a34a">${Math.round(x.F)}</td>
+      <td style="text-align:center;color:#dc2626">${Math.round(x.D)}</td>
+      <td style="text-align:center;color:#16a34a">${Math.round(x.O)}</td>
+      <td style="text-align:center;color:#dc2626">${Math.round(x.A)}</td>
+      <td style="text-align:center;font-weight:700;color:${x.net>=0?'#16a34a':'#dc2626'}">${x.net>=0?'+':''}${Math.round(x.net)}</td>
+      <td style="text-align:center;font-weight:800;color:${nivelSemaforo(x.nivel).c}">${x.nivel===null?'—':x.nivel+'%'}</td></tr>`).join('');
+    const cons=pgNivelConsolidado();
+    const scope=verGlobal()?'todas las IPRESS visibles':(verHospital()?'tu hospital':'tus planes');
+    const consRows=cons.map((r,i)=>`<tr>
+      <td style="text-align:center;color:var(--muted)">${i+1}</td>
+      <td>${escHtml(r.ipress)}<div style="font-size:10px;color:var(--muted)">${escHtml(r.unidad||'')}${r.unidad?' · ':''}${escHtml(r.plan)} · ${escHtml(r.autor)}</div></td>
+      <td style="min-width:120px"><div style="background:var(--bg);border-radius:6px;overflow:hidden;height:15px;border:1px solid var(--line)"><div style="width:${r.nivel}%;height:100%;background:${nivelSemaforo(r.nivel).c}"></div></div></td>
+      <td style="text-align:center;font-weight:800;color:${nivelSemaforo(r.nivel).c}">${r.nivel}%</td></tr>`).join('');
+    return `<h4>🚦 Nivel de Gestión <span style="font-size:11px;color:var(--muted);font-weight:400">— KPI ejecutivo del FODA matemático</span></h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 12px">Condensa el FODA matemático (paso 8) en un indicador único, al estilo del tablero Power BI de gestión. Combina el equilibrio <b>interno</b> (Fortalezas − Debilidades) y <b>externo</b> (Oportunidades − Amenazas) de cada macroproceso y lo normaliza de 0 a 100% (<b>50% = punto neutro</b>; por debajo del 50% se requiere intervención).</p>
+      <div class="detail-sec" style="background:var(--bg);display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+        <div style="text-align:center;min-width:130px">
+          <div style="font-size:46px;font-weight:800;line-height:1;color:${sem.c}">${ng.overall===null?'—':ng.overall+'%'}</div>
+          <div style="display:inline-block;margin-top:6px;background:${sem.c};color:#fff;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">${sem.t}</div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:4px">${sem.d}</div>
+        </div>
+        <div style="flex:1;min-width:200px">
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;height:22px;position:relative">
+            <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--muted);opacity:.5;z-index:1"></div>
+            <div style="width:${ng.overall||0}%;height:100%;background:${sem.c};transition:width .3s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-top:3px"><span>0%</span><span>50% neutro</span><span>100%</span></div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:6px">Promedio de ${ng.conData} macroproceso(s) con FODA cargado.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">${cards}</div>
+      <h5 style="margin:6px 0 4px;color:var(--teal)">📐 Medidas por macroproceso (F·D·O·A ponderadas)</h5>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Macroproceso</th><th>F×P</th><th>D×P</th><th>O×P</th><th>A×P</th><th>Neto</th><th>Nivel</th></tr>${medRows}</table></div>
+      <p style="font-size:10.5px;color:var(--muted);margin:6px 0 0">Neto = (F×P + O×P) − (D×P + A×P). Nivel = 50% ± 50% × (Neto ÷ máximo alcanzable). <b>50% = punto neutro</b>; 100% = máxima ventaja, 0% = máximo riesgo.</p>
+      <h5 style="margin:16px 0 4px;color:var(--teal)">🏥 Consolidado — Nivel de Gestión por IPRESS / plan <span style="font-size:10.5px;color:var(--muted);font-weight:400">(${scope})</span></h5>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>#</th><th>IPRESS / unidad · plan</th><th>Nivel</th><th>%</th></tr>${consRows||'<tr><td colspan="4" style="color:var(--muted)">Aún no hay planes con FODA cargado para comparar.</td></tr>'}</table></div>`;
+  }
   if(k==='prioriz'){
     const ranked=pgPrioRanked();
     const rows=ranked.map(x=>`<tr>
@@ -1660,6 +1759,8 @@ function exportPlanWord(){
   const seg=pgSegStats();
   const cronoSegRows=d.crono.map(c=>`<tr><td>${escHtml(c.actividad)}</td><td>${escHtml(c.responsable)}</td><td>${escHtml(c.estado||'')}</td><td style="text-align:center">${+c.avance||0}%</td></tr>`).join('');
   const indSegRows=d.monitoreo.map(o=>{const lg=pgMonLogro(o); const ult=o.med&&o.med.length?o.med[o.med.length-1]:null; return `<tr><td>${escHtml(o.indicador)}</td><td style="text-align:center">${+o.meta||0}</td><td style="text-align:center">${ult?escHtml(ult.p)+': '+escHtml(String(ult.v)):'—'}</td><td style="text-align:center">${lg==null?'—':lg+'%'}</td></tr>`;}).join('');
+  const ng=pgNivelGestion(d); const ngSem=nivelSemaforo(ng.overall);
+  const ngRows=ng.macros.map(x=>`<tr><td>${escHtml(x.m)}</td><td style="text-align:center">${Math.round(x.F)}</td><td style="text-align:center">${Math.round(x.D)}</td><td style="text-align:center">${Math.round(x.O)}</td><td style="text-align:center">${Math.round(x.A)}</td><td style="text-align:center">${x.nivel===null?'—':x.nivel+'%'}</td></tr>`).join('');
   const cadStats=pgCadStats();
   const cadCompRows=Object.values(cadStats.comps).map(c=>`<tr><td>${escHtml(c.macro)}</td><td>${escHtml(c.comp)}</td><td style="text-align:center">${c.n}</td><td style="text-align:center">${c.pct}%</td></tr>`).join('');
   const cadCritRows=(d.autodiag.cadena||[]).map(x=>`<tr><td>${escHtml(x.macro)}</td><td>${escHtml(x.comp)}</td><td>${escHtml(x.crit)}</td><td style="text-align:center">${+x.val||0}/4</td></tr>`).join('');
@@ -1691,6 +1792,9 @@ function exportPlanWord(){
   <p><b>Análisis interno:</b> ${escHtml(d.diagInterno)}</p><p><b>Análisis externo:</b> ${escHtml(d.diagExterno)}</p>
   ${pestelBlock?`<h2>Análisis PESTEL (entorno externo)</h2>${pestelBlock}`:''}
   <h2>5. FODA matemático por macroproceso</h2>${fodaBlocks}
+  ${ng.overall!==null?`<h2>5.1 Nivel de Gestión (KPI ejecutivo del FODA)</h2>
+    <p><b>Nivel de Gestión global: ${ng.overall}% — ${ngSem.t}</b> (${ngSem.d}). Se obtiene condensando el FODA matemático: equilibrio interno (F−D) y externo (O−A) por macroproceso, normalizado 0–100% (50% = punto neutro).</p>
+    <table><tr><th>Macroproceso</th><th>F×P</th><th>D×P</th><th>O×P</th><th>A×P</th><th>Nivel</th></tr>${ngRows}</table>`:''}
   <h2>6. Priorización de problemas</h2>
   <table><tr><th>Problema</th><th>Score</th><th>Nivel del plan</th></tr>${prRows}</table>
   <h2>7. Estrategias (CAME)</h2>
