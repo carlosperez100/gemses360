@@ -1039,6 +1039,97 @@ function pgFillHMC(){
   d.conclusiones='La Supervisora del Departamento de Enfermería del HMC se compromete a: (1) implementar la transformación digital de la supervisión; (2) elevar la calidad y humanización del cuidado al 90% de satisfacción; (3) gestionar la brecha de personal ante la Alta Dirección; (4) ejecutar el plan de capacitación al 100%; (5) publicar mínimo 2 artículos/boletines anuales; (6) rendir cuentas de forma transparente a todos los niveles.';
   d.resumen='';
 }
+
+/* ---------- Generador de Plan base SEGÚN EL ROL (siempre basado en GEMSES) ----------
+   Objetivos e indicadores tailored a la función del rol en la pirámide funcional,
+   estructurados en los 3 macroprocesos y las 4 dimensiones del Modelo GEMSES. */
+const ROL_PLAN={
+  DIRECTOR:{
+    obj:[
+      {macro:'Estratégico',general:'Consolidar la planeación estratégica y el control automatizado de la gestión',especifico:'Implementar el tablero institucional de indicadores (DMAIC) y el FODA matemático',meta:'Índice de cumplimiento ponderado ≥ 85%'},
+      {macro:'Misional',general:'Asegurar la calidad y la seguridad del paciente en las cadenas de valor',especifico:'Reducir eventos adversos, infecciones y tiempos de atención',meta:'Eventos adversos < 5%'},
+      {macro:'Soporte',general:'Optimizar finanzas, talento humano e insumos de la institución',especifico:'Cerrar la brecha de personal y asegurar el abastecimiento',meta:'Reducir brecha de personal en 40%'}],
+    ind:[
+      {indicador:'Índice de cumplimiento ponderado (GEMSES)',formula:'Promedio ponderado del logro por dimensión',fuente:'Tablero institucional',estandar:'≥ 85%',periodo:'Mensual',responsable:'Dirección'},
+      {indicador:'Satisfacción del usuario externo',formula:'(Usuarios satisfechos / encuestados) × 100',fuente:'Encuesta',estandar:'≥ 85%',periodo:'Trimestral',responsable:'Calidad'},
+      {indicador:'Tasa de eventos adversos',formula:'(Eventos adversos / egresos) × 100',fuente:'Seguridad del paciente',estandar:'< 5%',periodo:'Mensual',responsable:'Calidad'},
+      {indicador:'Ejecución presupuestal',formula:'(Ejecutado / programado) × 100',fuente:'Administración',estandar:'≥ 90%',periodo:'Trimestral',responsable:'Administración'},
+      {indicador:'Brecha de personal',formula:'(Déficit / requerimiento CAP) × 100',fuente:'RR.HH.',estandar:'Reducción progresiva',periodo:'Semestral',responsable:'RR.HH.'}]},
+  JEFE_DEPARTAMENTO:{
+    obj:[
+      {macro:'Estratégico',general:'Alinear los servicios del departamento a las metas institucionales',especifico:'Consolidar los indicadores de las unidades en un tablero',meta:'100% de servicios con tablero'},
+      {macro:'Misional',general:'Estandarizar procesos y mejorar la calidad del departamento',especifico:'Asegurar adherencia a protocolos en los servicios',meta:'Adherencia ≥ 85%'},
+      {macro:'Soporte',general:'Distribuir y optimizar los recursos del departamento',especifico:'Ejecutar el plan de capacitación y sustentar la dotación',meta:'Capacitación al 100%'}],
+    ind:[
+      {indicador:'Servicios con tablero de indicadores',formula:'(Servicios con tablero / total) × 100',fuente:'Departamento',estandar:'100%',periodo:'Trimestral',responsable:'Jefatura de Departamento'},
+      {indicador:'Adherencia a protocolos',formula:'(Procesos conformes / evaluados) × 100',fuente:'Auditoría',estandar:'≥ 85%',periodo:'Mensual',responsable:'Jefaturas de servicio'},
+      {indicador:'Satisfacción del usuario',formula:'(Satisfechos / encuestados) × 100',fuente:'Encuesta',estandar:'≥ 85%',periodo:'Trimestral',responsable:'Calidad'},
+      {indicador:'Ejecución del plan de capacitación',formula:'(Ejecutadas / programadas) × 100',fuente:'Capacitación',estandar:'100%',periodo:'Trimestral',responsable:'Capacitación'}]},
+  JEFE_SERVICIO:{
+    obj:[
+      {macro:'Misional',general:'Asegurar el logro de las metas de los indicadores del servicio',especifico:'Ejecutar los planes de mejora 5W+2H priorizados',meta:'Indicadores en meta ≥ 80%'},
+      {macro:'Soporte',general:'Organizar los recursos humanos y materiales del servicio',especifico:'Gestionar insumos por kits y la programación del personal',meta:'Disponibilidad de insumos ≥ 95%'},
+      {macro:'Estratégico',general:'Reportar avances y rendir cuentas a la dirección',especifico:'Mantener el tablero del servicio operativo',meta:'Tablero al 100%'}],
+    ind:[
+      {indicador:'Logro de indicadores del servicio',formula:'(Indicadores en meta / total) × 100',fuente:'Tablero del servicio',estandar:'≥ 80%',periodo:'Mensual',responsable:'Jefe de Servicio'},
+      {indicador:'Disponibilidad de insumos',formula:'(Insumos disponibles / requeridos) × 100',fuente:'Logística',estandar:'≥ 95%',periodo:'Mensual',responsable:'Jefe de Servicio'},
+      {indicador:'Satisfacción del paciente del servicio',formula:'(Satisfechos / encuestados) × 100',fuente:'Encuesta',estandar:'≥ 85%',periodo:'Trimestral',responsable:'Jefe de Servicio'},
+      {indicador:'Tasa de eventos adversos del servicio',formula:'(Eventos / atenciones) × 100',fuente:'Reporte de eventos',estandar:'< 5%',periodo:'Mensual',responsable:'Jefe de Servicio'}]},
+  SUPERVISOR:{
+    obj:[
+      {macro:'Estratégico',general:'Fortalecer el control y la auditoría de los procesos',especifico:'Digitalizar el instrumento de supervisión',meta:'80% de supervisiones digitales'},
+      {macro:'Misional',general:'Verificar la adherencia a protocolos y la seguridad del paciente',especifico:'Auditar procesos y asegurar la trazabilidad del cuidado',meta:'Adherencia ≥ 85%'},
+      {macro:'Soporte',general:'Dar seguimiento a las acciones de mejora',especifico:'Controlar el cierre de no conformidades',meta:'Cierre ≥ 90%'}],
+    ind:[
+      {indicador:'Supervisiones ejecutadas',formula:'(Supervisiones realizadas / programadas) × 100',fuente:'Tablero de supervisión',estandar:'≥ 90%',periodo:'Mensual',responsable:'Supervisión'},
+      {indicador:'Adherencia a protocolos',formula:'(Procesos conformes / auditados) × 100',fuente:'Auditoría',estandar:'≥ 85%',periodo:'Mensual',responsable:'Supervisión'},
+      {indicador:'Adherencia a higiene de manos',formula:'(Oportunidades cumplidas / observadas) × 100',fuente:'Observación',estandar:'≥ 85%',periodo:'Mensual',responsable:'Supervisión'},
+      {indicador:'Tasa de eventos adversos (LPP, flebitis, caídas)',formula:'(Eventos / total) × 100',fuente:'Reporte de seguridad',estandar:'< 1%',periodo:'Mensual',responsable:'Supervisión'},
+      {indicador:'Cierre de no conformidades',formula:'(No conformidades cerradas / detectadas) × 100',fuente:'Seguimiento',estandar:'≥ 90%',periodo:'Mensual',responsable:'Supervisión'}]},
+  AREA:{
+    obj:[
+      {macro:'Misional',general:'Mejorar los indicadores propios del área (ciclo DMAIC)',especifico:'Medir, analizar e implementar mejoras de los procesos del área',meta:'Logro de indicadores ≥ 80%'},
+      {macro:'Misional',general:'Asegurar la atención directa segura y humanizada',especifico:'Cumplir los protocolos del proceso del área',meta:'Adherencia ≥ 85%'},
+      {macro:'Soporte',general:'Gestionar los insumos y registros del área',especifico:'Mantener el registro completo y oportuno',meta:'Registro al 100%'}],
+    ind:[
+      {indicador:'Logro del indicador del área',formula:'(Valor logrado / meta) × 100',fuente:'Registro del área',estandar:'≥ 80%',periodo:'Mensual',responsable:'Profesional del área'},
+      {indicador:'Adherencia a protocolos del proceso',formula:'(Procedimientos conformes / evaluados) × 100',fuente:'Checklist',estandar:'≥ 85%',periodo:'Mensual',responsable:'Profesional del área'},
+      {indicador:'Satisfacción del paciente del área',formula:'(Satisfechos / encuestados) × 100',fuente:'Encuesta',estandar:'≥ 85%',periodo:'Trimestral',responsable:'Profesional del área'},
+      {indicador:'Completitud del registro',formula:'(Registros completos / total) × 100',fuente:'Sistema',estandar:'100%',periodo:'Mensual',responsable:'Profesional del área'}]}
+};
+function pgFodaBase(){
+  return {
+    'Estratégico':{F:[{t:'Se cuenta con metodología de gestión (GEMSES)',peso:5,val:4}],D:[{t:'Gestión de indicadores no sistematizada',peso:5,val:4}],O:[{t:'Apoyo de la dirección y disponibilidad de TIC',peso:5,val:5}],A:[{t:'Restricciones presupuestales',peso:4,val:4}]},
+    'Misional':{F:[{t:'Adherencia a protocolos y seguridad del paciente',peso:5,val:4}],D:[{t:'Sin trazabilidad del cuidado',peso:5,val:4}],O:[{t:'Política de humanización y derechos del paciente',peso:4,val:4}],A:[{t:'Pacientes más exigentes',peso:4,val:3}]},
+    'Soporte':{F:[{t:'Personal especializado',peso:5,val:4}],D:[{t:'Brecha de personal',peso:5,val:5}],O:[{t:'Convenios y financiamiento',peso:4,val:4}],A:[{t:'Compensaciones limitadas',peso:4,val:3}]}
+  };
+}
+function pgGenPorRol(){
+  const cm=cargoMeta(USER.cargo); const rp=ROL_PLAN[cm.key]||ROL_PLAN.AREA;
+  if(!confirm('¿Generar un Plan de Gestión base para tu rol ('+cm.label+'), según el Modelo GEMSES? Reemplazará el contenido actual del plan.'))return;
+  const d=pgData();
+  d.info={ipress:(USER.org&&USER.org!=='—'&&USER.org!=='GEMSES360'?USER.org:''),unidad:(USER.area||cm.scope),autor:(USER.name||''),cargo:cm.label,concurso:'Concurso para cargo directivo',periodo:'2026–2028',fecha:todayISO()};
+  d.intro='Plan de Gestión para el rol de '+cm.label+'. En la pirámide funcional del Modelo GEMSES, su función es la '+cm.funcion+'. '+cm.enfoque+' El plan se estructura en los tres macroprocesos GEMSES (Estratégico, Misional y de Soporte) con eje transversal en la seguridad y la humanización del cuidado.';
+  d.mision='Brindar una gestión del cuidado segura, humanizada y de calidad en el ámbito de '+(cm.scope||'mi responsabilidad')+', centrada en el paciente y su familia.';
+  d.vision='Alcanzar la excelencia en la gestión bajo el Modelo GEMSES, con decisiones basadas en datos y mejora continua.';
+  d.valores=['Seguridad del paciente','Humanización del cuidado','Excelencia','Trabajo en equipo','Transparencia'];
+  d.objetivos=JSON.parse(JSON.stringify(rp.obj));
+  d.diag={organizacion:'',caracteristicas:'',produccion:'',normas:'Documentos del Modelo GEMSES, protocolos y guías vigentes, PAE.',recursosInst:'',recursosMat:'',infraestructura:''};
+  d.dotacion=d.dotacion&&d.dotacion.cap?d.dotacion:{cap:0,actual:0};
+  d.diagInterno='Síntesis del análisis interno (completar con el autodiagnóstico de la cadena de valor).';
+  d.diagExterno='Síntesis del análisis externo (completar con PEST y 5 Fuerzas de Porter).';
+  d.foda=pgFodaBase();
+  d.prioriz=[
+    {problema:'Indicadores sin sistematizar / sin trazabilidad',freq:7,t:5,c:7,co:3,s:5},
+    {problema:'Brecha de recursos para las mejoras',freq:5,t:5,c:5,co:7,s:5}];
+  d.came={corregir:'Sistematizar la medición y la fuente de datos según DMAIC.',afrontar:'Gestionar los recursos para las mejoras priorizadas.',mantener:'Sostener la adherencia a protocolos y la capacitación.',explotar:'Aprovechar TIC y el apoyo de la dirección para automatizar el control.'};
+  d.crono=rp.obj.map((o,i)=>({actividad:'Ejecutar: '+o.especifico,responsable:cm.label,ini:'2026-0'+((i%6)+1),fin:'2026-12',nivel:(o.macro==='Estratégico'?'Proyecto':o.macro==='Misional'?'Procesos':'Actividades')}));
+  d.monitoreo=JSON.parse(JSON.stringify(rp.ind)).map(x=>({indicador:x.indicador,descripcion:'',formula:x.formula,fuente:x.fuente,estandar:x.estandar,periodo:x.periodo,responsable:x.responsable}));
+  d.rendicion='Informes mensuales de indicadores, trimestrales de objetivos y calidad, semestral de recursos y anual de evaluación integral con FODA actualizado, según corresponde a la función de '+cm.funcion+'.';
+  d.conclusiones='Como '+cm.label+', me comprometo a ejecutar este Plan de Gestión bajo el Modelo GEMSES, priorizando los problemas de mayor impacto, ejecutando los planes de mejora 5W+2H y rindiendo cuentas de forma transparente.';
+  d.resumen='';
+  saveData(); pgStep='objetivos'; renderPlanGestion(); toast('✓ Plan base generado para tu rol ('+cm.funcion+')');
+}
 function pgGenResumen(){
   const d=pgData();
   let t=`PLAN DE GESTIÓN — ${d.info.unidad||'Unidad'} · ${d.info.ipress||'Institución'}\n`;
@@ -1060,6 +1151,7 @@ function renderPlanGestion(){
   content.innerHTML=`
     <div class="toolbar"><div class="ab-hosp">📋 Plan de Gestión — <b>${esc(d.info.unidad||'tu unidad')}</b></div>
       <div class="grow"></div>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="pgGenPorRol()">🧩 Generar según mi rol</button>
       <select class="btn btn-ghost btn-sm" style="width:auto" onchange="if(this.value){pgSeedFrom(this.value);this.value='';}">
         <option value="">✨ Plantilla pre-armada…</option>
         <option value="hmc">Hospital Militar Central — Supervisión de Enfermería</option>
