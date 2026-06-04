@@ -1055,6 +1055,42 @@ function pgNivelConsolidado(){
   out.sort((a,b)=>b.nivel-a.nivel);
   return out;
 }
+/* Posicionamiento de la gestión (modelo GEMSES) — confluyen autodiagnóstico interno (X: D→F) y PEST externo (Y: A→O) */
+function pgPosicionamientoSVG(d){
+  d=d||pgData();
+  const PADL=40,PADT=14,PLOT=300;
+  const sx=v=>PADL+(Math.max(0,Math.min(400,v))/400)*PLOT;
+  const sy=v=>PADT+PLOT-(Math.max(0,Math.min(400,v))/400)*PLOT;
+  const W=PADL+PLOT+16, H=PADT+PLOT+34;
+  const colors={'Estratégico':'#1f6feb','Misional':'#e0a21a','Soporte':'#d64545'};
+  let grid='';
+  for(let v=0;v<=400;v+=100){ grid+=`<line x1="${sx(v)}" y1="${PADT}" x2="${sx(v)}" y2="${PADT+PLOT}" stroke="#eef1f4"/><line x1="${PADL}" y1="${sy(v)}" x2="${PADL+PLOT}" y2="${sy(v)}" stroke="#eef1f4"/><text x="${sx(v)}" y="${PADT+PLOT+12}" font-size="8" fill="#9aa3ad" text-anchor="middle">${v}</text><text x="${PADL-5}" y="${sy(v)+3}" font-size="8" fill="#9aa3ad" text-anchor="end">${v}</text>`; }
+  const riesgo=`${sx(0)},${sy(0)} ${sx(300)},${sy(0)} ${sx(0)},${sy(300)}`;
+  const ventaja=`${sx(400)},${sy(400)} ${sx(150)},${sy(400)} ${sx(400)},${sy(150)}`;
+  let series='', legend='';
+  PG_MACROS.forEach(m=>{
+    const F=fodaSumP(d,m,'F'),D=fodaSumP(d,m,'D'),A=fodaSumP(d,m,'A'),O=fodaSumP(d,m,'O');
+    const c=colors[m]||'#333';
+    legend+=`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:10.5px"><span style="width:14px;height:3px;background:${c};display:inline-block"></span>${m}</span>`;
+    if(!(F||D||A||O)) return;
+    const daX=sx(D),daY=sy(A),foX=sx(F),foY=sy(O);
+    series+=`<line x1="${daX}" y1="${daY}" x2="${foX}" y2="${foY}" stroke="${c}" stroke-width="2.4"/>`
+      +`<circle cx="${daX}" cy="${daY}" r="4" fill="#fff" stroke="${c}" stroke-width="2"/><text x="${daX-3}" y="${daY+13}" font-size="8" fill="${c}" text-anchor="end">DA</text>`
+      +`<circle cx="${foX}" cy="${foY}" r="5" fill="${c}"/><text x="${foX+6}" y="${foY+3}" font-size="8" fill="${c}">FO</text>`;
+  });
+  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:430px;font-family:inherit;background:#fff;border:1px solid var(--line);border-radius:8px">`
+    +`<polygon points="${riesgo}" fill="#d64545" fill-opacity="0.16"/><polygon points="${ventaja}" fill="#13294B" fill-opacity="0.16"/>`
+    +grid
+    +`<rect x="${PADL}" y="${PADT}" width="${PLOT}" height="${PLOT}" fill="none" stroke="#cbd2d9"/>`
+    +`<text x="${sx(30)}" y="${sy(20)}" font-size="8.5" fill="#b04a4a">Zona de Riesgo</text>`
+    +`<text x="${sx(280)}" y="${sy(35)}" font-size="8.5" fill="#5a6570" text-anchor="end">Terreno de Juego</text>`
+    +`<text x="${sx(165)}" y="${sy(378)}" font-size="8.5" fill="#13294B" font-weight="700">Ventaja Competitiva</text>`
+    +series
+    +`<text x="${PADL+PLOT/2}" y="${H-2}" font-size="9" fill="#5a6570" text-anchor="middle">DEBILIDADES → FORTALEZAS</text>`
+    +`<text x="11" y="${PADT+PLOT/2}" font-size="9" fill="#5a6570" text-anchor="middle" transform="rotate(-90 11 ${PADT+PLOT/2})">AMENAZAS → OPORTUNIDADES</text>`
+    +`</svg>`;
+  return svg+`<div style="margin-top:6px">${legend}</div>`;
+}
 
 /* ---------- Priorización de problemas (matriz de impactos GEMSES) ---------- */
 function pgPrioAdd(){ pgData().prioriz.push({problema:'',freq:3,t:3,c:3,co:3,s:3}); saveData(); renderPlanGestion(); }
@@ -1593,7 +1629,10 @@ function pgSectionHTML(k){
     }).join('');
     return `<h4>📊 FODA matemático por macroproceso</h4>
       <p style="font-size:11.5px;color:var(--muted);margin:0 0 12px">Cada factor: <b>Peso × Valoración = P×V</b>. Puedes usar la escala del libro (peso % que suma 100 × valoración 0–4) o la práctica (peso 1–5 × valoración 1–5). El posicionamiento resulta de Interno (ΣF−ΣD) y Externo (ΣO−ΣA).</p>
-      ${macroBlocks}`;
+      ${macroBlocks}
+      <h5 style="margin:16px 0 4px;color:var(--teal)">📍 Posicionamiento de la gestión (modelo GEMSES)</h5>
+      <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Aquí <b>confluyen los dos análisis</b>: el eje <b>X (Debilidades → Fortalezas)</b> proviene del <b>Autodiagnóstico de Cadena</b> (interno) y el eje <b>Y (Amenazas → Oportunidades)</b> del <b>PEST</b> (externo). Cada macroproceso traza una línea desde su punto <b>DA</b> (Debilidades-Amenazas → zona de riesgo) hasta su punto <b>FO</b> (Fortalezas-Oportunidades → ventaja competitiva). Cuanto más arriba-derecha, mejor la gestión.</p>
+      <div style="overflow-x:auto">${pgPosicionamientoSVG(d)}</div>`;
   }
   if(k==='nivel'){
     const ng=pgNivelGestion(d); const sem=nivelSemaforo(ng.overall);
@@ -1761,6 +1800,7 @@ function exportPlanWord(){
   const indSegRows=d.monitoreo.map(o=>{const lg=pgMonLogro(o); const ult=o.med&&o.med.length?o.med[o.med.length-1]:null; return `<tr><td>${escHtml(o.indicador)}</td><td style="text-align:center">${+o.meta||0}</td><td style="text-align:center">${ult?escHtml(ult.p)+': '+escHtml(String(ult.v)):'—'}</td><td style="text-align:center">${lg==null?'—':lg+'%'}</td></tr>`;}).join('');
   const ng=pgNivelGestion(d); const ngSem=nivelSemaforo(ng.overall);
   const ngRows=ng.macros.map(x=>`<tr><td>${escHtml(x.m)}</td><td style="text-align:center">${Math.round(x.F)}</td><td style="text-align:center">${Math.round(x.D)}</td><td style="text-align:center">${Math.round(x.O)}</td><td style="text-align:center">${Math.round(x.A)}</td><td style="text-align:center">${x.nivel===null?'—':x.nivel+'%'}</td></tr>`).join('');
+  const posRows=PG_MACROS.map(m=>{const z=pgZona(m);const F=fodaSum(m,'F'),D=fodaSum(m,'D'),A=fodaSum(m,'A'),O=fodaSum(m,'O');return `<tr><td>${escHtml(m)}</td><td style="text-align:center">(${D}, ${A})</td><td style="text-align:center">(${F}, ${O})</td><td>${escHtml(z.z)}</td></tr>`;}).join('');
   const cadStats=pgCadStats();
   const cadCompRows=Object.values(cadStats.comps).map(c=>`<tr><td>${escHtml(c.macro)}</td><td>${escHtml(c.comp)}</td><td style="text-align:center">${c.n}</td><td style="text-align:center">${c.pct}%</td></tr>`).join('');
   const cadCritRows=(d.autodiag.cadena||[]).map(x=>`<tr><td>${escHtml(x.macro)}</td><td>${escHtml(x.comp)}</td><td>${escHtml(x.crit)}</td><td style="text-align:center">${+x.val||0}/4</td></tr>`).join('');
@@ -1792,6 +1832,9 @@ function exportPlanWord(){
   <p><b>Análisis interno:</b> ${escHtml(d.diagInterno)}</p><p><b>Análisis externo:</b> ${escHtml(d.diagExterno)}</p>
   ${pestelBlock?`<h2>Análisis PESTEL (entorno externo)</h2>${pestelBlock}`:''}
   <h2>5. FODA matemático por macroproceso</h2>${fodaBlocks}
+  <h3>Posicionamiento de la gestión (modelo GEMSES)</h3>
+  <p class="muted">Confluyen el análisis interno y el externo — eje X (Debilidades→Fortalezas) del Autodiagnóstico de Cadena; eje Y (Amenazas→Oportunidades) del PEST. DA = punto en zona de riesgo; FO = punto en ventaja competitiva.</p>
+  <table><tr><th>Macroproceso</th><th>DA (D, A)</th><th>FO (F, O)</th><th>Zona</th></tr>${posRows}</table>
   ${ng.overall!==null?`<h2>5.1 Nivel de Gestión (KPI ejecutivo del FODA)</h2>
     <p><b>Nivel de Gestión global: ${ng.overall}% — ${ngSem.t}</b> (${ngSem.d}). Se obtiene condensando el FODA matemático: equilibrio interno (F−D) y externo (O−A) por macroproceso, normalizado 0–100% (50% = punto neutro).</p>
     <table><tr><th>Macroproceso</th><th>F×P</th><th>D×P</th><th>O×P</th><th>A×P</th><th>Nivel</th></tr>${ngRows}</table>`:''}
