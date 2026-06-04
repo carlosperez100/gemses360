@@ -331,6 +331,27 @@ textarea.fi{min-height:70px;resize:vertical}
 .placeholder-mod p{font-size:14px;color:var(--muted);max-width:520px;margin:0 auto 22px;line-height:1.6}
 .roadmap{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:600px;margin:0 auto}
 .roadmap span{font-size:12px;background:#fff;border:1px solid var(--line);padding:8px 14px;border-radius:30px;font-weight:600}
+/* Plan de Gestión */
+.pg-steps{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.pg-steps button{border:1.5px solid var(--line);background:#fff;border-radius:30px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy);font-family:inherit;display:flex;align-items:center;gap:6px}
+.pg-steps button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.pg-steps button .chk{color:var(--ok);font-weight:800}
+.pg-steps button.on .chk{color:#7BE3B0}
+.pg-fill{height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:16px}
+.pg-fill>i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--teal2));transition:.3s}
+.foda-quad{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.foda-quad{grid-template-columns:1fr}}
+.foda-box{border:1px solid var(--line);border-radius:12px;padding:12px}
+.foda-box h5{margin:0 0 8px;font-size:13px;font-weight:800}
+.foda-box.D{border-top:3px solid var(--bad)} .foda-box.A{border-top:3px solid var(--warn)}
+.foda-box.F{border-top:3px solid var(--ok)} .foda-box.O{border-top:3px solid var(--teal)}
+.foda-row{display:grid;grid-template-columns:1fr 58px 58px 50px 26px;gap:5px;align-items:center;margin-bottom:5px}
+.foda-row input{border:1px solid var(--line);border-radius:7px;padding:6px 7px;font-size:12px;font-family:inherit;width:100%}
+.foda-row .pv{font-weight:800;text-align:center;font-size:12px;color:var(--navy)}
+.foda-h{font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase;text-align:center}
+.pg-pos{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.pg-pos .zone{padding:8px 14px;border-radius:10px;font-weight:800;font-size:13px;color:#fff}
+.pg-add{border:1px dashed var(--teal);background:rgba(2,128,144,.05);color:var(--teal);border-radius:9px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;width:100%;font-family:inherit}
 /* Onboarding (parametrización primer ingreso) */
 .onb-overlay{position:fixed;inset:0;background:rgba(19,41,75,.55);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:9999;padding:20px}
 .onb-card{background:#fff;border-radius:18px;max-width:520px;width:100%;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto}
@@ -706,6 +727,7 @@ function nav(v){
   }
   if(p.id==='indicadores') return renderIndicadores();
   if(p.id==='formacion') return renderFormacion();
+  if(p.id==='plan') return renderPlanGestion();
   return renderComingSoon(p);
 }
 
@@ -754,6 +776,394 @@ function renderComingSoon(p){
     <h2>${p.name}</h2><p>${p.desc}</p>
     <div class="roadmap"><span>📐 Diseño</span><span>🔧 Construcción</span><span>🧪 Piloto</span><span>🚀 Lanzamiento</span></div>
     <p style="margin-top:20px;font-size:12.5px">Este módulo está habilitado en tu plan y se encuentra en desarrollo. La estructura ya quedó reservada en tu plataforma.</p></div>`;
+}
+
+/* ============================================================
+   MÓDULO PLAN DE GESTIÓN (concursos directivos)
+   Alineado al Modelo GEMSES (libro) y al formato UFEM:
+   Filosofía → Objetivos → Diagnóstico → FODA matemático por
+   macroproceso → Priorización → CAME → Cronograma → Monitoreo →
+   Resumen ejecutivo. Persistido por usuario; export a Word.
+   ============================================================ */
+const IPRESS_SEED=[
+  'Hospital Militar Central «Coronel Luis Arias Schreiber» (Lima)',
+  'INCOR — Instituto Nacional Cardiovascular, EsSalud (Lima)',
+  'Hospital Nacional Edgardo Rebagliati Martins, EsSalud (Lima)',
+  'Hospital Nacional Guillermo Almenara Irigoyen, EsSalud (Lima)',
+  'Hospital III Emergencias Grau, EsSalud (Lima)',
+  'Hospital Nacional Dos de Mayo, MINSA (Lima)',
+  'Hospital Nacional Arzobispo Loayza, MINSA (Lima)',
+  'Hospital Nacional Cayetano Heredia, MINSA (Lima)',
+  'Hospital Nacional Hipólito Unanue, MINSA (Lima)',
+  'Instituto Nacional de Salud del Niño, MINSA (Lima)',
+  'Instituto Nacional de Enfermedades Neoplásicas — INEN (Lima)',
+  'Hospital de la Solidaridad — SISOL Salud (Lima)',
+  'Hospital Regional Honorio Delgado (Arequipa)',
+  'Hospital Regional del Cusco (Cusco)',
+  'Hospital III EsSalud (Cusco)',
+  'Hospital Belén de Trujillo, MINSA (La Libertad)',
+  'Hospital Regional Lambayeque (Chiclayo)',
+  'Hospital EsSalud Almanzor Aguinaga Asenjo (Chiclayo)'
+];
+const LS_IPRESS='g360_ipress';
+function loadIpress(){ try{const s=JSON.parse(lsGet(LS_IPRESS)); if(Array.isArray(s)&&s.length) return s;}catch(e){} return [...IPRESS_SEED]; }
+function saveIpress(a){ lsSet(LS_IPRESS, JSON.stringify(a)); }
+
+const PG_MACROS=['Estratégico','Misional','Soporte'];
+const PG_QUADS=[['D','Debilidades'],['A','Amenazas'],['F','Fortalezas'],['O','Oportunidades']];
+const PG_SECTIONS=[
+  {k:'info',label:'1· Información',ic:'🪪'},
+  {k:'filosofia',label:'2· Filosofía',ic:'🧭'},
+  {k:'objetivos',label:'3· Objetivos',ic:'🎯'},
+  {k:'diagnostico',label:'4· Diagnóstico',ic:'🔬'},
+  {k:'foda',label:'5· FODA matemático',ic:'📊'},
+  {k:'prioriz',label:'6· Priorización',ic:'⚖️'},
+  {k:'came',label:'7· Estrategias (CAME)',ic:'♟️'},
+  {k:'crono',label:'8· Cronograma',ic:'📅'},
+  {k:'monitoreo',label:'9· Monitoreo',ic:'📈'},
+  {k:'resumen',label:'10· Resumen ejecutivo',ic:'📄'}
+];
+let pgStep='info';
+function pgData(){
+  const db=DB[USER.email]; if(!db.planGestion) db.planGestion={};
+  const d=db.planGestion;
+  d.info=d.info||{ipress:(USER.org&&USER.org!=='—'?USER.org:''),unidad:(USER.area||''),autor:(USER.name||''),cargo:(USER.cargo?cargoMeta(USER.cargo).label:''),concurso:'',periodo:'',fecha:todayISO()};
+  d.mision=d.mision||''; d.vision=d.vision||''; d.valores=d.valores||[];
+  d.objetivos=d.objetivos||[]; d.diagInterno=d.diagInterno||''; d.diagExterno=d.diagExterno||'';
+  if(!d.foda){ d.foda={}; PG_MACROS.forEach(m=>d.foda[m]={D:[],A:[],F:[],O:[]}); }
+  d.prioriz=d.prioriz||[]; d.came=d.came||{corregir:'',afrontar:'',mantener:'',explotar:''};
+  d.crono=d.crono||[]; d.monitoreo=d.monitoreo||[]; d.resumen=d.resumen||'';
+  return d;
+}
+function pgField(path,val){ const d=pgData(); const p=path.split('.'); let o=d; for(let i=0;i<p.length-1;i++)o=o[p[i]]; o[p[p.length-1]]=val; saveData(); }
+function pgGo(k){ pgStep=k; renderPlanGestion(); }
+function pgProgress(){
+  const d=pgData(); let done=0,total=10;
+  if(d.info.ipress&&d.info.autor) done++;
+  if(d.mision&&d.vision&&d.valores.length) done++;
+  if(d.objetivos.length) done++;
+  if(d.diagInterno||d.diagExterno) done++;
+  if(PG_MACROS.some(m=>['D','A','F','O'].some(q=>d.foda[m][q].length))) done++;
+  if(d.prioriz.length) done++;
+  if(d.came.corregir||d.came.afrontar||d.came.mantener||d.came.explotar) done++;
+  if(d.crono.length) done++;
+  if(d.monitoreo.length) done++;
+  if(d.resumen) done++;
+  return Math.round(done/total*100);
+}
+
+/* ---------- FODA matemático ---------- */
+function pgFodaAdd(m,q){ pgData().foda[m][q].push({t:'',peso:0,val:0}); saveData(); renderPlanGestion(); }
+function pgFodaDel(m,q,i){ pgData().foda[m][q].splice(i,1); saveData(); renderPlanGestion(); }
+function pgFodaSet(m,q,i,campo,val){ const it=pgData().foda[m][q][i]; if(!it)return; it[campo]=(campo==='t')?val:(parseFloat(val)||0); saveData(); if(campo!=='t') renderPlanGestion(); }
+function fodaSum(m,q){ return pgData().foda[m][q].reduce((a,x)=>a+(x.peso*x.val),0); }
+function fodaPesoSum(m,q){ return pgData().foda[m][q].reduce((a,x)=>a+(+x.peso||0),0); }
+function pgZona(m){
+  const F=fodaSum(m,'F'),D=fodaSum(m,'D'),O=fodaSum(m,'O'),A=fodaSum(m,'A');
+  const interno=F-D, externo=O-A;
+  if(interno>=0&&externo>=0) return {z:'Zona de ventaja competitiva',c:'var(--ok)',interno,externo};
+  if(interno<0&&externo<0) return {z:'Zona de riesgo',c:'var(--bad)',interno,externo};
+  return {z:'Terreno de juego',c:'var(--warn)',interno,externo};
+}
+
+/* ---------- Priorización de problemas (matriz de impactos GEMSES) ---------- */
+function pgPrioAdd(){ pgData().prioriz.push({problema:'',freq:3,t:3,c:3,co:3,s:3}); saveData(); renderPlanGestion(); }
+function pgPrioDel(i){ pgData().prioriz.splice(i,1); saveData(); renderPlanGestion(); }
+function pgPrioSet(i,campo,val){ const it=pgData().prioriz[i]; if(!it)return; it[campo]=(campo==='problema')?val:(parseFloat(val)||0); saveData(); if(campo!=='problema') renderPlanGestion(); }
+function pgPrioScore(it){ const w=(d,p)=>p*pesoDim(d); const imp=(w('Tiempo',it.t)+w('Calidad',it.c)+w('Costo',it.co)+w('Satisfacción',it.s))/100; return Math.round(it.freq*imp*10)/10; }
+function pgPrioRanked(){
+  const arr=pgData().prioriz.map((it,i)=>({i,it,score:pgPrioScore(it)}));
+  const scores=arr.map(x=>x.score).sort((a,b)=>a-b);
+  const q=p=>{ if(!scores.length)return 0; const idx=(scores.length-1)*p; const lo=Math.floor(idx),hi=Math.ceil(idx); return scores[lo]+(scores[hi]-scores[lo])*(idx-lo); };
+  const p50=q(.5), p75=q(.75);
+  arr.forEach(x=>{ if(x.score>=p75){x.nivel='Proyecto de Mejora';x.c='var(--bad)';x.pct='P75';} else if(x.score>=p50){x.nivel='Mejora de Procesos';x.c='var(--warn)';x.pct='P50';} else {x.nivel='Mejora de Actividades';x.c='var(--ok)';x.pct='P25';} });
+  return arr.sort((a,b)=>b.score-a.score);
+}
+
+/* ---------- Listas (objetivos, cronograma, monitoreo, valores) ---------- */
+function pgValAdd(){ const v=(prompt('Nuevo valor institucional:')||'').trim(); if(!v)return; pgData().valores.push(v); saveData(); renderPlanGestion(); }
+function pgValDel(i){ pgData().valores.splice(i,1); saveData(); renderPlanGestion(); }
+function pgObjAdd(){ pgData().objetivos.push({macro:'Estratégico',general:'',especifico:'',meta:''}); saveData(); renderPlanGestion(); }
+function pgObjDel(i){ pgData().objetivos.splice(i,1); saveData(); renderPlanGestion(); }
+function pgObjSet(i,campo,val){ const o=pgData().objetivos[i]; if(o){o[campo]=val; saveData();} }
+function pgCronoAdd(){ pgData().crono.push({actividad:'',responsable:'',ini:'',fin:'',nivel:'Procesos'}); saveData(); renderPlanGestion(); }
+function pgCronoDel(i){ pgData().crono.splice(i,1); saveData(); renderPlanGestion(); }
+function pgCronoSet(i,campo,val){ const o=pgData().crono[i]; if(o){o[campo]=val; saveData();} }
+function pgMonAdd(){ pgData().monitoreo.push({indicador:'',descripcion:'',formula:'',fuente:'',estandar:'',periodo:'Mensual',responsable:''}); saveData(); renderPlanGestion(); }
+function pgMonDel(i){ pgData().monitoreo.splice(i,1); saveData(); renderPlanGestion(); }
+function pgMonSet(i,campo,val){ const o=pgData().monitoreo[i]; if(o){o[campo]=val; saveData();} }
+
+/* ---------- IPRESS (catálogo) ---------- */
+function pgImportIpress(){ const el=document.getElementById('ipressFile'); if(el){el.value='';el.click();} }
+function pgHandleIpress(input){ const f=input.files&&input.files[0]; if(!f)return; const rd=new FileReader();
+  rd.onload=()=>{ try{ const rows=parseCSV(rd.result); const cur=loadIpress(); let add=0;
+    rows.forEach((r,k)=>{ const name=(r[0]||'').trim(); if(!name)return; if(k===0&&/nombre|ipress|establecimiento/i.test(name))return; if(!cur.includes(name)){cur.push(name);add++;} });
+    saveIpress(cur); renderPlanGestion(); toast(`✓ ${add} IPRESS importadas`);
+  }catch(e){ toast('No se pudo leer el CSV'); } };
+  rd.readAsText(f);
+}
+
+/* ---------- Plantilla pre-armada (ejemplo del libro) ---------- */
+function pgSeedTemplate(){
+  if(!confirm('Cargar una plantilla pre-armada de ejemplo (Departamento de Enfermería, Modelo GEMSES)? Reemplazará el contenido actual del plan.'))return;
+  const d=pgData();
+  d.info={ipress:(USER.org&&USER.org!=='—'?USER.org:'Hospital Militar Central (Lima)'),unidad:(USER.area||'Departamento de Enfermería'),autor:(USER.name||''),cargo:(USER.cargo?cargoMeta(USER.cargo).label:'Jefe de Servicio'),concurso:'Concurso para cargo directivo',periodo:'2026–2028',fecha:todayISO()};
+  d.mision='Somos una unidad funcional que brinda cuidados de enfermería seguros, humanizados y de calidad, centrados en el paciente y su familia.';
+  d.vision='Ser una unidad orgánica de excelencia, referente nacional en gestión del cuidado bajo el Modelo GEMSES.';
+  d.valores=['Excelencia','Trabajo en equipo','Confiabilidad','Respeto','Proactividad'];
+  d.objetivos=[
+    {macro:'Estratégico',general:'Fortalecer la gestión y el liderazgo del servicio',especifico:'Implementar el control de indicadores DMAIC',meta:'Tablero operativo al 100%'},
+    {macro:'Misional',general:'Mejorar la calidad y seguridad de la atención',especifico:'Reducir eventos adversos e infecciones',meta:'Eventos adversos < 5%'},
+    {macro:'Soporte',general:'Optimizar los recursos humanos y materiales',especifico:'Cerrar la brecha de personal según necesidad',meta:'Reducir brecha en 40%'}
+  ];
+  d.diagInterno='Cadena de valor con desconexiones en admisión y registro; fortalezas en personal capacitado y uso de protocolos.';
+  d.diagExterno='Oportunidad por apoyo de la alta dirección y disponibilidad de TIC; amenaza por restricciones presupuestales.';
+  d.foda={
+    'Estratégico':{D:[{t:'No está definida la fuente de datos de indicadores',peso:40,val:2},{t:'La gestión de indicadores no está sistematizada',peso:60,val:2}],
+                   A:[{t:'No se presupuestan las mejoras',peso:100,val:1}],
+                   F:[{t:'Información y comunicación con metodología',peso:50,val:3},{t:'Se cuenta con metodología de gestión (GEMSES)',peso:50,val:3}],
+                   O:[{t:'Apoyo de la alta dirección',peso:50,val:3},{t:'Disponibilidad de TIC',peso:50,val:4}]},
+    'Misional':{D:[{t:'Desconexiones en fases del proceso',peso:100,val:2}],A:[{t:'Pacientes más informados y exigentes',peso:100,val:1}],
+                F:[{t:'Adherencia a protocolos',peso:100,val:3}],O:[{t:'Importancia de la seguridad del paciente',peso:100,val:4}]},
+    'Soporte':{D:[{t:'Brecha de personal',peso:100,val:1}],A:[{t:'Compensaciones económicas limitadas',peso:100,val:1}],
+               F:[{t:'Gestión de insumos por kits',peso:100,val:3}],O:[{t:'Mecanismos de financiamiento',peso:100,val:3}]}
+  };
+  d.prioriz=[
+    {problema:'Eventos adversos asociados a la atención',freq:7,t:5,c:9,co:5,s:7},
+    {problema:'Demora en la admisión / registro',freq:9,t:9,c:3,co:3,s:7},
+    {problema:'Brecha de personal de enfermería',freq:5,t:5,c:5,co:7,s:5}
+  ];
+  d.came={corregir:'Sistematizar la gestión de indicadores y la fuente de datos.',afrontar:'Gestionar presupuesto para las mejoras priorizadas.',mantener:'Sostener la adherencia a protocolos y la capacitación.',explotar:'Aprovechar TIC y el apoyo de la dirección para automatizar el tablero.'};
+  d.crono=[
+    {actividad:'Implementar tablero de indicadores',responsable:'Jefatura',ini:'2026-01',fin:'2026-06',nivel:'Proyecto'},
+    {actividad:'Auditorías de bioseguridad',responsable:'Supervisión',ini:'2026-02',fin:'2026-12',nivel:'Procesos'}
+  ];
+  d.monitoreo=[
+    {indicador:'Nivel de cuidado humanizado',descripcion:'Satisfacción del paciente con el cuidado',formula:'(Pacientes satisfechos / encuestados) × 100',fuente:'Encuesta a paciente',estandar:'> 70%',periodo:'Semestral',responsable:'Jefe de servicio'},
+    {indicador:'Incidencia de infecciones intrahospitalarias',descripcion:'Tasa de infecciones',formula:'(Casos / total egresos) × 1000',fuente:'Epidemiología',estandar:'< 5%',periodo:'Semestral',responsable:'Jefe de servicio'},
+    {indicador:'Incidencia de eventos adversos',descripcion:'Seguridad del paciente',formula:'(Eventos adversos / egresos) × 100',fuente:'Reporte de eventos',estandar:'< 5%',periodo:'Semestral',responsable:'Coordinador'}
+  ];
+  d.resumen='';
+  saveData(); pgStep='info'; renderPlanGestion(); toast('✓ Plantilla pre-armada cargada');
+}
+function pgGenResumen(){
+  const d=pgData();
+  let t=`PLAN DE GESTIÓN — ${d.info.unidad||'Unidad'} · ${d.info.ipress||'Institución'}\n`;
+  t+=`Autor: ${d.info.autor||'—'} (${d.info.cargo||'—'}) · ${d.info.concurso||''} · Periodo ${d.info.periodo||'—'}\n\n`;
+  t+=`MISIÓN: ${d.mision||'—'}\nVISIÓN: ${d.vision||'—'}\nVALORES: ${d.valores.join(', ')||'—'}\n\n`;
+  t+=`OBJETIVOS (${d.objetivos.length}):\n`+d.objetivos.map(o=>`- [${o.macro}] ${o.general} → ${o.especifico} (meta: ${o.meta||'—'})`).join('\n')+'\n\n';
+  t+='POSICIONAMIENTO FODA:\n'+PG_MACROS.map(m=>{const z=pgZona(m);return `- ${m}: ${z.z} (interno ${z.interno}, externo ${z.externo})`;}).join('\n')+'\n\n';
+  const pr=pgPrioRanked();
+  t+=`PROBLEMAS PRIORIZADOS (${pr.length}):\n`+pr.map(x=>`- ${x.it.problema} → ${x.nivel} [${x.pct}] (score ${x.score})`).join('\n')+'\n\n';
+  t+=`INDICADORES DE MONITOREO: ${d.monitoreo.length} · ACTIVIDADES EN CRONOGRAMA: ${d.crono.length}`;
+  d.resumen=t; saveData(); pgStep='resumen'; renderPlanGestion(); toast('✓ Resumen generado');
+}
+
+function renderPlanGestion(){
+  pgTitle.textContent='Plan de Gestión'; pgSub.textContent='Diagnóstico, objetivos, estrategias e indicadores · Modelo GEMSES';
+  const d=pgData(); const prog=pgProgress();
+  const steps=PG_SECTIONS.map(s=>{const on=pgStep===s.k; const dn=pgStepDone(s.k);
+    return `<button class="${on?'on':''}" onclick="pgGo('${s.k}')">${s.ic} ${s.label.split('· ')[1]||s.label} ${dn?'<span class="chk">✓</span>':''}</button>`;}).join('');
+  content.innerHTML=`
+    <div class="toolbar"><div class="ab-hosp">📋 Plan de Gestión — <b>${esc(d.info.unidad||'tu unidad')}</b></div>
+      <div class="grow"></div>
+      <button class="btn btn-ghost btn-sm" onclick="pgSeedTemplate()">✨ Plantilla pre-armada</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportPlanWord()">📄 Word</button>
+      <a class="btn btn-ghost btn-sm" href="https://youtu.be/-PjugUcQeek" target="_blank" rel="noopener" style="text-decoration:none">🎥 Guía en video</a>
+    </div>
+    <div class="pg-fill"><i style="width:${prog}%"></i></div>
+    <div style="font-size:12px;color:var(--muted);margin:-8px 0 12px">Avance del plan: <b style="color:var(--navy)">${prog}%</b></div>
+    <div class="pg-steps">${steps}</div>
+    <div class="detail-sec">${pgSectionHTML(pgStep)}</div>
+    <input type="file" id="ipressFile" accept=".csv" style="display:none" onchange="pgHandleIpress(this)">`;
+}
+function pgStepDone(k){ const d=pgData();
+  switch(k){
+    case 'info': return !!(d.info.ipress&&d.info.autor);
+    case 'filosofia': return !!(d.mision&&d.vision&&d.valores.length);
+    case 'objetivos': return d.objetivos.length>0;
+    case 'diagnostico': return !!(d.diagInterno||d.diagExterno);
+    case 'foda': return PG_MACROS.some(m=>['D','A','F','O'].some(q=>d.foda[m][q].length));
+    case 'prioriz': return d.prioriz.length>0;
+    case 'came': return !!(d.came.corregir||d.came.afrontar||d.came.mantener||d.came.explotar);
+    case 'crono': return d.crono.length>0;
+    case 'monitoreo': return d.monitoreo.length>0;
+    case 'resumen': return !!d.resumen;
+  } return false;
+}
+function pgSectionHTML(k){
+  const d=pgData();
+  if(k==='info'){
+    const ip=loadIpress(); const opts=ip.map(x=>`<option ${d.info.ipress===x?'selected':''}>${esc(x)}</option>`).join('');
+    return `<h4>🪪 Información general del plan</h4>
+      <div class="fgrid">
+        <div class="full"><label class="flbl">Hospital / IPRESS (catálogo SUSALUD)</label>
+          <div style="display:flex;gap:6px">
+            <input class="fi" list="ipressList" value="${esc(d.info.ipress)}" placeholder="Escribe o elige tu IPRESS" onchange="pgField('info.ipress',this.value)" style="flex:1">
+            <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgImportIpress()" title="Importar RENIPRESS (CSV)">⬆ CSV</button>
+          </div>
+          <datalist id="ipressList">${opts}</datalist>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:3px">${ip.length} IPRESS en el catálogo. Importa la RENIPRESS completa de SUSALUD en CSV (1.ª columna = nombre).</div>
+        </div>
+        <div><label class="flbl">Unidad / Servicio / Área</label><input class="fi" value="${esc(d.info.unidad)}" onchange="pgField('info.unidad',this.value)"></div>
+        <div><label class="flbl">Autor (postulante)</label><input class="fi" value="${esc(d.info.autor)}" onchange="pgField('info.autor',this.value)"></div>
+        <div><label class="flbl">Cargo al que postula</label><input class="fi" value="${esc(d.info.cargo)}" onchange="pgField('info.cargo',this.value)"></div>
+        <div><label class="flbl">Concurso / convocatoria</label><input class="fi" value="${esc(d.info.concurso)}" onchange="pgField('info.concurso',this.value)"></div>
+        <div><label class="flbl">Periodo de gestión</label><input class="fi" value="${esc(d.info.periodo)}" placeholder="2026–2028" onchange="pgField('info.periodo',this.value)"></div>
+        <div><label class="flbl">Fecha de elaboración</label><input class="fi" type="date" value="${esc(d.info.fecha)}" onchange="pgField('info.fecha',this.value)"></div>
+      </div>`;
+  }
+  if(k==='filosofia'){
+    return `<h4>🧭 Filosofía institucional</h4>
+      <label class="flbl">Misión <span style="font-weight:400;color:var(--muted)">— razón de ser</span></label>
+      <textarea class="fi" rows="3" onchange="pgField('mision',this.value)">${esc(d.mision)}</textarea>
+      <label class="flbl" style="margin-top:10px">Visión <span style="font-weight:400;color:var(--muted)">— a dónde queremos llegar</span></label>
+      <textarea class="fi" rows="3" onchange="pgField('vision',this.value)">${esc(d.vision)}</textarea>
+      <label class="flbl" style="margin-top:10px">Valores</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${d.valores.map((v,i)=>`<span style="background:var(--bg);border:1px solid var(--line);border-radius:30px;padding:5px 10px;font-size:12px">${esc(v)} <a onclick="pgValDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></span>`).join('')||'<span style="color:var(--muted);font-size:12px">Sin valores aún.</span>'}</div>
+      <button class="pg-add" onclick="pgValAdd()">＋ Agregar valor</button>`;
+  }
+  if(k==='objetivos'){
+    const rows=d.objetivos.map((o,i)=>`<tr>
+      <td><select class="fi" style="padding:5px;font-size:12px" onchange="pgObjSet(${i},'macro',this.value)">${PG_MACROS.map(m=>`<option ${o.macro===m?'selected':''}>${m}</option>`).join('')}</select></td>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(o.general)}" placeholder="Objetivo general / estratégico" onchange="pgObjSet(${i},'general',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(o.especifico)}" placeholder="Objetivo específico" onchange="pgObjSet(${i},'especifico',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(o.meta)}" placeholder="Meta" onchange="pgObjSet(${i},'meta',this.value)"></td>
+      <td style="text-align:center"><a onclick="pgObjDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`).join('');
+    return `<h4>🎯 Objetivos (estratégicos, misionales y de soporte)</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Formula objetivos <b>SMART</b>: medibles, específicos, trazables, alcanzables y sensatos.</p>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Macroproceso</th><th>Objetivo general</th><th>Objetivo específico</th><th>Meta</th><th></th></tr>${rows||'<tr><td colspan="5" style="color:var(--muted)">Sin objetivos aún.</td></tr>'}</table></div>
+      <button class="pg-add" style="margin-top:8px" onclick="pgObjAdd()">＋ Agregar objetivo</button>`;
+  }
+  if(k==='diagnostico'){
+    return `<h4>🔬 Diagnóstico situacional</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Análisis <b>interno</b> (cadena de valor, autodiagnóstico) y <b>externo</b> (PEST, 5 Fuerzas de Porter). El detalle cuantificado va en el FODA matemático (paso 5).</p>
+      <label class="flbl">Análisis interno (fortalezas / debilidades)</label>
+      <textarea class="fi" rows="5" onchange="pgField('diagInterno',this.value)">${esc(d.diagInterno)}</textarea>
+      <label class="flbl" style="margin-top:10px">Análisis externo (oportunidades / amenazas)</label>
+      <textarea class="fi" rows="5" onchange="pgField('diagExterno',this.value)">${esc(d.diagExterno)}</textarea>`;
+  }
+  if(k==='foda'){
+    const macroBlocks=PG_MACROS.map(m=>{
+      const z=pgZona(m);
+      const quad=PG_QUADS.map(([q,lbl])=>{
+        const ps=fodaPesoSum(m,q); const ok=Math.round(ps)===100;
+        const rows=pgData().foda[m][q].map((it,i)=>`<div class="foda-row">
+          <input value="${esc(it.t)}" placeholder="Factor" onchange="pgFodaSet('${m}','${q}',${i},'t',this.value)">
+          <input type="number" value="${it.peso}" title="Peso (suma 100)" onchange="pgFodaSet('${m}','${q}',${i},'peso',this.value)">
+          <input type="number" min="0" max="4" value="${it.val}" title="Valoración 0-4" onchange="pgFodaSet('${m}','${q}',${i},'val',this.value)">
+          <span class="pv">${it.peso*it.val}</span>
+          <a onclick="pgFodaDel('${m}','${q}',${i})" style="cursor:pointer;color:var(--bad);font-weight:700;text-align:center">✕</a></div>`).join('');
+        return `<div class="foda-box ${q}"><h5>${lbl} <span style="float:right;font-size:10px;color:${ok?'var(--ok)':'var(--warn)'}">peso ${ps}%${ok?' ✓':''}</span></h5>
+          <div class="foda-row"><span class="foda-h" style="text-align:left">Factor</span><span class="foda-h">Peso</span><span class="foda-h">Val 0-4</span><span class="foda-h">P×V</span><span></span></div>
+          ${rows}<button class="pg-add" style="margin-top:4px" onclick="pgFodaAdd('${m}','${q}')">＋</button></div>`;
+      }).join('');
+      return `<div style="margin-bottom:18px"><div style="font-weight:800;color:var(--navy);margin-bottom:8px">Macroproceso ${m}
+        <span class="zone" style="background:${z.c};float:right">${z.z}</span></div>
+        <div class="foda-quad">${quad}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Interno (F−D): <b>${z.interno}</b> · Externo (O−A): <b>${z.externo}</b></div></div>`;
+    }).join('');
+    return `<h4>📊 FODA matemático por macroproceso</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 12px">Escala de valoración <b>0–4</b> (0 = no buena; 2 = en la media; 4 = ideal). El <b>peso</b> de cada cuadrante debe sumar 100. El posicionamiento resulta de Interno (F−D) y Externo (O−A).</p>
+      ${macroBlocks}`;
+  }
+  if(k==='prioriz'){
+    const ranked=pgPrioRanked();
+    const rows=ranked.map(x=>`<tr>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(x.it.problema)}" placeholder="Problema" onchange="pgPrioSet(${x.i},'problema',this.value)"></td>
+      <td><input class="fi" type="number" min="1" max="9" style="padding:6px;width:56px;font-size:12px" value="${x.it.freq}" onchange="pgPrioSet(${x.i},'freq',this.value)"></td>
+      <td><input class="fi" type="number" min="1" max="9" style="padding:6px;width:50px;font-size:12px" value="${x.it.t}" onchange="pgPrioSet(${x.i},'t',this.value)"></td>
+      <td><input class="fi" type="number" min="1" max="9" style="padding:6px;width:50px;font-size:12px" value="${x.it.c}" onchange="pgPrioSet(${x.i},'c',this.value)"></td>
+      <td><input class="fi" type="number" min="1" max="9" style="padding:6px;width:50px;font-size:12px" value="${x.it.co}" onchange="pgPrioSet(${x.i},'co',this.value)"></td>
+      <td><input class="fi" type="number" min="1" max="9" style="padding:6px;width:50px;font-size:12px" value="${x.it.s}" onchange="pgPrioSet(${x.i},'s',this.value)"></td>
+      <td style="text-align:right;font-weight:800">${x.score}</td>
+      <td><span style="color:${x.c};font-weight:700">${x.nivel}</span><br><span style="font-size:10px;color:var(--muted)">${x.pct}</span></td>
+      <td style="text-align:center"><a onclick="pgPrioDel(${x.i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`).join('');
+    return `<h4>⚖️ Priorización de problemas (matriz de impactos GEMSES)</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Score = <b>Frecuencia × Impacto ponderado</b> por dimensión (Tiempo ${pesoDim('Tiempo')}%, Calidad ${pesoDim('Calidad')}%, Costo ${pesoDim('Costo')}%, Satisfacción ${pesoDim('Satisfacción')}%). Escala 1–9. Se ordena por percentiles: P75→Proyecto, P50→Procesos, P25→Actividades.</p>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Problema</th><th>Frec.</th><th>Tiem.</th><th>Cal.</th><th>Costo</th><th>Satisf.</th><th>Score</th><th>Nivel del plan</th><th></th></tr>${rows||'<tr><td colspan="9" style="color:var(--muted)">Sin problemas aún.</td></tr>'}</table></div>
+      <button class="pg-add" style="margin-top:8px" onclick="pgPrioAdd()">＋ Agregar problema</button>`;
+  }
+  if(k==='came'){
+    return `<h4>♟️ Estrategias — Matriz CAME</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Del FODA a la acción: <b>C</b>orregir debilidades, <b>A</b>frontar amenazas, <b>M</b>antener fortalezas, <b>E</b>xplotar oportunidades.</p>
+      <div class="fgrid">
+        <div><label class="flbl">Corregir (debilidades)</label><textarea class="fi" rows="4" onchange="pgField('came.corregir',this.value)">${esc(d.came.corregir)}</textarea></div>
+        <div><label class="flbl">Afrontar (amenazas)</label><textarea class="fi" rows="4" onchange="pgField('came.afrontar',this.value)">${esc(d.came.afrontar)}</textarea></div>
+        <div><label class="flbl">Mantener (fortalezas)</label><textarea class="fi" rows="4" onchange="pgField('came.mantener',this.value)">${esc(d.came.mantener)}</textarea></div>
+        <div><label class="flbl">Explotar (oportunidades)</label><textarea class="fi" rows="4" onchange="pgField('came.explotar',this.value)">${esc(d.came.explotar)}</textarea></div>
+      </div>`;
+  }
+  if(k==='crono'){
+    const rows=d.crono.map((c,i)=>`<tr>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(c.actividad)}" placeholder="Actividad" onchange="pgCronoSet(${i},'actividad',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(c.responsable)}" placeholder="Responsable" onchange="pgCronoSet(${i},'responsable',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px;width:90px" value="${esc(c.ini)}" placeholder="Desde" onchange="pgCronoSet(${i},'ini',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px;width:90px" value="${esc(c.fin)}" placeholder="Hasta" onchange="pgCronoSet(${i},'fin',this.value)"></td>
+      <td><select class="fi" style="padding:5px;font-size:12px" onchange="pgCronoSet(${i},'nivel',this.value)">${['Proyecto','Procesos','Actividades'].map(n=>`<option ${c.nivel===n?'selected':''}>${n}</option>`).join('')}</select></td>
+      <td style="text-align:center"><a onclick="pgCronoDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`).join('');
+    return `<h4>📅 Cronograma de implementación</h4>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Actividad</th><th>Responsable</th><th>Desde</th><th>Hasta</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="6" style="color:var(--muted)">Sin actividades aún.</td></tr>'}</table></div>
+      <button class="pg-add" style="margin-top:8px" onclick="pgCronoAdd()">＋ Agregar actividad</button>`;
+  }
+  if(k==='monitoreo'){
+    const rows=d.monitoreo.map((m,i)=>`<tr>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(m.indicador)}" placeholder="Indicador" onchange="pgMonSet(${i},'indicador',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(m.formula)}" placeholder="Fórmula" onchange="pgMonSet(${i},'formula',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(m.fuente)}" placeholder="Fuente" onchange="pgMonSet(${i},'fuente',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px;width:70px" value="${esc(m.estandar)}" placeholder="Estándar" onchange="pgMonSet(${i},'estandar',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px;width:90px" value="${esc(m.periodo)}" onchange="pgMonSet(${i},'periodo',this.value)"></td>
+      <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(m.responsable)}" placeholder="Responsable" onchange="pgMonSet(${i},'responsable',this.value)"></td>
+      <td style="text-align:center"><a onclick="pgMonDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`).join('');
+    return `<h4>📈 Plan de monitoreo e indicadores</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Cada indicador con su ficha (fórmula, fuente, estándar, periodo, responsable). Tipos GEMSES: KPI (capacidad), KRI (riesgo), KCI (control).</p>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Indicador</th><th>Fórmula</th><th>Fuente</th><th>Estándar</th><th>Periodo</th><th>Responsable</th><th></th></tr>${rows||'<tr><td colspan="7" style="color:var(--muted)">Sin indicadores aún.</td></tr>'}</table></div>
+      <button class="pg-add" style="margin-top:8px" onclick="pgMonAdd()">＋ Agregar indicador</button>`;
+  }
+  if(k==='resumen'){
+    return `<h4>📄 Resumen ejecutivo</h4>
+      <button class="btn btn-primary btn-sm" style="width:auto;margin-bottom:10px" onclick="pgGenResumen()">⚙️ Generar resumen automático</button>
+      <textarea class="fi" rows="16" onchange="pgField('resumen',this.value)" style="font-family:inherit">${esc(d.resumen)}</textarea>`;
+  }
+  return '';
+}
+function exportPlanWord(){
+  const d=pgData();
+  const objRows=d.objetivos.map(o=>`<tr><td>${escHtml(o.macro)}</td><td>${escHtml(o.general)}</td><td>${escHtml(o.especifico)}</td><td>${escHtml(o.meta)}</td></tr>`).join('')||'<tr><td colspan="4">—</td></tr>';
+  const fodaBlocks=PG_MACROS.map(m=>{const z=pgZona(m);
+    const quads=PG_QUADS.map(([q,lbl])=>{const rows=pgData().foda[m][q].map(it=>`<tr><td>${escHtml(it.t)}</td><td style="text-align:center">${it.peso}</td><td style="text-align:center">${it.val}</td><td style="text-align:center">${it.peso*it.val}</td></tr>`).join('')||'<tr><td colspan="4">—</td></tr>';
+      return `<p><b>${lbl}</b></p><table border="1"><tr><th>Factor</th><th>Peso</th><th>Val</th><th>P×V</th></tr>${rows}</table>`;}).join('');
+    return `<h3>Macroproceso ${escHtml(m)} — ${escHtml(z.z)} (Interno ${z.interno}, Externo ${z.externo})</h3>${quads}`;}).join('');
+  const pr=pgPrioRanked();
+  const prRows=pr.map(x=>`<tr><td>${escHtml(x.it.problema)}</td><td style="text-align:center">${x.score}</td><td>${escHtml(x.nivel)} (${x.pct})</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
+  const cronoRows=d.crono.map(c=>`<tr><td>${escHtml(c.actividad)}</td><td>${escHtml(c.responsable)}</td><td>${escHtml(c.ini)} → ${escHtml(c.fin)}</td><td>${escHtml(c.nivel)}</td></tr>`).join('')||'<tr><td colspan="4">—</td></tr>';
+  const monRows=d.monitoreo.map(m=>`<tr><td>${escHtml(m.indicador)}</td><td>${escHtml(m.formula)}</td><td>${escHtml(m.fuente)}</td><td>${escHtml(m.estandar)}</td><td>${escHtml(m.periodo)}</td><td>${escHtml(m.responsable)}</td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>';
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Plan de Gestión</title>
+  <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#13294B}h1{font-size:20pt;margin:0}h2{font-size:14pt;color:#028090;border-bottom:1px solid #ccc;margin-top:16px}h3{font-size:12pt;margin:10px 0 4px}table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:4px 0}th,td{border:1px solid #aaa;padding:4px 6px;vertical-align:top}th{background:#13294B;color:#fff;text-align:left}.muted{color:#666;font-size:9pt}</style></head><body>
+  <h1>PLAN DE GESTIÓN</h1>
+  <p class="muted">🏥 ${escHtml(d.info.ipress)} · ${escHtml(d.info.unidad)}<br>Autor: ${escHtml(d.info.autor)} (${escHtml(d.info.cargo)}) · ${escHtml(d.info.concurso)} · Periodo ${escHtml(d.info.periodo)} · ${escHtml(d.info.fecha)}</p>
+  <h2>1. Filosofía</h2>
+  <p><b>Misión:</b> ${escHtml(d.mision)}</p><p><b>Visión:</b> ${escHtml(d.vision)}</p><p><b>Valores:</b> ${escHtml(d.valores.join(', '))}</p>
+  <h2>2. Objetivos</h2>
+  <table><tr><th>Macroproceso</th><th>Objetivo general</th><th>Objetivo específico</th><th>Meta</th></tr>${objRows}</table>
+  <h2>3. Diagnóstico situacional</h2>
+  <p><b>Análisis interno:</b> ${escHtml(d.diagInterno)}</p><p><b>Análisis externo:</b> ${escHtml(d.diagExterno)}</p>
+  <h2>4. FODA matemático por macroproceso</h2>${fodaBlocks}
+  <h2>5. Priorización de problemas</h2>
+  <table><tr><th>Problema</th><th>Score</th><th>Nivel del plan</th></tr>${prRows}</table>
+  <h2>6. Estrategias (CAME)</h2>
+  <p><b>Corregir:</b> ${escHtml(d.came.corregir)}</p><p><b>Afrontar:</b> ${escHtml(d.came.afrontar)}</p><p><b>Mantener:</b> ${escHtml(d.came.mantener)}</p><p><b>Explotar:</b> ${escHtml(d.came.explotar)}</p>
+  <h2>7. Cronograma</h2>
+  <table><tr><th>Actividad</th><th>Responsable</th><th>Periodo</th><th>Nivel</th></tr>${cronoRows}</table>
+  <h2>8. Plan de monitoreo de indicadores</h2>
+  <table><tr><th>Indicador</th><th>Fórmula</th><th>Fuente</th><th>Estándar</th><th>Periodo</th><th>Responsable</th></tr>${monRows}</table>
+  <h2>9. Resumen ejecutivo</h2>
+  <p style="white-space:pre-wrap">${escHtml(d.resumen)}</p>
+  <p class="muted" style="margin-top:18px">Generado por GEMSES360 · Modelo GEMSES (Carlos Pérez Pérez) · ${escHtml(new Date().toLocaleString('es-PE'))}</p>
+  </body></html>`;
+  const o=(d.info.unidad||'plan').replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_').slice(0,40);
+  descargarArchivo(`Plan_de_Gestion_${o}_${slugFecha()}.doc`, '﻿'+html, 'application/msword');
+  toast('📄 Plan de Gestión exportado a Word');
 }
 /* Videoteca CIIDEG (canal @CIIDEG) ordenada del MÁS visto al MENOS visto */
 const CIIDEG_VIDEOS=[
