@@ -822,24 +822,48 @@ const PG_MACROS=['Estratégico','Misional','Soporte'];
 const PG_QUADS=[['D','Debilidades'],['A','Amenazas'],['F','Fortalezas'],['O','Oportunidades']];
 const PG_SECTIONS=[
   {k:'info',label:'1· Información',ic:'🪪'},
-  {k:'intro',label:'2· Introducción',ic:'✍️'},
-  {k:'filosofia',label:'3· Filosofía',ic:'🧭'},
-  {k:'objetivos',label:'4· Objetivos',ic:'🎯'},
-  {k:'diagnostico',label:'5· Diagnóstico',ic:'🔬'},
-  {k:'foda',label:'6· FODA matemático',ic:'📊'},
-  {k:'prioriz',label:'7· Priorización',ic:'⚖️'},
-  {k:'came',label:'8· Estrategias (CAME)',ic:'♟️'},
-  {k:'crono',label:'9· Cronograma',ic:'📅'},
-  {k:'monitoreo',label:'10· Monitoreo',ic:'📈'},
-  {k:'rendicion',label:'11· Rendición de cuentas',ic:'📑'},
-  {k:'conclusiones',label:'12· Conclusiones',ic:'✅'},
-  {k:'resumen',label:'13· Resumen ejecutivo',ic:'📄'}
+  {k:'autodiag',label:'2· Autodiagnóstico',ic:'🩺'},
+  {k:'intro',label:'3· Introducción',ic:'✍️'},
+  {k:'filosofia',label:'4· Filosofía',ic:'🧭'},
+  {k:'objetivos',label:'5· Objetivos',ic:'🎯'},
+  {k:'diagnostico',label:'6· Diagnóstico',ic:'🔬'},
+  {k:'pestel',label:'7· PESTEL',ic:'🌐'},
+  {k:'foda',label:'8· FODA matemático',ic:'📊'},
+  {k:'prioriz',label:'9· Priorización',ic:'⚖️'},
+  {k:'came',label:'10· Estrategias (CAME)',ic:'♟️'},
+  {k:'crono',label:'11· Cronograma',ic:'📅'},
+  {k:'monitoreo',label:'12· Monitoreo',ic:'📈'},
+  {k:'rendicion',label:'13· Rendición de cuentas',ic:'📑'},
+  {k:'conclusiones',label:'14· Conclusiones',ic:'✅'},
+  {k:'resumen',label:'15· Resumen ejecutivo',ic:'📄'}
 ];
+const PESTEL_DIMS=[['politico','Político'],['economico','Económico'],['social','Social'],['tecnologico','Tecnológico'],['ecologico','Ecológico / Ambiental'],['legal','Legal']];
+const RRHH_GRADOS=['Jefa de Departamento','Supervisoras','Jefas de UUHH','Enfermeras','Técnicas de enfermería','Auxiliares de enfermería','CAS / Locadores'];
 let pgStep='info';
+/* ---------- Base e historial de planes (varios planes por usuario) ---------- */
+function pgPlanes(){
+  const db=DB[USER.email];
+  if(!db.planes){
+    db.planes=[];
+    if(db.planGestion && Object.keys(db.planGestion).length){     // migrar el plan único anterior
+      const g=db.planGestion; g.id=g.id||uid(); g.nombre=g.nombre||'Plan de Gestión'; g.creado=g.creado||todayISO();
+      db.planes.push(g); db.planActivo=g.id;
+    }
+    delete db.planGestion;
+  }
+  return db.planes;
+}
+function pgActive(){
+  const db=DB[USER.email], arr=pgPlanes();
+  if(!arr.length){ const p={id:uid(),nombre:'Plan de Gestión',creado:todayISO()}; arr.push(p); db.planActivo=p.id; }
+  let p=arr.find(x=>x.id===db.planActivo)||arr[0]; db.planActivo=p.id; return p;
+}
 function pgData(){
-  const db=DB[USER.email]; if(!db.planGestion) db.planGestion={};
-  const d=db.planGestion;
+  const d=pgActive();
+  d.nombre=d.nombre||'Plan de Gestión'; d.creado=d.creado||todayISO(); d.actualizado=todayISO();
   d.info=d.info||{ipress:(USER.org&&USER.org!=='—'?USER.org:''),unidad:(USER.area||''),autor:(USER.name||''),cargo:(USER.cargo?cargoMeta(USER.cargo).label:''),concurso:'',periodo:'',fecha:todayISO()};
+  d.autodiag=d.autodiag||{rrhh:[],dependencia:'',indicadores:'',absentismo:'',documentos:'',capacitacion:''};
+  d.pestel=d.pestel||{politico:'',economico:'',social:'',tecnologico:'',ecologico:'',legal:''};
   d.intro=d.intro||'';
   d.mision=d.mision||''; d.vision=d.vision||''; d.valores=d.valores||[];
   d.objetivos=d.objetivos||[];
@@ -852,6 +876,14 @@ function pgData(){
   d.rendicion=d.rendicion||''; d.conclusiones=d.conclusiones||''; d.resumen=d.resumen||'';
   return d;
 }
+/* Gestión de la base de planes */
+function pgNuevoPlan(){ const n=(prompt('Nombre del nuevo plan:','Plan de Gestión '+(pgPlanes().length+1))||'').trim(); if(!n)return;
+  const p={id:uid(),nombre:n,creado:todayISO()}; pgPlanes().push(p); DB[USER.email].planActivo=p.id; pgStep='info'; saveData(); renderPlanGestion(); toast('✓ Plan creado: '+n); }
+function pgAbrirPlan(id){ DB[USER.email].planActivo=id; pgStep='info'; saveData(); renderPlanGestion(); }
+function pgDuplicarPlan(){ const o=pgActive(); const c=JSON.parse(JSON.stringify(o)); c.id=uid(); c.nombre=(o.nombre||'Plan')+' (copia)'; c.creado=todayISO(); pgPlanes().push(c); DB[USER.email].planActivo=c.id; saveData(); renderPlanGestion(); toast('✓ Plan duplicado'); }
+function pgRenombrarPlan(){ const o=pgActive(); const n=(prompt('Nuevo nombre del plan:',o.nombre)||'').trim(); if(!n)return; o.nombre=n; saveData(); renderPlanGestion(); toast('✓ Renombrado'); }
+function pgEliminarPlan(){ const arr=pgPlanes(); const o=pgActive(); if(arr.length<=1){toast('Debe existir al menos un plan');return;} if(!confirm('¿Eliminar el plan "'+o.nombre+'"? Esta acción no se puede deshacer.'))return;
+  const i=arr.findIndex(x=>x.id===o.id); if(i>=0)arr.splice(i,1); DB[USER.email].planActivo=arr[0].id; saveData(); renderPlanGestion(); toast('Plan eliminado'); }
 function pgField(path,val){ const d=pgData(); const p=path.split('.'); let o=d; for(let i=0;i<p.length-1;i++)o=o[p[i]]; o[p[p.length-1]]=val; saveData(); }
 function pgGo(k){ pgStep=k; renderPlanGestion(); }
 function pgProgress(){
@@ -897,6 +929,11 @@ function pgCronoAdd(){ pgData().crono.push({actividad:'',responsable:'',ini:'',f
 function pgCronoDel(i){ pgData().crono.splice(i,1); saveData(); renderPlanGestion(); }
 function pgCronoSet(i,campo,val){ const o=pgData().crono[i]; if(o){o[campo]=val; saveData();} }
 function pgMonAdd(){ pgData().monitoreo.push({indicador:'',descripcion:'',formula:'',fuente:'',estandar:'',periodo:'Mensual',responsable:''}); saveData(); renderPlanGestion(); }
+/* Autodiagnóstico: tabla de dotación de RR.HH. (brecha por grado) */
+function pgRrhhAdd(){ pgData().autodiag.rrhh.push({grado:'',cap:0,efectivo:0,necesidad:0}); saveData(); renderPlanGestion(); }
+function pgRrhhDel(i){ pgData().autodiag.rrhh.splice(i,1); saveData(); renderPlanGestion(); }
+function pgRrhhSet(i,campo,val){ const it=pgData().autodiag.rrhh[i]; if(!it)return; it[campo]=(campo==='grado')?val:(parseFloat(val)||0); saveData(); if(campo!=='grado') renderPlanGestion(); }
+function pgRrhhTot(){ const r=pgData().autodiag.rrhh; return r.reduce((a,x)=>({cap:a.cap+(+x.cap||0),efectivo:a.efectivo+(+x.efectivo||0),necesidad:a.necesidad+(+x.necesidad||0)}),{cap:0,efectivo:0,necesidad:0}); }
 function pgMonDel(i){ pgData().monitoreo.splice(i,1); saveData(); renderPlanGestion(); }
 function pgMonSet(i,campo,val){ const o=pgData().monitoreo[i]; if(o){o[campo]=val; saveData();} }
 
@@ -984,7 +1021,31 @@ function pgFillHMC(){
     recursosMat:'Materiales e insumos disponibles, con dificultades periódicas de abastecimiento oportuno de insumos críticos.',
     infraestructura:'Equipamiento biomédico reciente con problemas de mantenimiento preventivo y reparación.'
   };
-  d.dotacion={cap:793,actual:591}; // brecha 202
+  d.dotacion={cap:793,actual:599}; // brecha 194 (CAP 2014 vigente)
+  d.autodiag={
+    rrhh:[
+      {grado:'Jefa de Departamento',cap:1,efectivo:1,necesidad:0},
+      {grado:'Supervisoras',cap:14,efectivo:14,necesidad:0},
+      {grado:'Jefas de UUHH',cap:32,efectivo:26,necesidad:0},
+      {grado:'Enfermeras',cap:408,efectivo:342,necesidad:66},
+      {grado:'Técnicas de enfermería',cap:286,efectivo:135,necesidad:151},
+      {grado:'Téc. administrativa',cap:2,efectivo:1,necesidad:1},
+      {grado:'Auxiliares de enfermería',cap:50,efectivo:52,necesidad:0}
+    ],
+    dependencia:'Promedio diario de pacientes por grado de dependencia (I–IV), base para el cálculo de la necesidad de personal.',
+    indicadores:'LPP, flebitis, caídas e IAAS por debajo del límite tolerable (<1%). Brecha crítica: no se mide la experiencia del paciente ni la trazabilidad del cuidado.',
+    absentismo:'Absentismo imprevisto alto (descanso médico, faltas, vacaciones imprevistas): 2787 eventos en enfermeras y 934 en técnicas/auxiliares en el periodo.',
+    documentos:'CAP 2014 vigente, ROF, Manual de Supervisión de Enfermería; MOF y Manual de Procedimientos desactualizados.',
+    capacitacion:'Educación continua organizada por áreas con ~75% de asistencia; 77.81% del personal con segunda especialidad.'
+  };
+  d.pestel={
+    politico:'Reforma de Salud y Modernización Hospitalaria; cambio anual de autoridades que genera inestabilidad en la conducción.',
+    economico:'Limitaciones presupuestarias para tecnología y equipamiento; necesidad de sustentar la inversión en RR.HH.',
+    social:'Pacientes más informados y exigentes; mayor importancia de la humanización y los derechos del paciente.',
+    tecnologico:'TIC, IA y software clínico que permiten digitalizar la supervisión y la trazabilidad del cuidado.',
+    ecologico:'Gestión de residuos hospitalarios y bioseguridad; entornos seguros para paciente y personal.',
+    legal:'Ley de la Enfermera N° 27669; Normas de Gestión del Cuidado del CEP 2024; estándares de acreditación (JCI).'
+  };
   d.diagInterno='Fortalezas: 77.81% especialistas, eventos adversos <1%, cobertura 24/7, manual aprobado. Debilidades: alto ausentismo, sin trazabilidad del cuidado, gestión manual de indicadores, documentos normativos desactualizados, sin medición de la experiencia del paciente.';
   d.diagExterno='Oportunidades: TIC/IA y software clínico, apoyo de la Alta Dirección, convenios universitarios, normas del CEP 2024. Amenazas: carga de trabajo creciente sin recursos, cambios normativos, burnout y rotación, limitaciones presupuestales.';
   d.foda={
@@ -1146,9 +1207,18 @@ function pgGenResumen(){
 function renderPlanGestion(){
   pgTitle.textContent='Plan de Gestión'; pgSub.textContent='Diagnóstico, objetivos, estrategias e indicadores · Modelo GEMSES';
   const d=pgData(); const prog=pgProgress(); const cm=cargoMeta(USER.cargo);
+  const planes=pgPlanes(); const planOpts=planes.map(p=>`<option value="${p.id}" ${p.id===DB[USER.email].planActivo?'selected':''}>${esc(p.nombre||'Plan')}</option>`).join('');
   const steps=PG_SECTIONS.map(s=>{const on=pgStep===s.k; const dn=pgStepDone(s.k);
     return `<button class="${on?'on':''}" onclick="pgGo('${s.k}')">${s.ic} ${s.label.split('· ')[1]||s.label} ${dn?'<span class="chk">✓</span>':''}</button>`;}).join('');
   content.innerHTML=`
+    <div class="toolbar" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:700;color:var(--navy)">🗂️ Mis planes (${planes.length}):</span>
+      <select class="fi" style="width:auto;padding:6px 10px;font-size:12.5px" onchange="pgAbrirPlan(this.value)">${planOpts}</select>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgNuevoPlan()">＋ Nuevo</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgDuplicarPlan()">⧉ Duplicar</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgRenombrarPlan()">✎ Renombrar</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto;color:var(--bad)" onclick="pgEliminarPlan()">✕ Eliminar</button>
+    </div>
     <div class="toolbar"><div class="ab-hosp">📋 Plan de Gestión — <b>${esc(d.info.unidad||'tu unidad')}</b></div>
       <div class="grow"></div>
       <button class="btn btn-primary btn-sm" style="width:auto" onclick="pgGenPorRol()">🧩 Generar según mi rol</button>
@@ -1174,6 +1244,8 @@ function renderPlanGestion(){
 function pgStepDone(k){ const d=pgData();
   switch(k){
     case 'info': return !!(d.info.ipress&&d.info.autor);
+    case 'autodiag': return !!(d.autodiag.rrhh.length||d.autodiag.indicadores||d.autodiag.dependencia||d.dotacion.cap);
+    case 'pestel': return PESTEL_DIMS.some(([k2])=>d.pestel[k2]);
     case 'intro': return !!d.intro;
     case 'filosofia': return !!(d.mision&&d.vision&&d.valores.length);
     case 'objetivos': return d.objetivos.length>0;
@@ -1209,6 +1281,37 @@ function pgSectionHTML(k){
         <div><label class="flbl">Periodo de gestión</label><input class="fi" value="${esc(d.info.periodo)}" placeholder="2026–2028" onchange="pgField('info.periodo',this.value)"></div>
         <div><label class="flbl">Fecha de elaboración</label><input class="fi" type="date" value="${esc(d.info.fecha)}" onchange="pgField('info.fecha',this.value)"></div>
       </div>`;
+  }
+  if(k==='autodiag'){
+    const r=d.autodiag.rrhh; const tot=pgRrhhTot();
+    const cob=t=>t.cap?Math.round(t.efectivo/t.cap*100):0;
+    const rows=r.map((x,i)=>{const c=(+x.cap||0), e=(+x.efectivo||0); const cobertura=c?Math.round(e/c*100):0; const def=c?Math.round((c-e)/c*100):0;
+      return `<tr>
+        <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(x.grado)}" placeholder="Grado/categoría" onchange="pgRrhhSet(${i},'grado',this.value)"></td>
+        <td><input class="fi" type="number" style="padding:6px;width:70px;font-size:12px" value="${c}" onchange="pgRrhhSet(${i},'cap',this.value)"></td>
+        <td><input class="fi" type="number" style="padding:6px;width:70px;font-size:12px" value="${e}" onchange="pgRrhhSet(${i},'efectivo',this.value)"></td>
+        <td><input class="fi" type="number" style="padding:6px;width:70px;font-size:12px" value="${+x.necesidad||0}" onchange="pgRrhhSet(${i},'necesidad',this.value)"></td>
+        <td style="text-align:center;font-weight:700;color:${cobertura>=90?'var(--ok)':cobertura>=70?'var(--warn)':'var(--bad)'}">${cobertura}%</td>
+        <td style="text-align:center;color:${def>0?'var(--bad)':'var(--ok)'}">${def}%</td>
+        <td style="text-align:center"><a onclick="pgRrhhDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`;}).join('');
+    const brecha=tot.cap-tot.efectivo;
+    return `<h4>🩺 Autodiagnóstico</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">Línea base de tu unidad: dotación de RR.HH. con brecha por grado, grado de dependencia del paciente e indicadores de calidad. (Inspirado en el formato real de planes GEMSES.)</p>
+      <h5 style="margin:6px 0;color:var(--teal)">👥 Dotación de recursos humanos (brecha por grado)</h5>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Grado / categoría</th><th>CAP</th><th>Efectivo</th><th>Necesidad</th><th>% Cobertura</th><th>% Déficit</th><th></th></tr>${rows||'<tr><td colspan="7" style="color:var(--muted)">Sin filas. Agrega los grados de tu personal.</td></tr>'}
+        <tr style="font-weight:800;background:var(--bg)"><td>TOTAL</td><td style="text-align:center">${tot.cap}</td><td style="text-align:center">${tot.efectivo}</td><td style="text-align:center">${tot.necesidad}</td><td style="text-align:center;color:${cob(tot)>=90?'var(--ok)':cob(tot)>=70?'var(--warn)':'var(--bad)'}">${cob(tot)}%</td><td style="text-align:center;color:var(--bad)">${tot.cap?Math.round(brecha/tot.cap*100):0}%</td><td></td></tr></table></div>
+      <button class="pg-add" style="margin-top:6px" onclick="pgRrhhAdd()">＋ Agregar grado</button>
+      <p style="font-size:12px;margin:8px 0 0">Brecha total de personal: <b style="color:${brecha>0?'var(--bad)':'var(--ok)'}">${brecha} puestos</b></p>
+      <label class="flbl" style="margin-top:12px">Grado de dependencia del paciente (Grados I–IV)</label>
+      <textarea class="fi" rows="2" onchange="pgField('autodiag.dependencia',this.value)">${esc(d.autodiag.dependencia)}</textarea>
+      <label class="flbl" style="margin-top:8px">Indicadores de calidad (línea base: LPP, flebitis, caídas, IAAS, etc.)</label>
+      <textarea class="fi" rows="3" onchange="pgField('autodiag.indicadores',this.value)">${esc(d.autodiag.indicadores)}</textarea>
+      <div class="fgrid" style="margin-top:8px">
+        <div><label class="flbl">Absentismo (resumen)</label><textarea class="fi" rows="2" onchange="pgField('autodiag.absentismo',this.value)">${esc(d.autodiag.absentismo)}</textarea></div>
+        <div><label class="flbl">Documentos de gestión (MOF, ROF, manuales)</label><textarea class="fi" rows="2" onchange="pgField('autodiag.documentos',this.value)">${esc(d.autodiag.documentos)}</textarea></div>
+      </div>
+      <label class="flbl" style="margin-top:8px">Capacitación (estado actual)</label>
+      <textarea class="fi" rows="2" onchange="pgField('autodiag.capacitacion',this.value)">${esc(d.autodiag.capacitacion)}</textarea>`;
   }
   if(k==='intro'){
     return `<h4>✍️ Introducción</h4>
@@ -1262,6 +1365,12 @@ function pgSectionHTML(k){
       <textarea class="fi" rows="3" onchange="pgField('diagInterno',this.value)">${esc(d.diagInterno)}</textarea>
       <label class="flbl" style="margin-top:8px">Análisis externo (síntesis oportunidades / amenazas)</label>
       <textarea class="fi" rows="3" onchange="pgField('diagExterno',this.value)">${esc(d.diagExterno)}</textarea>`;
+  }
+  if(k==='pestel'){
+    const boxes=PESTEL_DIMS.map(([key,lbl])=>`<div><label class="flbl">${lbl}</label><textarea class="fi" rows="3" placeholder="Factores ${lbl.toLowerCase()} del entorno…" onchange="pgField('pestel.${key}',this.value)">${esc(d.pestel[key])}</textarea></div>`).join('');
+    return `<h4>🌐 Análisis PESTEL (entorno externo)</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">Analiza el macroentorno por dimensión. Los factores que detectes aquí alimentan las <b>Oportunidades y Amenazas</b> del FODA (paso 8).</p>
+      <div class="fgrid">${boxes}</div>`;
   }
   if(k==='foda'){
     const macroBlocks=PG_MACROS.map(m=>{
@@ -1368,10 +1477,19 @@ function exportPlanWord(){
   const prRows=pr.map(x=>`<tr><td>${escHtml(x.it.problema)}</td><td style="text-align:center">${x.score}</td><td>${escHtml(x.nivel)} (${x.pct})</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
   const cronoRows=d.crono.map(c=>`<tr><td>${escHtml(c.actividad)}</td><td>${escHtml(c.responsable)}</td><td>${escHtml(c.ini)} → ${escHtml(c.fin)}</td><td>${escHtml(c.nivel)}</td></tr>`).join('')||'<tr><td colspan="4">—</td></tr>';
   const monRows=d.monitoreo.map(m=>`<tr><td>${escHtml(m.indicador)}</td><td>${escHtml(m.formula)}</td><td>${escHtml(m.fuente)}</td><td>${escHtml(m.estandar)}</td><td>${escHtml(m.periodo)}</td><td>${escHtml(m.responsable)}</td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>';
+  const rrhhRows=(d.autodiag.rrhh||[]).map(x=>{const c=+x.cap||0,e=+x.efectivo||0;return `<tr><td>${escHtml(x.grado)}</td><td style="text-align:center">${c}</td><td style="text-align:center">${e}</td><td style="text-align:center">${+x.necesidad||0}</td><td style="text-align:center">${c?Math.round(e/c*100):0}%</td><td style="text-align:center">${c?Math.round((c-e)/c*100):0}%</td></tr>`;}).join('');
+  const pestelBlock=PESTEL_DIMS.filter(([k2])=>d.pestel[k2]).map(([k2,lbl])=>`<p><b>${lbl}:</b> ${escHtml(d.pestel[k2])}</p>`).join('');
   const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Plan de Gestión</title>
   <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#13294B}h1{font-size:20pt;margin:0}h2{font-size:14pt;color:#028090;border-bottom:1px solid #ccc;margin-top:16px}h3{font-size:12pt;margin:10px 0 4px}table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:4px 0}th,td{border:1px solid #aaa;padding:4px 6px;vertical-align:top}th{background:#13294B;color:#fff;text-align:left}.muted{color:#666;font-size:9pt}</style></head><body>
   <h1>PLAN DE GESTIÓN</h1>
   <p class="muted">🏥 ${escHtml(d.info.ipress)} · ${escHtml(d.info.unidad)}<br>Autor: ${escHtml(d.info.autor)} (${escHtml(d.info.cargo)}) · ${escHtml(d.info.concurso)} · Periodo ${escHtml(d.info.periodo)} · ${escHtml(d.info.fecha)}</p>
+  ${(rrhhRows||d.autodiag.indicadores||d.autodiag.dependencia)?`<h2>Autodiagnóstico</h2>
+    ${rrhhRows?`<p><b>Dotación de RR.HH. (brecha por grado):</b></p><table><tr><th>Grado/categoría</th><th>CAP</th><th>Efectivo</th><th>Necesidad</th><th>% Cobertura</th><th>% Déficit</th></tr>${rrhhRows}</table>`:''}
+    ${d.autodiag.dependencia?`<p><b>Grado de dependencia:</b> ${escHtml(d.autodiag.dependencia)}</p>`:''}
+    ${d.autodiag.indicadores?`<p><b>Indicadores de calidad (línea base):</b> ${escHtml(d.autodiag.indicadores)}</p>`:''}
+    ${d.autodiag.absentismo?`<p><b>Absentismo:</b> ${escHtml(d.autodiag.absentismo)}</p>`:''}
+    ${d.autodiag.documentos?`<p><b>Documentos de gestión:</b> ${escHtml(d.autodiag.documentos)}</p>`:''}
+    ${d.autodiag.capacitacion?`<p><b>Capacitación:</b> ${escHtml(d.autodiag.capacitacion)}</p>`:''}`:''}
   ${d.intro?`<h2>1. Introducción</h2><p style="white-space:pre-wrap">${escHtml(d.intro)}</p>`:''}
   <h2>2. Filosofía</h2>
   <p><b>Misión:</b> ${escHtml(d.mision)}</p><p><b>Visión:</b> ${escHtml(d.vision)}</p><p><b>Valores:</b> ${escHtml(d.valores.join(', '))}</p>
@@ -1384,6 +1502,7 @@ function exportPlanWord(){
   <p><b>Dotación de RR.HH.:</b> Requerimiento CAP ${(+d.dotacion.cap||0)} · Efectivo real ${(+d.dotacion.actual||0)} · <b>Brecha ${((+d.dotacion.cap||0)-(+d.dotacion.actual||0))} puestos</b></p>
   ${d.diag.recursosInst?`<p><b>Recursos / infraestructura:</b> ${escHtml(d.diag.recursosInst)} ${escHtml(d.diag.recursosMat||'')} ${escHtml(d.diag.infraestructura||'')}</p>`:''}
   <p><b>Análisis interno:</b> ${escHtml(d.diagInterno)}</p><p><b>Análisis externo:</b> ${escHtml(d.diagExterno)}</p>
+  ${pestelBlock?`<h2>Análisis PESTEL (entorno externo)</h2>${pestelBlock}`:''}
   <h2>5. FODA matemático por macroproceso</h2>${fodaBlocks}
   <h2>6. Priorización de problemas</h2>
   <table><tr><th>Problema</th><th>Score</th><th>Nivel del plan</th></tr>${prRows}</table>
