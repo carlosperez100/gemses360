@@ -352,6 +352,19 @@ textarea.fi{min-height:70px;resize:vertical}
 .pg-pos{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .pg-pos .zone{padding:8px 14px;border-radius:10px;font-weight:800;font-size:13px;color:#fff}
 .pg-add{border:1px dashed var(--teal);background:rgba(2,128,144,.05);color:var(--teal);border-radius:9px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;width:100%;font-family:inherit}
+/* Autodiagnóstico de cadena de valor */
+.ad-comp{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.ad-comp .ad-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.ad-comp .ad-h b{font-size:13px;color:var(--navy)}
+.ad-bar{flex:1;height:8px;border-radius:6px;background:var(--line);overflow:hidden;min-width:80px}
+.ad-bar>i{display:block;height:100%;border-radius:6px}
+.ad-row{display:grid;grid-template-columns:24px 1fr auto 24px;gap:8px;align-items:center;margin:4px 0}
+.ad-row .adn{font-size:11px;color:var(--muted);text-align:right}
+.ad-row input.adt{border:1px solid transparent;border-radius:7px;padding:5px 7px;font-size:12px;font-family:inherit;width:100%;background:transparent}
+.ad-row input.adt:hover,.ad-row input.adt:focus{border-color:var(--line);background:#fff;outline:none}
+.ad-score{display:flex;gap:3px}
+.ad-score button{width:24px;height:24px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:var(--muted);font-family:inherit;padding:0}
+.ad-score button.on{color:#fff;border-color:transparent}
 /* Onboarding (parametrización primer ingreso) */
 .onb-overlay{position:fixed;inset:0;background:rgba(19,41,75,.55);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:9999;padding:20px}
 .onb-card{background:#fff;border-radius:18px;max-width:520px;width:100%;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto}
@@ -839,6 +852,88 @@ const PG_SECTIONS=[
 ];
 const PESTEL_DIMS=[['politico','Político'],['economico','Económico'],['social','Social'],['tecnologico','Tecnológico'],['ecologico','Ecológico / Ambiental'],['legal','Legal']];
 const RRHH_GRADOS=['Jefa de Departamento','Supervisoras','Jefas de UUHH','Enfermeras','Técnicas de enfermería','Auxiliares de enfermería','CAS / Locadores'];
+/* Autodiagnóstico de la cadena de valor — escala GEMSES 0–4 (libro, Cap. 9) */
+const AUTODIAG_SCALE=[
+  [0,'No se cuenta con documentos, políticas ni procedimientos'],
+  [1,'El documento/política/procedimiento existe y el equipo lo conoce'],
+  [2,'Existe un responsable del cumplimiento del criterio'],
+  [3,'La meta se cumple dentro de parámetros aceptables'],
+  [4,'Hay mejora continua, con resultados e impactos cuantificables']
+];
+const AD_SCOLORS=['#D64545','#EF8A4B','#E0A21A','#7BC47F','#1E9E6A']; // 0..4
+/* 70 criterios estándar (formato UFEM/GEMSES), editables */
+const AUTODIAG_CADENA_SEED=[
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Está definida la fuente de recolección de datos?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Existe un procedimiento para la recolección de datos?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Se cuenta con un método de control de errores mediante validación de la información?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Se cuenta con un enfoque integrado de datos?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿El ingreso de datos es interactivo?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Se cuenta con una base de datos fiable para la organización?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿La base de datos se encuentra organizada?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Se cuenta con almacenamiento en línea?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Se transforman los datos brutos en información útil?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Presenta información de fácil comprensión para la toma de decisiones?'},
+ {m:'Estratégico',c:'Estándares y Buenas Prácticas',t:'¿Genera cambios que le permitan a la organización evolucionar?'},
+ {m:'Estratégico',c:'Información y Comunicación',t:'¿La información y comunicación es clara?'},
+ {m:'Estratégico',c:'Información y Comunicación',t:'¿La información y comunicación es permanente, continua y sistemática?'},
+ {m:'Estratégico',c:'Información y Comunicación',t:'¿Se utilizan sistemas de comunicación ágiles?'},
+ {m:'Estratégico',c:'Información y Comunicación',t:'¿La información y comunicación permite la retroalimentación?'},
+ {m:'Estratégico',c:'Información y Comunicación',t:'¿La información y comunicación está alineada con la estrategia y visión?'},
+ {m:'Estratégico',c:'Modernización',t:'¿Existe simplificación administrativa?'},
+ {m:'Estratégico',c:'Modernización',t:'¿La organización funcional es adecuada?'},
+ {m:'Estratégico',c:'Modernización',t:'¿Se cuenta con una metodología moderna de gestión?'},
+ {m:'Estratégico',c:'Control y Automatización',t:'¿La gestión de personal es automatizada?'},
+ {m:'Estratégico',c:'Control y Automatización',t:'¿La gestión de pacientes es automatizada?'},
+ {m:'Estratégico',c:'Control y Automatización',t:'¿La gestión de la capacitación es automatizada?'},
+ {m:'Estratégico',c:'Control y Automatización',t:'¿La gestión de insumos es automatizada?'},
+ {m:'Estratégico',c:'Control y Automatización',t:'¿La gestión de indicadores es automatizada?'},
+ {m:'Misional',c:'Calidad de Atención',t:'¿Se gestiona la información de los indicadores IPSG?'},
+ {m:'Misional',c:'Calidad de Atención',t:'¿Se gestiona el cumplimiento de la lista de verificación de Cirugía Segura?'},
+ {m:'Misional',c:'Calidad de Atención',t:'¿Se gestiona la administración correcta de medicamentos?'},
+ {m:'Misional',c:'Calidad de Atención',t:'¿Se gestiona la identificación correcta del paciente?'},
+ {m:'Misional',c:'Calidad de Atención',t:'¿Se gestiona la adherencia a la higiene de manos?'},
+ {m:'Misional',c:'Calidad de Atención',t:'¿Se gestiona la información acerca de caídas?'},
+ {m:'Misional',c:'Calidad de Atención',t:'¿Se gestiona la información acerca de lesiones por presión?'},
+ {m:'Misional',c:'Estancia Hospitalaria',t:'¿Existe trazabilidad por cadena de valor por proceso asistencial?'},
+ {m:'Misional',c:'Estancia Hospitalaria',t:'¿Se registran las desconexiones en cada fase de los procesos asistenciales?'},
+ {m:'Misional',c:'Estancia Hospitalaria',t:'¿Se cuenta con estándares para la estancia hospitalaria adecuada?'},
+ {m:'Misional',c:'Estancia Hospitalaria',t:'¿Los datos del sistema concuerdan con la trazabilidad?'},
+ {m:'Misional',c:'Estancia Hospitalaria',t:'¿Se levantan las observaciones de la trazabilidad del paciente?'},
+ {m:'Misional',c:'Estancia Hospitalaria',t:'¿Se levantan las observaciones del recorrido de las instalaciones?'},
+ {m:'Misional',c:'Costos',t:'¿La información de costos está validada?'},
+ {m:'Misional',c:'Costos',t:'¿Se cuenta con el costeo por fase de proceso?'},
+ {m:'Misional',c:'Costos',t:'¿Se cuenta con el costeo por cadena de valor?'},
+ {m:'Misional',c:'Costos',t:'¿Se realiza control de costos por fase de proceso?'},
+ {m:'Misional',c:'Costos',t:'¿Se realiza control de costos por cadena de valor?'},
+ {m:'Misional',c:'Satisfacción del Paciente',t:'¿El paciente percibe que la atención está centrada en sus derechos?'},
+ {m:'Misional',c:'Satisfacción del Paciente',t:'¿El paciente percibe que la atención es personalizada y respetuosa?'},
+ {m:'Misional',c:'Satisfacción del Paciente',t:'¿El paciente percibe que la atención es segura, accesible y oportuna?'},
+ {m:'Misional',c:'Satisfacción del Paciente',t:'¿El paciente percibe un entorno respetuoso?'},
+ {m:'Misional',c:'Satisfacción del Paciente',t:'¿El paciente percibe que le brindan información y comunicación?'},
+ {m:'Misional',c:'Satisfacción del Paciente',t:'¿Se gestiona la información de quejas del usuario?'},
+ {m:'Soporte',c:'Recursos Humanos',t:'¿Se cuenta con los perfiles por niveles?'},
+ {m:'Soporte',c:'Recursos Humanos',t:'¿Se cumple con el plan de inducción para el personal de reciente ingreso?'},
+ {m:'Soporte',c:'Recursos Humanos',t:'¿Se conoce claramente la demanda de los servicios?'},
+ {m:'Soporte',c:'Recursos Humanos',t:'¿Se conoce claramente la oferta de los servicios?'},
+ {m:'Soporte',c:'Recursos Humanos',t:'¿La programación es de acuerdo a las necesidades del área?'},
+ {m:'Soporte',c:'Recursos Humanos',t:'¿No existe brecha de personal?'},
+ {m:'Soporte',c:'Recursos Humanos',t:'¿No existe ausentismo laboral?'},
+ {m:'Soporte',c:'Recursos Humanos',t:'¿Se compensa adecuadamente al personal?'},
+ {m:'Soporte',c:'Insumos y Materiales',t:'¿Se formulan adecuadamente las necesidades de insumos?'},
+ {m:'Soporte',c:'Insumos y Materiales',t:'¿Las especificaciones técnicas son adecuadas y suficientes?'},
+ {m:'Soporte',c:'Insumos y Materiales',t:'¿Se conoce la metodología de sustento de EE.TT./TDR?'},
+ {m:'Soporte',c:'Insumos y Materiales',t:'¿Se evalúan los consumos?'},
+ {m:'Soporte',c:'Insumos y Materiales',t:'¿Se realiza seguimiento de los consumos según las estimaciones?'},
+ {m:'Soporte',c:'Capacitación',t:'¿Se cuenta con un área/equipo/comité para la capacitación?'},
+ {m:'Soporte',c:'Capacitación',t:'¿Existe un plan de capacitación?'},
+ {m:'Soporte',c:'Capacitación',t:'¿Se cuenta con niveles de capacitación establecidos para las credenciales?'},
+ {m:'Soporte',c:'Capacitación',t:'¿Se realiza seguimiento y monitoreo del plan de capacitación?'},
+ {m:'Soporte',c:'Investigación',t:'¿Las investigaciones ayudan a resolver problemas reales de los servicios?'},
+ {m:'Soporte',c:'Investigación',t:'¿Se cuenta con un área/equipo/comité para la investigación?'},
+ {m:'Soporte',c:'Investigación',t:'¿Se realiza seguimiento y acompañamiento en la investigación?'},
+ {m:'Soporte',c:'Finanzas',t:'¿Se realiza una estimación presupuestal acorde a las necesidades?'},
+ {m:'Soporte',c:'Finanzas',t:'¿La ejecución presupuestal es adecuada?'}
+];
 let pgStep='info';
 /* ---------- Base e historial de planes (varios planes por usuario) ---------- */
 function pgPlanes(){
@@ -863,6 +958,8 @@ function pgData(){
   d.nombre=d.nombre||'Plan de Gestión'; d.creado=d.creado||todayISO(); d.actualizado=todayISO();
   d.info=d.info||{ipress:(USER.org&&USER.org!=='—'?USER.org:''),unidad:(USER.area||''),autor:(USER.name||''),cargo:(USER.cargo?cargoMeta(USER.cargo).label:''),concurso:'',periodo:'',fecha:todayISO()};
   d.autodiag=d.autodiag||{rrhh:[],dependencia:'',indicadores:'',absentismo:'',documentos:'',capacitacion:''};
+  if(!Array.isArray(d.autodiag.cadena)) d.autodiag.cadena=[];
+  if(d.autodiag.cadSeeded===undefined) d.autodiag.cadSeeded=false;
   d.pestel=d.pestel||{politico:'',economico:'',social:'',tecnologico:'',ecologico:'',legal:''};
   d.intro=d.intro||'';
   d.mision=d.mision||''; d.vision=d.vision||''; d.valores=d.valores||[];
@@ -934,6 +1031,25 @@ function pgRrhhAdd(){ pgData().autodiag.rrhh.push({grado:'',cap:0,efectivo:0,nec
 function pgRrhhDel(i){ pgData().autodiag.rrhh.splice(i,1); saveData(); renderPlanGestion(); }
 function pgRrhhSet(i,campo,val){ const it=pgData().autodiag.rrhh[i]; if(!it)return; it[campo]=(campo==='grado')?val:(parseFloat(val)||0); saveData(); if(campo!=='grado') renderPlanGestion(); }
 function pgRrhhTot(){ const r=pgData().autodiag.rrhh; return r.reduce((a,x)=>({cap:a.cap+(+x.cap||0),efectivo:a.efectivo+(+x.efectivo||0),necesidad:a.necesidad+(+x.necesidad||0)}),{cap:0,efectivo:0,necesidad:0}); }
+/* Autodiagnóstico de la cadena de valor (cuestionario 0–4, editable) */
+function pgCadSeed(silent){ const d=pgData(); d.autodiag.cadena=AUTODIAG_CADENA_SEED.map(x=>({macro:x.m,comp:x.c,crit:x.t,val:0})); d.autodiag.cadSeeded=true; saveData(); if(!silent){ renderPlanGestion(); toast('✓ Cuestionario estándar GEMSES cargado (70 criterios)'); } }
+function pgCadRestaurar(){ if(!confirm('¿Restaurar los 70 criterios estándar GEMSES? Se reemplazan los criterios actuales (las valoraciones se reinician).'))return; pgCadSeed(false); }
+function pgCadAdd(macro,comp){ pgData().autodiag.cadena.push({macro:macro,comp:comp,crit:'',val:0}); saveData(); renderPlanGestion(); }
+function pgCadDel(i){ pgData().autodiag.cadena.splice(i,1); saveData(); renderPlanGestion(); }
+function pgCadSetCrit(i,v){ const it=pgData().autodiag.cadena[i]; if(it){it.crit=v; saveData();} }
+function pgCadSetVal(i,v){ const it=pgData().autodiag.cadena[i]; if(it){it.val=v; saveData(); renderPlanGestion();} }
+/* Estadísticas: % por componente, por macroproceso y global */
+function pgCadStats(){
+  const cad=pgData().autodiag.cadena; const comps={}; const macros={}; let tot=0,n=0;
+  cad.forEach(x=>{ const v=+x.val||0; const ck=x.macro+' • '+x.comp;
+    (comps[ck]=comps[ck]||{macro:x.macro,comp:x.comp,sum:0,n:0}); comps[ck].sum+=v; comps[ck].n++;
+    (macros[x.macro]=macros[x.macro]||{sum:0,n:0}); macros[x.macro].sum+=v; macros[x.macro].n++;
+    tot+=v; n++; });
+  const pct=(s,k)=>k?Math.round(s/(k*4)*100):0;
+  Object.values(comps).forEach(c=>c.pct=pct(c.sum,c.n));
+  Object.keys(macros).forEach(m=>macros[m].pct=pct(macros[m].sum,macros[m].n));
+  return {comps,macros,overall:pct(tot,n),n};
+}
 function pgMonDel(i){ pgData().monitoreo.splice(i,1); saveData(); renderPlanGestion(); }
 function pgMonSet(i,campo,val){ const o=pgData().monitoreo[i]; if(o){o[campo]=val; saveData();} }
 
@@ -1244,7 +1360,7 @@ function renderPlanGestion(){
 function pgStepDone(k){ const d=pgData();
   switch(k){
     case 'info': return !!(d.info.ipress&&d.info.autor);
-    case 'autodiag': return !!(d.autodiag.rrhh.length||d.autodiag.indicadores||d.autodiag.dependencia||d.dotacion.cap);
+    case 'autodiag': return d.autodiag.cadena.some(x=>(+x.val||0)>0)||!!(d.autodiag.rrhh.length||d.autodiag.indicadores||d.dotacion.cap);
     case 'pestel': return PESTEL_DIMS.some(([k2])=>d.pestel[k2]);
     case 'intro': return !!d.intro;
     case 'filosofia': return !!(d.mision&&d.vision&&d.valores.length);
@@ -1283,35 +1399,41 @@ function pgSectionHTML(k){
       </div>`;
   }
   if(k==='autodiag'){
-    const r=d.autodiag.rrhh; const tot=pgRrhhTot();
-    const cob=t=>t.cap?Math.round(t.efectivo/t.cap*100):0;
-    const rows=r.map((x,i)=>{const c=(+x.cap||0), e=(+x.efectivo||0); const cobertura=c?Math.round(e/c*100):0; const def=c?Math.round((c-e)/c*100):0;
-      return `<tr>
-        <td><input class="fi" style="padding:6px;font-size:12px" value="${esc(x.grado)}" placeholder="Grado/categoría" onchange="pgRrhhSet(${i},'grado',this.value)"></td>
-        <td><input class="fi" type="number" style="padding:6px;width:70px;font-size:12px" value="${c}" onchange="pgRrhhSet(${i},'cap',this.value)"></td>
-        <td><input class="fi" type="number" style="padding:6px;width:70px;font-size:12px" value="${e}" onchange="pgRrhhSet(${i},'efectivo',this.value)"></td>
-        <td><input class="fi" type="number" style="padding:6px;width:70px;font-size:12px" value="${+x.necesidad||0}" onchange="pgRrhhSet(${i},'necesidad',this.value)"></td>
-        <td style="text-align:center;font-weight:700;color:${cobertura>=90?'var(--ok)':cobertura>=70?'var(--warn)':'var(--bad)'}">${cobertura}%</td>
-        <td style="text-align:center;color:${def>0?'var(--bad)':'var(--ok)'}">${def}%</td>
-        <td style="text-align:center"><a onclick="pgRrhhDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`;}).join('');
-    const brecha=tot.cap-tot.efectivo;
-    return `<h4>🩺 Autodiagnóstico</h4>
-      <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">Línea base de tu unidad: dotación de RR.HH. con brecha por grado, grado de dependencia del paciente e indicadores de calidad. (Inspirado en el formato real de planes GEMSES.)</p>
-      <h5 style="margin:6px 0;color:var(--teal)">👥 Dotación de recursos humanos (brecha por grado)</h5>
-      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Grado / categoría</th><th>CAP</th><th>Efectivo</th><th>Necesidad</th><th>% Cobertura</th><th>% Déficit</th><th></th></tr>${rows||'<tr><td colspan="7" style="color:var(--muted)">Sin filas. Agrega los grados de tu personal.</td></tr>'}
-        <tr style="font-weight:800;background:var(--bg)"><td>TOTAL</td><td style="text-align:center">${tot.cap}</td><td style="text-align:center">${tot.efectivo}</td><td style="text-align:center">${tot.necesidad}</td><td style="text-align:center;color:${cob(tot)>=90?'var(--ok)':cob(tot)>=70?'var(--warn)':'var(--bad)'}">${cob(tot)}%</td><td style="text-align:center;color:var(--bad)">${tot.cap?Math.round(brecha/tot.cap*100):0}%</td><td></td></tr></table></div>
-      <button class="pg-add" style="margin-top:6px" onclick="pgRrhhAdd()">＋ Agregar grado</button>
-      <p style="font-size:12px;margin:8px 0 0">Brecha total de personal: <b style="color:${brecha>0?'var(--bad)':'var(--ok)'}">${brecha} puestos</b></p>
-      <label class="flbl" style="margin-top:12px">Grado de dependencia del paciente (Grados I–IV)</label>
-      <textarea class="fi" rows="2" onchange="pgField('autodiag.dependencia',this.value)">${esc(d.autodiag.dependencia)}</textarea>
-      <label class="flbl" style="margin-top:8px">Indicadores de calidad (línea base: LPP, flebitis, caídas, IAAS, etc.)</label>
-      <textarea class="fi" rows="3" onchange="pgField('autodiag.indicadores',this.value)">${esc(d.autodiag.indicadores)}</textarea>
-      <div class="fgrid" style="margin-top:8px">
-        <div><label class="flbl">Absentismo (resumen)</label><textarea class="fi" rows="2" onchange="pgField('autodiag.absentismo',this.value)">${esc(d.autodiag.absentismo)}</textarea></div>
-        <div><label class="flbl">Documentos de gestión (MOF, ROF, manuales)</label><textarea class="fi" rows="2" onchange="pgField('autodiag.documentos',this.value)">${esc(d.autodiag.documentos)}</textarea></div>
+    if(!d.autodiag.cadSeeded && !d.autodiag.cadena.length) pgCadSeed(true);   // siembra inicial (editable)
+    const cad=d.autodiag.cadena; const stats=pgCadStats();
+    const pctC=p=>p>=85?'var(--ok)':p>=60?'var(--warn)':'var(--bad)';
+    const scorer=(i,v)=>`<span class="ad-score">`+[0,1,2,3,4].map(s=>`<button class="${s===v?'on':''}" style="${s===v?'background:'+AD_SCOLORS[s]:''}" title="${esc(String(s)+' = '+AUTODIAG_SCALE[s][1])}" onclick="pgCadSetVal(${i},${s})">${s}</button>`).join('')+`</span>`;
+    // agrupar en orden por macroproceso → componente
+    const seen={}, order=[], cnt={};
+    cad.forEach((x,i)=>{ const key=x.macro+' • '+x.comp; if(!seen[key]){seen[key]={macro:x.macro,comp:x.comp,items:[],pct:(stats.comps[key]||{}).pct||0}; order.push(seen[key]);} cnt[key]=(cnt[key]||0)+1; seen[key].items.push({i:i,crit:x.crit,val:(+x.val||0),n:cnt[key]}); });
+    const renderComp=g=>`<div class="ad-comp">
+      <div class="ad-h"><b>${esc(g.comp)}</b><div class="ad-bar"><i style="width:${g.pct}%;background:${pctC(g.pct)}"></i></div><span style="font-size:11px;font-weight:800;color:${pctC(g.pct)}">${g.pct}%</span></div>
+      ${g.items.map(it=>`<div class="ad-row"><span class="adn">${it.n}</span><input class="adt" value="${esc(it.crit)}" placeholder="Criterio" onchange="pgCadSetCrit(${it.i},this.value)">${scorer(it.i,it.val)}<a onclick="pgCadDel(${it.i})" style="cursor:pointer;color:var(--bad);font-weight:700;text-align:center">✕</a></div>`).join('')}
+      <button class="pg-add" style="margin-top:4px" onclick="pgCadAdd('${esc(g.macro)}','${esc(g.comp)}')">＋ Agregar criterio</button>
+    </div>`;
+    const macroBlocks=PG_MACROS.map(m=>{const gs=order.filter(g=>g.macro===m); if(!gs.length)return ''; const mp=(stats.macros[m]||{}).pct||0;
+      return `<div style="margin-top:12px"><div style="font-weight:800;color:var(--navy);margin-bottom:6px">Macroproceso ${esc(m)} <span style="float:right;color:${pctC(mp)}">${mp}%</span></div>${gs.map(renderComp).join('')}</div>`;}).join('');
+    const legend=AUTODIAG_SCALE.map(([n,txt])=>`<span style="display:inline-block;margin-right:10px;font-size:10.5px;color:var(--muted)"><b style="color:${AD_SCOLORS[n]}">${n}</b> ${esc(txt)}</span>`).join('');
+    const r=d.autodiag.rrhh; const tot=pgRrhhTot(); const cob=t=>t.cap?Math.round(t.efectivo/t.cap*100):0; const brecha=tot.cap-tot.efectivo;
+    const rrhhRows=r.map((x,i)=>{const c=(+x.cap||0), e=(+x.efectivo||0); const cobertura=c?Math.round(e/c*100):0; const def=c?Math.round((c-e)/c*100):0;
+      return `<tr><td><input class="fi" style="padding:6px;font-size:12px" value="${esc(x.grado)}" placeholder="Grado/categoría" onchange="pgRrhhSet(${i},'grado',this.value)"></td><td><input class="fi" type="number" style="padding:6px;width:64px;font-size:12px" value="${c}" onchange="pgRrhhSet(${i},'cap',this.value)"></td><td><input class="fi" type="number" style="padding:6px;width:64px;font-size:12px" value="${e}" onchange="pgRrhhSet(${i},'efectivo',this.value)"></td><td><input class="fi" type="number" style="padding:6px;width:64px;font-size:12px" value="${+x.necesidad||0}" onchange="pgRrhhSet(${i},'necesidad',this.value)"></td><td style="text-align:center;font-weight:700;color:${cobertura>=90?'var(--ok)':cobertura>=70?'var(--warn)':'var(--bad)'}">${cobertura}%</td><td style="text-align:center;color:${def>0?'var(--bad)':'var(--ok)'}">${def}%</td><td style="text-align:center"><a onclick="pgRrhhDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`;}).join('');
+    return `<h4>🩺 Autodiagnóstico de la cadena de valor</h4>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 6px">Valora cada criterio de <b>0 a 4</b> (escala GEMSES). El % por componente y macroproceso muestra tu nivel de gestión; los componentes más bajos son tus <b>debilidades</b> para el FODA. Los criterios son <b>editables</b> (clic en el texto) y puedes agregar/quitar.</p>
+      <div style="margin:0 0 10px">${legend}</div>
+      <div class="detail-sec" style="background:var(--bg);display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div style="text-align:center"><div style="font-size:34px;font-weight:800;line-height:1;color:${pctC(stats.overall)}">${stats.overall}%</div><div style="font-size:10.5px;color:var(--muted)">Autodiagnóstico global<br>${stats.n} criterios</div></div>
+        <div style="flex:1;min-width:220px;font-size:12px">${PG_MACROS.map(m=>{const mp=(stats.macros[m]||{}).pct||0;return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:90px">${esc(m)}</span><div class="ad-bar" style="max-width:200px"><i style="width:${mp}%;background:${pctC(mp)}"></i></div><b style="color:${pctC(mp)}">${mp}%</b></div>`;}).join('')}</div>
+        <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgCadRestaurar()">↺ Restaurar 70 criterios</button>
       </div>
-      <label class="flbl" style="margin-top:8px">Capacitación (estado actual)</label>
-      <textarea class="fi" rows="2" onchange="pgField('autodiag.capacitacion',this.value)">${esc(d.autodiag.capacitacion)}</textarea>`;
+      ${macroBlocks}
+      <div class="detail-sec" style="margin-top:14px"><h4 style="font-size:14px">👥 Datos complementarios — Dotación de RR.HH. (brecha)</h4>
+        <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Grado / categoría</th><th>CAP</th><th>Efectivo</th><th>Necesidad</th><th>% Cob.</th><th>% Déf.</th><th></th></tr>${rrhhRows||'<tr><td colspan="7" style="color:var(--muted)">Sin filas.</td></tr>'}
+          <tr style="font-weight:800;background:var(--bg)"><td>TOTAL</td><td style="text-align:center">${tot.cap}</td><td style="text-align:center">${tot.efectivo}</td><td style="text-align:center">${tot.necesidad}</td><td style="text-align:center;color:${cob(tot)>=90?'var(--ok)':cob(tot)>=70?'var(--warn)':'var(--bad)'}">${cob(tot)}%</td><td style="text-align:center;color:var(--bad)">${tot.cap?Math.round(brecha/tot.cap*100):0}%</td><td></td></tr></table></div>
+        <button class="pg-add" style="margin-top:6px" onclick="pgRrhhAdd()">＋ Agregar grado</button>
+        <p style="font-size:12px;margin:8px 0 0">Brecha total: <b style="color:${brecha>0?'var(--bad)':'var(--ok)'}">${brecha} puestos</b></p>
+        <label class="flbl" style="margin-top:10px">Indicadores de calidad (línea base: LPP, flebitis, caídas, IAAS…)</label>
+        <textarea class="fi" rows="2" onchange="pgField('autodiag.indicadores',this.value)">${esc(d.autodiag.indicadores)}</textarea>
+      </div>`;
   }
   if(k==='intro'){
     return `<h4>✍️ Introducción</h4>
@@ -1479,11 +1601,17 @@ function exportPlanWord(){
   const monRows=d.monitoreo.map(m=>`<tr><td>${escHtml(m.indicador)}</td><td>${escHtml(m.formula)}</td><td>${escHtml(m.fuente)}</td><td>${escHtml(m.estandar)}</td><td>${escHtml(m.periodo)}</td><td>${escHtml(m.responsable)}</td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>';
   const rrhhRows=(d.autodiag.rrhh||[]).map(x=>{const c=+x.cap||0,e=+x.efectivo||0;return `<tr><td>${escHtml(x.grado)}</td><td style="text-align:center">${c}</td><td style="text-align:center">${e}</td><td style="text-align:center">${+x.necesidad||0}</td><td style="text-align:center">${c?Math.round(e/c*100):0}%</td><td style="text-align:center">${c?Math.round((c-e)/c*100):0}%</td></tr>`;}).join('');
   const pestelBlock=PESTEL_DIMS.filter(([k2])=>d.pestel[k2]).map(([k2,lbl])=>`<p><b>${lbl}:</b> ${escHtml(d.pestel[k2])}</p>`).join('');
+  const cadStats=pgCadStats();
+  const cadCompRows=Object.values(cadStats.comps).map(c=>`<tr><td>${escHtml(c.macro)}</td><td>${escHtml(c.comp)}</td><td style="text-align:center">${c.n}</td><td style="text-align:center">${c.pct}%</td></tr>`).join('');
+  const cadCritRows=(d.autodiag.cadena||[]).map(x=>`<tr><td>${escHtml(x.macro)}</td><td>${escHtml(x.comp)}</td><td>${escHtml(x.crit)}</td><td style="text-align:center">${+x.val||0}/4</td></tr>`).join('');
   const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Plan de Gestión</title>
   <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#13294B}h1{font-size:20pt;margin:0}h2{font-size:14pt;color:#028090;border-bottom:1px solid #ccc;margin-top:16px}h3{font-size:12pt;margin:10px 0 4px}table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:4px 0}th,td{border:1px solid #aaa;padding:4px 6px;vertical-align:top}th{background:#13294B;color:#fff;text-align:left}.muted{color:#666;font-size:9pt}</style></head><body>
   <h1>PLAN DE GESTIÓN</h1>
   <p class="muted">🏥 ${escHtml(d.info.ipress)} · ${escHtml(d.info.unidad)}<br>Autor: ${escHtml(d.info.autor)} (${escHtml(d.info.cargo)}) · ${escHtml(d.info.concurso)} · Periodo ${escHtml(d.info.periodo)} · ${escHtml(d.info.fecha)}</p>
-  ${(rrhhRows||d.autodiag.indicadores||d.autodiag.dependencia)?`<h2>Autodiagnóstico</h2>
+  ${(cadCritRows||rrhhRows||d.autodiag.indicadores)?`<h2>Autodiagnóstico de la cadena de valor</h2>
+    ${cadCritRows?`<p><b>Autodiagnóstico global GEMSES: ${cadStats.overall}%</b> (${cadStats.n} criterios, escala 0–4).</p>
+      <p><b>Resumen por componente:</b></p><table><tr><th>Macroproceso</th><th>Componente</th><th># Criterios</th><th>% Logro</th></tr>${cadCompRows}</table>
+      <p><b>Detalle de criterios:</b></p><table><tr><th>Macroproceso</th><th>Componente</th><th>Criterio</th><th>Valoración</th></tr>${cadCritRows}</table>`:''}
     ${rrhhRows?`<p><b>Dotación de RR.HH. (brecha por grado):</b></p><table><tr><th>Grado/categoría</th><th>CAP</th><th>Efectivo</th><th>Necesidad</th><th>% Cobertura</th><th>% Déficit</th></tr>${rrhhRows}</table>`:''}
     ${d.autodiag.dependencia?`<p><b>Grado de dependencia:</b> ${escHtml(d.autodiag.dependencia)}</p>`:''}
     ${d.autodiag.indicadores?`<p><b>Indicadores de calidad (línea base):</b> ${escHtml(d.autodiag.indicadores)}</p>`:''}
