@@ -633,15 +633,24 @@ function autoLogin(){const e=lsGet(LS_SESSION);if(e){const u=loadUsers().find(x=
    Captura hospital/IPRESS + cargo (Director, Jefe de Servicio, Supervisor, Área).
    El cargo define el objetivo y el alcance que se reflejan en el informe. */
 function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+/* Roles alineados a la PIRÁMIDE FUNCIONAL del Modelo GEMSES (libro, Cap. 7 Fig. 3 y Cap. 13).
+   Cada rol tiene su FUNCIÓN en la pirámide y el ENFOQUE que debe tener su Plan de Gestión. */
 const CARGOS=[
-  {key:'DIRECTOR',label:'Director / Dirección',scope:'Toda la institución / IPRESS',
-   obj:'Visión institucional integral: monitorear el cumplimiento global de todos los servicios y de las cuatro dimensiones GEMSES (Tiempo, Calidad, Costo y Satisfacción) para sustentar decisiones estratégicas y rendición de cuentas.'},
-  {key:'JEFE_SERVICIO',label:'Jefe de Servicio',scope:'Servicio a cargo',
-   obj:'Gestión del servicio: asegurar el logro de las metas de los indicadores del servicio, liderar los planes de mejora 5W+2H y reportar avances a la dirección.'},
-  {key:'SUPERVISOR',label:'Supervisor / Supervisión',scope:'Servicios supervisados',
-   obj:'Supervisión de procesos y actividades: verificar la adherencia a protocolos, controlar la calidad de la recolección de datos y dar seguimiento a las acciones de mejora.'},
-  {key:'AREA',label:'Área / Unidad',scope:'Área o unidad asignada',
-   obj:'Gestión del área/unidad: medir, analizar y mejorar los indicadores propios del área dentro del ciclo DMAIC del Modelo GEMSES.'}
+  {key:'DIRECTOR',label:'Director / Dirección',funcion:'Planificación',scope:'Toda la institución / IPRESS',
+   obj:'Visión institucional integral: monitorear el cumplimiento global de todos los servicios y de las cuatro dimensiones GEMSES (Tiempo, Calidad, Costo y Satisfacción) para sustentar decisiones estratégicas y rendición de cuentas.',
+   enfoque:'Tu plan PLANIFICA estándares, políticas y los tres macroprocesos (Estratégico, Misional y Soporte) de toda la institución; define el rumbo, el posicionamiento (FODA matemático) y el control automatizado de la gestión.'},
+  {key:'JEFE_DEPARTAMENTO',label:'Jefe de Departamento',funcion:'Planificación / Organización',scope:'Departamento (varios servicios)',
+   obj:'Gestión del departamento: articular los servicios a cargo y sus cadenas de valor hacia las metas institucionales, organizando recursos y supervisando a las jefaturas de servicio.',
+   enfoque:'Tu plan PLANIFICA y ORGANIZA el departamento: alinea los servicios a cargo, distribuye recursos y consolida los indicadores de varias unidades.'},
+  {key:'JEFE_SERVICIO',label:'Jefe de Servicio',funcion:'Organización',scope:'Servicio a cargo',
+   obj:'Gestión del servicio: asegurar el logro de las metas de los indicadores del servicio, liderar los planes de mejora 5W+2H y reportar avances a la dirección.',
+   enfoque:'Tu plan ORGANIZA los recursos (humanos, materiales, equipos) de tu servicio, asegura el logro de las metas de sus indicadores y ejecuta los planes de mejora 5W+2H.'},
+  {key:'SUPERVISOR',label:'Supervisor / Supervisión',funcion:'Control',scope:'Servicios supervisados',
+   obj:'Supervisión de procesos y actividades: verificar la adherencia a protocolos, controlar la calidad de la recolección de datos y dar seguimiento a las acciones de mejora.',
+   enfoque:'Tu plan se centra en el CONTROL: supervisión y auditoría de procesos, adherencia a protocolos, trazabilidad del cuidado y evaluación de resultados de calidad y seguridad del paciente.'},
+  {key:'AREA',label:'Profesional de Área / Unidad',funcion:'Operación',scope:'Área o unidad asignada',
+   obj:'Gestión del área/unidad: medir, analizar y mejorar los indicadores propios del área dentro del ciclo DMAIC del Modelo GEMSES.',
+   enfoque:'Tu plan se centra en la OPERACIÓN: la atención/intervención directa en cada fase del proceso de tu área y la mejora continua (DMAIC) de sus indicadores propios.'}
 ];
 function cargoMeta(k){return CARGOS.find(c=>c.key===k)||CARGOS[0];}
 function checkOnboarding(){ if(USER && !USER.onboarded) renderOnboarding(); }
@@ -669,7 +678,7 @@ function renderOnboarding(){
 function onbCargoPreview(){
   const sel=document.getElementById('onbCargo'); if(!sel)return;
   const m=cargoMeta(sel.value), o=document.getElementById('onbObj');
-  if(o&&m) o.innerHTML=`<b>Objetivo de tu rol:</b> ${escHtml(m.obj)}<br><b>Alcance:</b> ${escHtml(m.scope)}`;
+  if(o&&m) o.innerHTML=`<b>Función en la pirámide GEMSES:</b> ${escHtml(m.funcion||'—')}<br><b>Alcance:</b> ${escHtml(m.scope)}<br><b>Enfoque de tu plan:</b> ${escHtml(m.enfoque||m.obj)}`;
 }
 function saveOnboarding(){
   const hosp=(document.getElementById('onbHosp').value||'').trim();
@@ -1045,7 +1054,7 @@ function pgGenResumen(){
 
 function renderPlanGestion(){
   pgTitle.textContent='Plan de Gestión'; pgSub.textContent='Diagnóstico, objetivos, estrategias e indicadores · Modelo GEMSES';
-  const d=pgData(); const prog=pgProgress();
+  const d=pgData(); const prog=pgProgress(); const cm=cargoMeta(USER.cargo);
   const steps=PG_SECTIONS.map(s=>{const on=pgStep===s.k; const dn=pgStepDone(s.k);
     return `<button class="${on?'on':''}" onclick="pgGo('${s.k}')">${s.ic} ${s.label.split('· ')[1]||s.label} ${dn?'<span class="chk">✓</span>':''}</button>`;}).join('');
   content.innerHTML=`
@@ -1058,6 +1067,11 @@ function renderPlanGestion(){
       </select>
       <button class="btn btn-ghost btn-sm" onclick="exportPlanWord()">📄 Word</button>
       <a class="btn btn-ghost btn-sm" href="https://youtu.be/-PjugUcQeek" target="_blank" rel="noopener" style="text-decoration:none">🎥 Guía en video</a>
+    </div>
+    <div class="rp-header" style="margin-bottom:12px">
+      <div class="rp-h-org">🧭 Enfoque de tu rol — <b>${esc(cm.label)}</b> · Función GEMSES: <b style="color:var(--teal)">${esc(cm.funcion||'—')}</b></div>
+      <div class="rp-h-obj">${esc(cm.enfoque||cm.obj)}</div>
+      <div class="rp-h-meta" style="margin-top:4px">Pirámide funcional GEMSES: Planificación → Organización → Dirección → Operación → Control. Tu plan debe priorizar lo propio de tu nivel.</div>
     </div>
     <div class="pg-fill"><i style="width:${prog}%"></i></div>
     <div style="font-size:12px;color:var(--muted);margin:-8px 0 12px">Avance del plan: <b style="color:var(--navy)">${prog}%</b></div>
