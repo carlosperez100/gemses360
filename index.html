@@ -3230,7 +3230,7 @@ let PESOS=loadPesos();
 function pesoDim(d){return (typeof PESOS[d]==='number')?PESOS[d]:0;}
 /* Config de IA (clave la ingresa el usuario en la app; se guarda solo en su navegador) */
 const LS_AICFG='g360_ai_cfg';
-const AI_DEF={provider:'gemini',model:'gemini-1.5-flash',key:'',endpoint:''};
+const AI_DEF={provider:'gemini',model:'gemini-2.5-flash',key:'',endpoint:''};
 function loadAI(){try{const s=JSON.parse(lsGet(LS_AICFG));if(s&&typeof s==='object')return Object.assign({},AI_DEF,s);}catch(e){}return {...AI_DEF};}
 function saveAI(c){lsSet(LS_AICFG,JSON.stringify(c));}
 let AICFG=loadAI();
@@ -4020,7 +4020,7 @@ function aiInformeHTML(){
     <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">Tu clave se guarda <b>solo en este navegador</b> (localStorage) y se envía únicamente al proveedor que elijas. Puedes cambiar de proveedor o de clave cuando quieras.</p>
     <div class="fgrid">
       <div><label class="flbl">Proveedor de IA</label><select class="fi" id="aiProv" onchange="aiSet('provider',this.value)">${provOpts}</select></div>
-      <div><label class="flbl">Modelo</label><input class="fi" id="aiModel" value="${esc(AICFG.model||'')}" placeholder="gemini-1.5-flash" onchange="aiSet('model',this.value)"></div>
+      <div><label class="flbl">Modelo</label><input class="fi" id="aiModel" value="${esc(AICFG.model||'')}" placeholder="gemini-2.5-flash" onchange="aiSet('model',this.value)"><div style="font-size:10px;color:var(--muted);margin-top:3px">Gemini válidos: <b>gemini-2.5-flash</b>, gemini-2.0-flash, gemini-2.5-pro. (gemini-1.5-flash fue retirado).</div></div>
       <div class="full"><label class="flbl">Clave de API (API key)</label>
         <div style="display:flex;gap:6px;align-items:center">
           <input class="fi" id="aiKey" type="password" style="flex:1" value="${esc(AICFG.key||'')}" placeholder="Pega aquí tu API key" onchange="aiSet('key',this.value)">
@@ -4083,7 +4083,7 @@ async function llamarIA(prompt){
       || (typeof j.text==='string'?j.text:JSON.stringify(j));
   }
   // Gemini por defecto
-  const mdl=model||'gemini-1.5-flash';
+  const mdl=model||'gemini-2.5-flash';
   const url=AICFG.endpoint||('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl)+':generateContent?key='+encodeURIComponent(key));
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
