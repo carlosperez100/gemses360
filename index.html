@@ -523,6 +523,9 @@ const PRODUCTS = [
   {id:'diagnostico', name:'Diagnóstico Estratégico', icon:'🔬', color:'linear-gradient(135deg,#13294B,#028090)',
    desc:'Tablero tipo Power BI: autodiagnóstico de la cadena (interno) + PESTEL por expertos (externo) → FODA matemático, Nivel de Gestión y Posicionamiento, todo derivado y estadísticamente consistente.',
    tags:['Autodiagnóstico','PESTEL','FODA','Posicionamiento'], state:'active'},
+  {id:'maestras', name:'Tablas Maestras', icon:'🗂️', color:'linear-gradient(135deg,#5a6570,#13294B)',
+   desc:'Catálogos maestros autogestionados (IPRESS, cargos, servicios, y librerías de autodiagnóstico, PESTEL, objetivos, actividades, indicadores) por profesión y nivel (IAFAS/IPRESS/UGIPRESS). Alimentan cada plan.',
+   tags:['Catálogos','Librerías','Admin'], state:'active'},
   {id:'brecha', name:'Brecha de Personal', icon:'👥', color:'linear-gradient(135deg,#E0A21A,#F0B429)',
    desc:'Cálculo y proyección de la brecha de recursos humanos en salud según demanda, carga laboral y estándares de dotación.',
    tags:['RR.HH.','Dotación','Proyección'], state:'soon'},
@@ -686,6 +689,80 @@ function planAbbr(s){ s=String(s||'').trim(); if(!s) return 'GEN';
   const stop={de:1,del:1,la:1,el:1,los:1,las:1,y:1,e:1,en:1,san:1,santa:1};
   const ini=toks.filter(t=>!stop[t.toLowerCase()]).map(t=>t[0]).join('').toUpperCase().replace(/[^0-9A-ZÑ]/g,'');
   return (ini||s.replace(/[^0-9A-Za-z]/g,'')).toUpperCase().slice(0,6)||'GEN'; }
+/* ---------- TABLAS MAESTRAS AUTOGESTIONADAS (CRUD + duplicar, por profesión y nivel) ---------- */
+const MT_PROFS=['General','Enfermería','Medicina','Gestión','Obstetricia','Tecnología Médica','Farmacia','Odontología','Psicología','Nutrición'];
+const MT_NIVELES=['General','IAFAS','IPRESS','UGIPRESS'];
+const MTRA_DEFS={
+  autodiag:{label:'🩺 Autodiagnóstico (criterios)',kind:'obj',scoped:true,cols:[{k:'macro',l:'Macro',sel:()=>PG_MACROS},{k:'comp',l:'Componente'},{k:'crit',l:'Criterio (Fortaleza +)'},{k:'neg',l:'Debilidad (−)'}]},
+  pestel:{label:'🌐 PESTEL (factores)',kind:'obj',scoped:true,cols:[{k:'dim',l:'Dimensión',sel:()=>PEST_Q_DIMS},{k:'crit',l:'Oportunidad (+)'},{k:'neg',l:'Amenaza (−)'}]},
+  objetivos:{label:'🎯 Objetivos',kind:'obj',scoped:true,cols:[{k:'macro',l:'Macro',sel:()=>PG_MACROS},{k:'general',l:'Objetivo general'},{k:'especifico',l:'Específico'},{k:'meta',l:'Meta'}]},
+  actividades:{label:'📅 Actividades',kind:'obj',scoped:true,cols:[{k:'actividad',l:'Actividad'},{k:'responsable',l:'Responsable'},{k:'nivelPlan',l:'Nivel plan'}]},
+  indicadores:{label:'📈 Indicadores',kind:'obj',scoped:true,cols:[{k:'indicador',l:'Indicador'},{k:'formula',l:'Fórmula'},{k:'fuente',l:'Fuente'},{k:'estandar',l:'Estándar'},{k:'periodo',l:'Periodo'}]},
+  cargos:{label:'👔 Niveles / Cargos',kind:'obj',scoped:false,cols:[{k:'label',l:'Cargo'},{k:'funcion',l:'Función (pirámide)'}]},
+  servicios:{label:'🏬 Servicios / Áreas',kind:'simple',scoped:false},
+  instituciones:{label:'🏛️ Instituciones',kind:'simple',scoped:false},
+  responsables:{label:'🧑‍💼 Responsables',kind:'simple',scoped:false}
+};
+function mtSeed(cat){
+  if(cat==='servicios') return maestrasDef().servicios.slice();
+  if(cat==='instituciones') return maestrasDef().instituciones.slice();
+  if(cat==='responsables') return [];
+  if(cat==='cargos') return CARGOS.map(c=>({label:c.label,funcion:c.funcion}));
+  if(cat==='autodiag') return (typeof AUTODIAG_CADENA_SEED!=='undefined'?AUTODIAG_CADENA_SEED:[]).map(x=>({macro:x.m,comp:x.c,crit:x.t,neg:'',prof:'General',nivel:'IPRESS'}));
+  if(cat==='pestel') return PEST_QSEED.map(x=>({dim:x.dim,crit:x.t,neg:x.neg||'',prof:'General',nivel:'IPRESS'}));
+  if(cat==='objetivos'){ const seen={},out=[]; Object.values(ROL_PLAN).forEach(rp=>(rp.obj||[]).forEach(o=>{ if(seen[o.general])return; seen[o.general]=1; out.push({macro:o.macro,general:o.general,especifico:o.especifico,meta:o.meta,prof:'General',nivel:'IPRESS'}); })); return out; }
+  if(cat==='indicadores'){ const seen={},out=[]; Object.values(ROL_PLAN).forEach(rp=>(rp.ind||[]).forEach(i=>{ if(seen[i.indicador])return; seen[i.indicador]=1; out.push({indicador:i.indicador,formula:i.formula,fuente:i.fuente,estandar:i.estandar,periodo:i.periodo,prof:'General',nivel:'IPRESS'}); })); return out; }
+  return [];
+}
+function mtBlank(cat){ const d=MTRA_DEFS[cat]; if(d.kind==='simple') return ''; const o={}; (d.cols||[]).forEach(c=>o[c.k]=''); if(d.scoped){o.prof='General';o.nivel='IPRESS';} if(cat==='autodiag')o.macro='Estratégico'; if(cat==='pestel')o.dim='Político'; if(cat==='objetivos')o.macro='Estratégico'; return o; }
+function mtEnsure(M,cat){ if(!Array.isArray(M[cat])) M[cat]=mtSeed(cat); return M[cat]; }
+function mtArr(cat){ const M=loadMaestras(); return mtEnsure(M,cat); }
+let mtState={cat:'autodiag',prof:'',nivel:''};
+function mtSelCat(c){ mtState.cat=c; mtState.prof=''; mtState.nivel=''; renderMaestras(); }
+function mtSetFiltro(which,v){ mtState[which]=v; renderMaestras(); }
+function mtAdd(cat){ const M=loadMaestras(); mtEnsure(M,cat).push(mtBlank(cat)); saveMaestras(M); renderMaestras(); }
+function mtDel(cat,i){ const M=loadMaestras(); const a=mtEnsure(M,cat); if(i>=0&&i<a.length){ a.splice(i,1); saveMaestras(M); renderMaestras(); } }
+function mtDup(cat,i){ const M=loadMaestras(); const a=mtEnsure(M,cat); if(a[i]!==undefined){ a.splice(i+1,0,(typeof a[i]==='object')?JSON.parse(JSON.stringify(a[i])):a[i]); saveMaestras(M); renderMaestras(); } }
+function mtSet(cat,i,k,v){ const M=loadMaestras(); const a=mtEnsure(M,cat); if(a[i]===undefined)return; if(k==='__str') a[i]=v; else a[i][k]=v; saveMaestras(M); if(k==='prof'||k==='nivel'||k==='macro'||k==='dim') renderMaestras(); }
+function mtRestore(cat){ if(!confirm('¿Restaurar el catálogo "'+(MTRA_DEFS[cat]?MTRA_DEFS[cat].label:cat)+'" a los valores por defecto? Se pierden los cambios.'))return; const M=loadMaestras(); M[cat]=mtSeed(cat); saveMaestras(M); renderMaestras(); toast('✓ Catálogo restaurado'); }
+function renderMaestras(){
+  pgTitle.textContent='Tablas Maestras'; pgSub.textContent='Catálogos autogestionados del Modelo GEMSES';
+  const cat=mtState.cat, def=MTRA_DEFS[cat]; const arr=mtArr(cat);
+  const tabs=Object.keys(MTRA_DEFS).map(k=>`<button class="btn ${k===cat?'btn-primary':'btn-ghost'} btn-sm" style="width:auto" onclick="mtSelCat('${k}')">${MTRA_DEFS[k].label} <span style="opacity:.7">(${(mtArr(k)||[]).length})</span></button>`).join('');
+  let filtros='';
+  if(def.scoped){
+    filtros=`<div class="toolbar" style="gap:8px;margin:6px 0;flex-wrap:wrap"><span style="font-size:11px;color:var(--muted);font-weight:700">Filtrar:</span>
+      <select class="fi" style="width:auto;padding:5px 8px;font-size:12px" onchange="mtSetFiltro('prof',this.value)"><option value="">Profesión (todas)</option>${MT_PROFS.map(p=>`<option ${mtState.prof===p?'selected':''}>${p}</option>`).join('')}</select>
+      <select class="fi" style="width:auto;padding:5px 8px;font-size:12px" onchange="mtSetFiltro('nivel',this.value)"><option value="">Nivel (todos)</option>${MT_NIVELES.map(n=>`<option ${mtState.nivel===n?'selected':''}>${n}</option>`).join('')}</select></div>`;
+  }
+  // filas (con índice real)
+  let rows='';
+  arr.forEach((it,i)=>{
+    if(def.scoped){ if(mtState.prof&&(it.prof||'General')!==mtState.prof)return; if(mtState.nivel&&(it.nivel||'General')!==mtState.nivel)return; }
+    const acc=`<td style="white-space:nowrap"><a title="Duplicar" onclick="mtDup('${cat}',${i})" style="cursor:pointer;color:var(--teal);font-weight:700;margin-right:8px">⧉</a><a title="Eliminar" onclick="mtDel('${cat}',${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td>`;
+    if(def.kind==='simple'){
+      rows+=`<tr><td><input class="fi" style="padding:6px;font-size:12px" value="${esc(it)}" onchange="mtSet('${cat}',${i},'__str',this.value)"></td>${acc}</tr>`;
+    } else {
+      const cells=def.cols.map(c=>{ const v=it[c.k]||'';
+        if(c.sel){ const o=c.sel(); return `<td><select class="fi" style="padding:5px;font-size:11.5px" onchange="mtSet('${cat}',${i},'${c.k}',this.value)">${o.map(x=>`<option ${v===x?'selected':''}>${esc(x)}</option>`).join('')}</select></td>`; }
+        return `<td><input class="fi" style="padding:6px;font-size:11.5px;min-width:130px" value="${esc(v)}" onchange="mtSet('${cat}',${i},'${c.k}',this.value)"></td>`;
+      }).join('');
+      const scope=def.scoped?`<td><select class="fi" style="padding:5px;font-size:11px" onchange="mtSet('${cat}',${i},'prof',this.value)">${MT_PROFS.map(p=>`<option ${(it.prof||'General')===p?'selected':''}>${p}</option>`).join('')}</select></td><td><select class="fi" style="padding:5px;font-size:11px" onchange="mtSet('${cat}',${i},'nivel',this.value)">${MT_NIVELES.map(n=>`<option ${(it.nivel||'General')===n?'selected':''}>${n}</option>`).join('')}</select></td>`:'';
+      rows+=`<tr>${cells}${scope}${acc}</tr>`;
+    }
+  });
+  const heads=(def.kind==='simple'?['Valor']:def.cols.map(c=>c.l)).concat(def.scoped?['Profesión','Nivel']:[]).concat(['']);
+  const headRow=heads.map(h=>`<th>${h}</th>`).join('');
+  content.innerHTML=`<div class="welcome" style="background:linear-gradient(135deg,#5a6570,#13294B)"><h2>🗂️ Tablas Maestras</h2><p>Catálogos autogestionados: agrega, edita, <b>duplica</b> o elimina ítems. Las librerías de contenido se etiquetan por <b>profesión</b> (enfermería, medicina, gestión…) y <b>nivel</b> (IAFAS / IPRESS / UGIPRESS). Alimentan la creación de cada plan.</p></div>
+    <div class="toolbar" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">${tabs}</div>
+    ${filtros}
+    <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr>${headRow}</tr>${rows||`<tr><td colspan="${heads.length}" style="color:var(--muted)">Sin ítems (con estos filtros). Agrega uno.</td></tr>`}</table></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="mtAdd('${cat}')">＋ Agregar ítem</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="mtDup('${cat}',${arr.length-1})" ${arr.length?'':'disabled'}>⧉ Duplicar último</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto;color:var(--bad)" onclick="mtRestore('${cat}')">↺ Restaurar por defecto</button>
+    </div>`;
+}
 /* Código de trazabilidad: PG-IPRESS-AÑO-Nº (correlativo por IPRESS+año en toda la base) */
 function planCodigo(ipress, anio){
   const abbr=planAbbr(ipress), y=String(anio||todayISO().slice(0,4));
@@ -736,6 +813,7 @@ function reabrirOnboarding(){ renderOnboarding(); }
 
 /* ---------- SHELL ---------- */
 function hasAccess(pid){
+  if(pid==='maestras') return !!(USER&&(USER.rol==='admin'||USER.verTodo===true));   // Tablas Maestras: solo admin
   if(pid==='diagnostico') pid='plan';   // el Diagnóstico Estratégico hereda el acceso del Plan de Gestión
   if(!USER.access||!USER.access.includes(pid)) return false;
   const until=USER.accessUntil&&USER.accessUntil[pid];   // vigencia mensual (códigos)
@@ -779,6 +857,7 @@ function nav(v){
   if(p.id==='formacion') return renderFormacion();
   if(p.id==='plan') return renderPlanGestion();
   if(p.id==='diagnostico') return renderDiagnostico();
+  if(p.id==='maestras') return renderMaestras();
   return renderComingSoon(p);
 }
 
