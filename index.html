@@ -669,6 +669,30 @@ const CARGOS=[
    enfoque:'Tu plan se centra en la OPERACIÓN: la atención/intervención directa en cada fase del proceso de tu área y la mejora continua (DMAIC) de sus indicadores propios.'}
 ];
 function cargoMeta(k){return CARGOS.find(c=>c.key===k)||CARGOS[0];}
+/* ---------- TABLAS MAESTRAS (catálogos) + CÓDIGO DE TRAZABILIDAD ---------- */
+const LS_MAESTRAS='g360_maestras';
+function maestrasDef(){ return {
+  servicios:['Departamento de Enfermería','Emergencia','UCI','Centro Quirúrgico','Consulta Externa','Hospitalización','Laboratorio Clínico','Farmacia','Cardiología','Medicina Interna','Pediatría','Gineco-Obstetricia','Cirugía','Diagnóstico por Imágenes'],
+  instituciones:['EsSalud','MINSA','SISOL SALUD','Sanidad FF.AA./PNP','Gobierno Regional','Privado','Otro'],
+  responsables:[]
+}; }
+function loadMaestras(){ try{ const o=JSON.parse(lsGet(LS_MAESTRAS)); if(o&&typeof o==='object') return Object.assign(maestrasDef(),o); }catch(e){} return maestrasDef(); }
+function saveMaestras(m){ lsSet(LS_MAESTRAS, JSON.stringify(m)); }
+/* Abreviatura para el código: usa un acrónimo (token en MAYÚSCULAS) o las iniciales de palabras significativas */
+function planAbbr(s){ s=String(s||'').trim(); if(!s) return 'GEN';
+  const toks=s.replace(/[^0-9A-Za-zÁÉÍÓÚÑáéíóúñ ]/g,' ').split(/\s+/).filter(Boolean);
+  const acr=toks.find(t=>t.length>=2 && t===t.toUpperCase());
+  if(acr) return acr.replace(/[^0-9A-ZÑ]/g,'').slice(0,8);
+  const stop={de:1,del:1,la:1,el:1,los:1,las:1,y:1,e:1,en:1,san:1,santa:1};
+  const ini=toks.filter(t=>!stop[t.toLowerCase()]).map(t=>t[0]).join('').toUpperCase().replace(/[^0-9A-ZÑ]/g,'');
+  return (ini||s.replace(/[^0-9A-Za-z]/g,'')).toUpperCase().slice(0,6)||'GEN'; }
+/* Código de trazabilidad: PG-IPRESS-AÑO-Nº (correlativo por IPRESS+año en toda la base) */
+function planCodigo(ipress, anio){
+  const abbr=planAbbr(ipress), y=String(anio||todayISO().slice(0,4));
+  const pref='PG-'+abbr+'-'+y+'-'; let max=0;
+  Object.keys(DB).forEach(e=>{ ((DB[e]&&DB[e].planes)||[]).forEach(p=>{ if(p.codigo&&p.codigo.indexOf(pref)===0){ const n=parseInt(p.codigo.slice(pref.length),10); if(n>max)max=n; } }); });
+  return pref+String(max+1).padStart(3,'0');
+}
 function checkOnboarding(){ if(USER && !USER.onboarded) renderOnboarding(); }
 function renderOnboarding(){
   let ov=document.getElementById('onbOverlay');
@@ -1028,6 +1052,10 @@ function pgData(){
   const d=pgActive();
   d.nombre=d.nombre||'Plan de Gestión'; d.creado=d.creado||todayISO(); d.actualizado=todayISO();
   d.info=d.info||{ipress:(USER.org&&USER.org!=='—'?USER.org:''),unidad:(USER.area||''),autor:(USER.name||''),cargo:(USER.cargo?cargoMeta(USER.cargo).label:''),concurso:'',periodo:'',fecha:todayISO()};
+  if(d.info.institucion===undefined) d.info.institucion='';
+  if(d.info.cargoKey===undefined) d.info.cargoKey=USER.cargo||'';
+  if(!d.codigo) d.codigo=planCodigo(d.info.ipress||'IPRESS',(String(d.info.periodo||'').match(/\d{4}/)||[todayISO().slice(0,4)])[0]);  // trazabilidad: planes anteriores reciben código
+  d.info.codigo=d.codigo;
   d.autodiag=d.autodiag||{rrhh:[],dependencia:'',indicadores:'',absentismo:'',documentos:'',capacitacion:''};
   if(!Array.isArray(d.autodiag.cadena)) d.autodiag.cadena=[];
   if(d.autodiag.cadSeeded===undefined) d.autodiag.cadSeeded=false;
@@ -1051,8 +1079,41 @@ function pgData(){
   return d;
 }
 /* Gestión de la base de planes */
-function pgNuevoPlan(){ const n=(prompt('Nombre del nuevo plan:','Plan de Gestión '+(pgPlanes().length+1))||'').trim(); if(!n)return;
-  const p={id:uid(),nombre:n,creado:todayISO()}; pgPlanes().push(p); DB[USER.email].planActivo=p.id; pgStep='info'; saveData(); renderPlanGestion(); toast('✓ Plan creado: '+n); }
+function pgNuevoPlan(){
+  const ip=loadIpress(), M=loadMaestras();
+  content.innerHTML=`<div class="toolbar"><div class="ab-hosp">🆕 Nuevo Plan de Gestión</div><div class="grow"></div><button class="btn btn-ghost btn-sm" style="width:auto" onclick="renderPlanGestion()">← Volver</button></div>
+    <div class="detail-sec" style="max-width:720px">
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">Cada plan es <b>único</b> y recibe un <b>código de trazabilidad</b> <code>PG-IPRESS-AÑO-Nº</code>. Elige de las <b>tablas maestras</b> (o escribe si no está; se agrega al catálogo).</p>
+      <div class="fgrid">
+        <div class="full"><label class="flbl">IPRESS (SUSALUD)</label><input class="fi" id="npIpress" list="npIpressL" placeholder="Establecimiento" value="${esc(USER.org&&USER.org!=='—'&&USER.org!=='GEMSES360'?USER.org:'')}"><datalist id="npIpressL">${ip.map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
+        <div><label class="flbl">Institución / financiador</label><input class="fi" id="npInst" list="npInstL" value="${esc(USER.tenant&&/EsSalud|MINSA|SISOL|Privado/i.test(USER.tenant)?USER.tenant:'')}"><datalist id="npInstL">${(M.instituciones||[]).map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
+        <div><label class="flbl">Nivel / Cargo (GEMSES)</label><select class="fi" id="npCargo">${CARGOS.map(c=>`<option value="${c.key}" ${USER.cargo===c.key?'selected':''}>${esc(c.label)} — ${esc(c.funcion)}</option>`).join('')}</select></div>
+        <div class="full"><label class="flbl">Servicio / Área / Unidad</label><input class="fi" id="npServ" list="npServL" placeholder="A qué servicio/área postula" value="${esc(USER.area||'')}"><datalist id="npServL">${(M.servicios||[]).map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
+        <div><label class="flbl">Responsable del plan</label><input class="fi" id="npResp" list="npRespL" value="${esc(USER.name||'')}"><datalist id="npRespL">${(M.responsables||[]).map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
+        <div><label class="flbl">Periodo de gestión</label><input class="fi" id="npPer" value="2026–2028"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" style="width:auto" onclick="pgCrearPlan()">✓ Crear plan con código</button>
+        <span style="font-size:11px;color:var(--muted);align-self:center">El código y la Información se generan automáticamente.</span>
+      </div>
+    </div>`;
+}
+function _v(id){ const e=document.getElementById(id); return e?(e.value||'').trim():''; }
+function pgCrearPlan(){
+  const ipress=_v('npIpress')||'IPRESS'; const inst=_v('npInst'); const cargoKey=_v('npCargo'); const cm=cargoMeta(cargoKey);
+  const serv=_v('npServ')||cm.scope; const resp=_v('npResp'); const per=_v('npPer');
+  const M=loadMaestras(); let chg=false;
+  if(serv&&!(M.servicios||[]).includes(serv)){M.servicios.push(serv);chg=true;}
+  if(inst&&!(M.instituciones||[]).includes(inst)){M.instituciones.push(inst);chg=true;}
+  if(resp&&!(M.responsables||[]).includes(resp)){M.responsables.push(resp);chg=true;}
+  if(chg) saveMaestras(M);
+  if(ipress&&ipress!=='IPRESS'&&!loadIpress().includes(ipress)){ const a=loadIpress(); a.push(ipress); saveIpress(a); }
+  const anio=(per.match(/\d{4}/)||[todayISO().slice(0,4)])[0];
+  const cod=planCodigo(ipress, anio);
+  const p={id:uid(), codigo:cod, nombre:cod+' · '+serv, creado:todayISO(),
+    info:{ipress:ipress, unidad:serv, autor:resp, cargo:cm.label, cargoKey:cargoKey, institucion:inst, concurso:'Concurso para cargo directivo', periodo:per, fecha:todayISO(), codigo:cod}};
+  pgPlanes().push(p); DB[USER.email].planActivo=p.id; pgStep='info'; saveData(); renderPlanGestion(); toast('✓ Plan creado: '+cod);
+}
 function pgAbrirPlan(id){ DB[USER.email].planActivo=id; pgStep='info'; saveData(); renderPlanGestion(); }
 function pgDuplicarPlan(){ const o=pgActive(); const c=JSON.parse(JSON.stringify(o)); c.id=uid(); c.nombre=(o.nombre||'Plan')+' (copia)'; c.creado=todayISO(); pgPlanes().push(c); DB[USER.email].planActivo=c.id; saveData(); renderPlanGestion(); toast('✓ Plan duplicado'); }
 function pgRenombrarPlan(){ const o=pgActive(); const n=(prompt('Nuevo nombre del plan:',o.nombre)||'').trim(); if(!n)return; o.nombre=n; saveData(); renderPlanGestion(); toast('✓ Renombrado'); }
@@ -1950,7 +2011,7 @@ function renderPlanGestion(){
       <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgRenombrarPlan()">✎ Renombrar</button>
       <button class="btn btn-ghost btn-sm" style="width:auto;color:var(--bad)" onclick="pgEliminarPlan()">✕ Eliminar</button>
     </div>
-    <div class="toolbar"><div class="ab-hosp">📋 Plan de Gestión — <b>${esc(d.info.unidad||'tu unidad')}</b></div>
+    <div class="toolbar"><div class="ab-hosp">📋 <span style="font-family:monospace;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px">${esc(d.codigo||'')}</span> — <b>${esc(d.info.unidad||'tu unidad')}</b></div>
       <div class="grow"></div>
       <button class="btn btn-primary btn-sm" style="width:auto" onclick="pgGenPorRol()">🧩 Generar según mi rol</button>
       <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgAIGenPorRol()">🤖 Borrador IA</button>
@@ -1999,6 +2060,11 @@ function pgSectionHTML(k){
   if(k==='info'){
     const ip=loadIpress(); const opts=ip.map(x=>`<option ${d.info.ipress===x?'selected':''}>${esc(x)}</option>`).join('');
     return `<h4>🪪 Información general del plan</h4>
+      <div class="detail-sec" style="background:var(--bg);display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--muted);font-weight:700">Código de trazabilidad:</span>
+        <span style="font-family:monospace;font-weight:800;font-size:14px;color:var(--teal);background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 10px">${esc(d.codigo||'—')}</span>
+        <span style="font-size:10.5px;color:var(--muted)">PG-IPRESS-AÑO-Nº · enlaza diagnóstico, cronograma, seguimiento y reportes.</span>
+      </div>
       <div class="fgrid">
         <div class="full"><label class="flbl">Hospital / IPRESS (catálogo SUSALUD)</label>
           <div style="display:flex;gap:6px">
@@ -2011,6 +2077,7 @@ function pgSectionHTML(k){
         <div><label class="flbl">Unidad / Servicio / Área</label><input class="fi" value="${esc(d.info.unidad)}" onchange="pgField('info.unidad',this.value)"></div>
         <div><label class="flbl">Autor (postulante)</label><input class="fi" value="${esc(d.info.autor)}" onchange="pgField('info.autor',this.value)"></div>
         <div><label class="flbl">Cargo al que postula</label><input class="fi" value="${esc(d.info.cargo)}" onchange="pgField('info.cargo',this.value)"></div>
+        <div><label class="flbl">Institución / financiador</label><input class="fi" list="instList" value="${esc(d.info.institucion||'')}" onchange="pgField('info.institucion',this.value)"><datalist id="instList">${(loadMaestras().instituciones||[]).map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
         <div><label class="flbl">Concurso / convocatoria</label><input class="fi" value="${esc(d.info.concurso)}" onchange="pgField('info.concurso',this.value)"></div>
         <div><label class="flbl">Periodo de gestión</label><input class="fi" value="${esc(d.info.periodo)}" placeholder="2026–2028" onchange="pgField('info.periodo',this.value)"></div>
         <div><label class="flbl">Fecha de elaboración</label><input class="fi" type="date" value="${esc(d.info.fecha)}" onchange="pgField('info.fecha',this.value)"></div>
@@ -2342,7 +2409,7 @@ function exportPlanWord(){
   const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Plan de Gestión</title>
   <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#13294B}h1{font-size:20pt;margin:0}h2{font-size:14pt;color:#028090;border-bottom:1px solid #ccc;margin-top:16px}h3{font-size:12pt;margin:10px 0 4px}table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:4px 0}th,td{border:1px solid #aaa;padding:4px 6px;vertical-align:top}th{background:#13294B;color:#fff;text-align:left}.muted{color:#666;font-size:9pt}</style></head><body>
   <h1>PLAN DE GESTIÓN</h1>
-  <p class="muted">🏥 ${escHtml(d.info.ipress)} · ${escHtml(d.info.unidad)}<br>Autor: ${escHtml(d.info.autor)} (${escHtml(d.info.cargo)}) · ${escHtml(d.info.concurso)} · Periodo ${escHtml(d.info.periodo)} · ${escHtml(d.info.fecha)}</p>
+  <p class="muted"><b>Código:</b> ${escHtml(d.codigo||'—')} · 🏥 ${escHtml(d.info.ipress)}${d.info.institucion?(' ('+escHtml(d.info.institucion)+')'):''} · ${escHtml(d.info.unidad)}<br>Autor: ${escHtml(d.info.autor)} (${escHtml(d.info.cargo)}) · ${escHtml(d.info.concurso)} · Periodo ${escHtml(d.info.periodo)} · ${escHtml(d.info.fecha)}</p>
   ${(cadCritRows||rrhhRows||d.autodiag.indicadores)?`<h2>Autodiagnóstico de la cadena de valor</h2>
     ${cadCritRows?`<p><b>Autodiagnóstico global GEMSES: ${cadStats.overall}%</b> (${cadStats.n} criterios, escala 0–4).</p>
       <p><b>Resumen por componente:</b></p><table><tr><th>Macroproceso</th><th>Componente</th><th># Criterios</th><th>% Logro</th></tr>${cadCompRows}</table>
