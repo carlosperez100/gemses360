@@ -717,6 +717,13 @@ function mtSeed(cat){
 function mtBlank(cat){ const d=MTRA_DEFS[cat]; if(d.kind==='simple') return ''; const o={}; (d.cols||[]).forEach(c=>o[c.k]=''); if(d.scoped){o.prof='General';o.nivel='IPRESS';} if(cat==='autodiag')o.macro='Estratégico'; if(cat==='pestel')o.dim='Político'; if(cat==='objetivos')o.macro='Estratégico'; return o; }
 function mtEnsure(M,cat){ if(!Array.isArray(M[cat])) M[cat]=mtSeed(cat); return M[cat]; }
 function mtArr(cat){ const M=loadMaestras(); return mtEnsure(M,cat); }
+/* Ítems de una librería maestra que aplican a una profesión + nivel (incluye 'General'); con fallback */
+function mtFor(cat,prof,nivel){
+  const a=(mtArr(cat)||[]).filter(it=>typeof it==='object');
+  const m=a.filter(it=>((it.prof||'General')===prof||(it.prof||'General')==='General')&&((it.nivel||'General')===nivel||(it.nivel||'General')==='General'));
+  if(m.length) return m;
+  const g=a.filter(it=>(it.prof||'General')==='General'); return g.length?g:a;
+}
 let mtState={cat:'autodiag',prof:'',nivel:''};
 function mtSelCat(c){ mtState.cat=c; mtState.prof=''; mtState.nivel=''; renderMaestras(); }
 function mtSetFiltro(which,v){ mtState[which]=v; renderMaestras(); }
@@ -1167,6 +1174,8 @@ function pgNuevoPlan(){
         <div class="full"><label class="flbl">IPRESS (SUSALUD)</label><input class="fi" id="npIpress" list="npIpressL" placeholder="Establecimiento" value="${esc(USER.org&&USER.org!=='—'&&USER.org!=='GEMSES360'?USER.org:'')}"><datalist id="npIpressL">${ip.map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
         <div><label class="flbl">Institución / financiador</label><input class="fi" id="npInst" list="npInstL" value="${esc(USER.tenant&&/EsSalud|MINSA|SISOL|Privado/i.test(USER.tenant)?USER.tenant:'')}"><datalist id="npInstL">${(M.instituciones||[]).map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
         <div><label class="flbl">Nivel / Cargo (GEMSES)</label><select class="fi" id="npCargo">${CARGOS.map(c=>`<option value="${c.key}" ${USER.cargo===c.key?'selected':''}>${esc(c.label)} — ${esc(c.funcion)}</option>`).join('')}</select></div>
+        <div><label class="flbl">Profesión</label><select class="fi" id="npProf">${MT_PROFS.map(p=>`<option>${esc(p)}</option>`).join('')}</select></div>
+        <div><label class="flbl">Nivel (IAFAS/IPRESS/UGIPRESS)</label><select class="fi" id="npNivel">${MT_NIVELES.map(n=>`<option ${n==='IPRESS'?'selected':''}>${esc(n)}</option>`).join('')}</select></div>
         <div class="full"><label class="flbl">Servicio / Área / Unidad</label><input class="fi" id="npServ" list="npServL" placeholder="A qué servicio/área postula" value="${esc(USER.area||'')}"><datalist id="npServL">${(M.servicios||[]).map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
         <div><label class="flbl">Responsable del plan</label><input class="fi" id="npResp" list="npRespL" value="${esc(USER.name||'')}"><datalist id="npRespL">${(M.responsables||[]).map(x=>`<option>${esc(x)}</option>`).join('')}</datalist></div>
         <div><label class="flbl">Periodo de gestión</label><input class="fi" id="npPer" value="2026–2028"></div>
@@ -1188,10 +1197,18 @@ function pgCrearPlan(){
   if(chg) saveMaestras(M);
   if(ipress&&ipress!=='IPRESS'&&!loadIpress().includes(ipress)){ const a=loadIpress(); a.push(ipress); saveIpress(a); }
   const anio=(per.match(/\d{4}/)||[todayISO().slice(0,4)])[0];
+  const prof=_v('npProf')||'General', nivel=_v('npNivel')||'IPRESS';
   const cod=planCodigo(ipress, anio);
   const p={id:uid(), codigo:cod, nombre:cod+' · '+serv, creado:todayISO(),
-    info:{ipress:ipress, unidad:serv, autor:resp, cargo:cm.label, cargoKey:cargoKey, institucion:inst, concurso:'Concurso para cargo directivo', periodo:per, fecha:todayISO(), codigo:cod}};
-  pgPlanes().push(p); DB[USER.email].planActivo=p.id; pgStep='info'; saveData(); renderPlanGestion(); toast('✓ Plan creado: '+cod);
+    info:{ipress:ipress, unidad:serv, autor:resp, cargo:cm.label, cargoKey:cargoKey, institucion:inst, prof:prof, nivel:nivel, concurso:'Concurso para cargo directivo', periodo:per, fecha:todayISO(), codigo:cod}};
+  // Engranaje: cada parte se siembra desde las librerías maestras filtradas por profesión + nivel (editable, plan único)
+  p.autodiag={rrhh:[], cadSeeded:true, cadena: mtFor('autodiag',prof,nivel).map(x=>({macro:x.macro,comp:x.comp,crit:x.crit,neg:x.neg||'',val:0}))};
+  p.pestCad   = mtFor('pestel',prof,nivel).map(x=>({dim:x.dim,crit:x.crit,neg:x.neg||'',val:0}));
+  p.objetivos = mtFor('objetivos',prof,nivel).map(x=>({macro:x.macro,general:x.general,especifico:x.especifico,meta:x.meta}));
+  p.crono     = mtFor('actividades',prof,nivel).map(x=>({actividad:x.actividad,responsable:x.responsable||resp,ini:'',fin:'',nivel:'Procesos',avance:0,estado:'No iniciada'}));
+  p.monitoreo = mtFor('indicadores',prof,nivel).map(x=>({indicador:x.indicador,descripcion:'',formula:x.formula||'',fuente:x.fuente||'',estandar:x.estandar||'',periodo:x.periodo||'Mensual',responsable:resp,meta:0,sentido:'mayor',med:[]}));
+  pgPlanes().push(p); DB[USER.email].planActivo=p.id; pgStep='info'; saveData(); renderPlanGestion();
+  toast('✓ Plan '+cod+' creado y sembrado desde las librerías ('+prof+' · '+nivel+')');
 }
 function pgAbrirPlan(id){ DB[USER.email].planActivo=id; pgStep='info'; saveData(); renderPlanGestion(); }
 function pgDuplicarPlan(){ const o=pgActive(); const c=JSON.parse(JSON.stringify(o)); c.id=uid(); c.nombre=(o.nombre||'Plan')+' (copia)'; c.creado=todayISO(); pgPlanes().push(c); DB[USER.email].planActivo=c.id; saveData(); renderPlanGestion(); toast('✓ Plan duplicado'); }
@@ -1404,6 +1421,21 @@ function pgCronoAdd(){ pgData().crono.push({actividad:'',responsable:'',ini:'',f
 function pgCronoDel(i){ pgData().crono.splice(i,1); saveData(); renderPlanGestion(); }
 function pgCronoSet(i,campo,val){ const o=pgData().crono[i]; if(o){o[campo]=val; saveData();} }
 function pgMonAdd(){ pgData().monitoreo.push({indicador:'',descripcion:'',formula:'',fuente:'',estandar:'',periodo:'Mensual',responsable:''}); saveData(); renderPlanGestion(); }
+/* Engranaje: registra/actualiza los indicadores del plan en el módulo de Indicadores (Tablero), etiquetados con el código del plan */
+function pgEnviarIndicadores(){
+  const d=pgData(); const mons=(d.monitoreo||[]).filter(m=>(m.indicador||'').trim());
+  if(!mons.length){ toast('No hay indicadores en el plan'); return; }
+  if(!confirm('¿Registrar '+mons.length+' indicador(es) del plan '+(d.codigo||'')+' en el Tablero de Indicadores? Quedan etiquetados con el código del plan.')) return;
+  const store=DB[USER.email].indicadores=DB[USER.email].indicadores||[];
+  let add=0,upd=0;
+  mons.forEach(m=>{
+    const base={nombre:m.indicador,tipo:'KPI',dim:'Calidad',ambito:(d.info.nivel||'IPRESS'),persp:'Misional',formula:m.formula||'',unidad:'%',meta:(+m.meta||0),sentido:(m.sentido==='menor'?'menor':'mayor'),frecuencia:m.periodo||'Mensual',fuente:m.fuente||'—',responsable:m.responsable||d.info.autor||'—',_planCod:d.codigo,_planUnidad:d.info.unidad};
+    const ex=store.find(x=>x._planCod===d.codigo && x.nombre===m.indicador);
+    if(ex){ Object.assign(ex,base); upd++; }
+    else { store.push({id:uid(),creado:todayISO(),...base,fases:[true,true,false,false,false],mediciones:(m.med||[]).map(x=>({p:x.p,v:x.v,ini:'',fin:'',metodo:'',lugar:d.info.unidad})),plan:[]}); add++; }
+  });
+  saveData(); toast('✓ '+add+' registrados · '+upd+' actualizados en el Tablero ('+d.codigo+')');
+}
 /* Autodiagnóstico: tabla de dotación de RR.HH. (brecha por grado) */
 function pgRrhhAdd(){ pgData().autodiag.rrhh.push({grado:'',cap:0,efectivo:0,necesidad:0}); saveData(); renderPlanGestion(); }
 function pgRrhhDel(i){ pgData().autodiag.rrhh.splice(i,1); saveData(); renderPlanGestion(); }
@@ -2411,7 +2443,9 @@ function pgSectionHTML(k){
     return `<h4>📈 Plan de monitoreo e indicadores</h4>
       <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Cada indicador con su ficha (fórmula, fuente, estándar, periodo, responsable). Tipos GEMSES: KPI (capacidad), KRI (riesgo), KCI (control).</p>
       <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Indicador</th><th>Fórmula</th><th>Fuente</th><th>Estándar</th><th>Periodo</th><th>Responsable</th><th></th></tr>${rows||'<tr><td colspan="7" style="color:var(--muted)">Sin indicadores aún.</td></tr>'}</table></div>
-      <button class="pg-add" style="margin-top:8px" onclick="pgMonAdd()">＋ Agregar indicador</button>`;
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="pg-add" style="margin:0" onclick="pgMonAdd()">＋ Agregar indicador</button>
+        <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgEnviarIndicadores()">📊 Registrar en el Tablero de Indicadores</button></div>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:5px">Al registrar, los indicadores aparecen en el módulo <b>Gestión de Indicadores</b> etiquetados con el código <b>${esc(d.codigo||'')}</b> (trazabilidad y consolidado).</div>`;
   }
   if(k==='seguimiento'){
     const s=pgSegStats(); const sc=p=>p>=85?'var(--ok)':p>=60?'var(--warn)':'var(--bad)';
