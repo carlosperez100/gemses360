@@ -1162,6 +1162,32 @@ function pgPrioRanked(){
   arr.forEach(x=>{ if(x.score>=p75){x.nivel='Proyecto de Mejora';x.c='var(--bad)';x.pct='P75';} else if(x.score>=p50){x.nivel='Mejora de Procesos';x.c='var(--warn)';x.pct='P50';} else {x.nivel='Mejora de Actividades';x.c='var(--ok)';x.pct='P25';} });
   return arr.sort((a,b)=>b.score-a.score);
 }
+/* Pesos por dimensión de resultado (GEMSES) — ponderan el impacto de la priorización */
+function pgSetPesoDim(dim,val){ PESOS[dim]=Math.max(0,parseFloat(val)||0); savePesos(PESOS); renderPlanGestion(); }
+function pgPresetPesosPBI(){ PESOS={'Tiempo':40,'Calidad':20,'Costo':15,'Satisfacción':25}; savePesos(PESOS); renderPlanGestion(); toast('✓ Pesos Power BI aplicados (Estancia 40 · Calidad 20 · Costo 15 · Satisfacción 25)'); }
+function pgResetPesosDim(){ PESOS={...PESOS_GEMSES_DEF}; savePesos(PESOS); renderPlanGestion(); toast('✓ Pesos GEMSES por defecto'); }
+/* Diagrama de Pareto de la priorización (pocos vitales, regla 80/20) */
+function pgParetoSVG(){
+  const ranked=pgPrioRanked().filter(x=>x.score>0);
+  if(!ranked.length) return '<div style="font-size:11px;color:var(--muted)">Agrega problemas con puntaje para ver el Pareto.</div>';
+  const n=ranked.length, total=ranked.reduce((a,x)=>a+x.score,0), maxS=ranked[0].score;
+  const PADL=34,PADR=30,PADT=14,PADB=64, W=Math.max(360,PADL+PADR+n*48), H=250;
+  const plotW=W-PADL-PADR, plotH=H-PADT-PADB, gap=plotW/n, bw=Math.min(40,gap*0.6);
+  let cum=0; const pts=[]; let bars='',dots='',labels='';
+  let cutIdx=n-1; { let c=0; for(let i=0;i<n;i++){ c+=ranked[i].score; if(c/total*100>=80){ cutIdx=i; break; } } }
+  ranked.forEach((x,i)=>{ cum+=x.score; const cumPct=cum/total*100;
+    const bx=PADL+gap*i+(gap-bw)/2, bh=maxS>0?(x.score/maxS)*plotH:0, by=PADT+plotH-bh, vital=i<=cutIdx;
+    bars+=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="${vital?'#028090':'#cbd2d9'}" rx="2"><title>${escHtml(x.it.problema||'(problema)')}: ${x.score}</title></rect>`;
+    bars+=`<text x="${bx+bw/2}" y="${by-3}" font-size="8" fill="#5a6570" text-anchor="middle">${x.score}</text>`;
+    const cx=PADL+gap*i+gap/2, cy=PADT+plotH-(cumPct/100)*plotH; pts.push(cx+','+cy);
+    dots+=`<circle cx="${cx}" cy="${cy}" r="2.6" fill="#13294B"/><text x="${cx}" y="${cy-5}" font-size="7.5" fill="#13294B" text-anchor="middle">${Math.round(cumPct)}%</text>`;
+    labels+=`<text x="${bx+bw/2}" y="${PADT+plotH+12}" font-size="8" fill="#5a6570" text-anchor="end" transform="rotate(-32 ${bx+bw/2} ${PADT+plotH+12})">${escHtml((x.it.problema||('P'+(i+1))).slice(0,24))}</text>`;
+  });
+  const y80=PADT+plotH-0.8*plotH;
+  const ref=`<line x1="${PADL}" y1="${y80}" x2="${PADL+plotW}" y2="${y80}" stroke="#d64545" stroke-dasharray="4 3" stroke-width="1"/><text x="${PADL+plotW}" y="${y80-3}" font-size="8" fill="#d64545" text-anchor="end">80%</text>`;
+  const axes=`<line x1="${PADL}" y1="${PADT}" x2="${PADL}" y2="${PADT+plotH}" stroke="#cbd2d9"/><line x1="${PADL}" y1="${PADT+plotH}" x2="${PADL+plotW}" y2="${PADT+plotH}" stroke="#cbd2d9"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="min-width:${W}px;max-width:100%;font-family:inherit;background:#fff;border:1px solid var(--line);border-radius:8px">${ref}${axes}${bars}<polyline points="${pts.join(' ')}" fill="none" stroke="#13294B" stroke-width="1.6"/>${dots}${labels}<text x="${PADL+plotW/2}" y="${H-4}" font-size="9" fill="#5a6570" text-anchor="middle">Problemas (orden por puntaje) · barras teal = pocos vitales</text></svg>`;
+}
 
 /* ---------- Listas (objetivos, cronograma, monitoreo, valores) ---------- */
 function pgValAdd(){ const v=(prompt('Nuevo valor institucional:')||'').trim(); if(!v)return; pgData().valores.push(v); saveData(); renderPlanGestion(); }
@@ -1596,6 +1622,16 @@ function pgSectionHTML(k){
         <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgCadRestaurar()">↺ Restaurar 70 criterios</button>
       </div>
       ${macroBlocks}
+      ${(()=>{const sP=pesoDim('Tiempo')+pesoDim('Calidad')+pesoDim('Costo')+pesoDim('Satisfacción');return `<div class="detail-sec" style="margin-top:14px;background:var(--bg)">
+        <h4 style="font-size:14px;margin:0 0 4px">⚖️ Pesos por dimensión de resultado (GEMSES)</h4>
+        <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Las 4 dimensiones de resultado del modelo ponderan el <b>impacto</b> en la Priorización (paso 10). Deben sumar 100. Preset del tablero Power BI: Estancia 40 · Calidad 20 · Costo 15 · Satisfacción 25.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          ${[['Tiempo','Tiempo / Estancia'],['Calidad','Calidad'],['Costo','Costo'],['Satisfacción','Satisfacción']].map(([k2,lbl])=>`<div><label class="flbl">${lbl}</label><input class="fi" type="number" min="0" max="100" style="width:88px" value="${pesoDim(k2)}" onchange="pgSetPesoDim('${k2}',this.value)"></div>`).join('')}
+          <div><label class="flbl">Suma</label><input class="fi" style="width:72px;font-weight:800;color:${sP===100?'var(--ok)':'var(--bad)'}" value="${sP}" readonly></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgPresetPesosPBI()">Preset Power BI (40/20/15/25)</button><button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgResetPesosDim()">↺ Default GEMSES</button></div>
+        ${sP!==100?'<div style="font-size:10.5px;color:var(--bad);margin-top:5px">⚠ Los pesos deben sumar 100 (actual: '+sP+').</div>':''}
+      </div>`;})()}
       <div class="detail-sec" style="margin-top:14px"><h4 style="font-size:14px">👥 Datos complementarios — Dotación de RR.HH. (brecha)</h4>
         <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Grado / categoría</th><th>CAP</th><th>Efectivo</th><th>Necesidad</th><th>% Cob.</th><th>% Déf.</th><th></th></tr>${rrhhRows||'<tr><td colspan="7" style="color:var(--muted)">Sin filas.</td></tr>'}
           <tr style="font-weight:800;background:var(--bg)"><td>TOTAL</td><td style="text-align:center">${tot.cap}</td><td style="text-align:center">${tot.efectivo}</td><td style="text-align:center">${tot.necesidad}</td><td style="text-align:center;color:${cob(tot)>=90?'var(--ok)':cob(tot)>=70?'var(--warn)':'var(--bad)'}">${cob(tot)}%</td><td style="text-align:center;color:var(--bad)">${tot.cap?Math.round(brecha/tot.cap*100):0}%</td><td></td></tr></table></div>
@@ -1774,7 +1810,10 @@ function pgSectionHTML(k){
     return `<h4>⚖️ Priorización de problemas (matriz de impactos GEMSES)</h4>
       <p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Score = <b>Frecuencia × Impacto ponderado</b> por dimensión (Tiempo ${pesoDim('Tiempo')}%, Calidad ${pesoDim('Calidad')}%, Costo ${pesoDim('Costo')}%, Satisfacción ${pesoDim('Satisfacción')}%). Escala 1–9. Se ordena por percentiles: P75→Proyecto, P50→Procesos, P25→Actividades.</p>
       <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Problema</th><th>Frec.</th><th>Tiem.</th><th>Cal.</th><th>Costo</th><th>Satisf.</th><th>Score</th><th>Nivel del plan</th><th></th></tr>${rows||'<tr><td colspan="9" style="color:var(--muted)">Sin problemas aún.</td></tr>'}</table></div>
-      <button class="pg-add" style="margin-top:8px" onclick="pgPrioAdd()">＋ Agregar problema</button>`;
+      <button class="pg-add" style="margin-top:8px" onclick="pgPrioAdd()">＋ Agregar problema</button>
+      <h5 style="margin:16px 0 4px;color:var(--teal)">📊 Diagrama de Pareto (pocos vitales · 80/20)</h5>
+      <p style="font-size:11px;color:var(--muted);margin:0 0 6px">Ordena los problemas por puntaje; la línea acumulada y el corte al <b>80%</b> identifican los <b>pocos vitales</b> a priorizar. Toma esos problemas principales por macroproceso para el cronograma (paso 12).</p>
+      <div style="overflow-x:auto">${pgParetoSVG()}</div>`;
   }
   if(k==='came'){
     return `<h4>♟️ Estrategias — Matriz CAME</h4>
