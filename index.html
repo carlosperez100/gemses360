@@ -2080,10 +2080,11 @@ function pgGenPorRol(){
 }
 async function pgAIGenPorRol(){
   if(!aiReady()){ toast('Habilita la IA en el módulo Asistente IA (admin)'); return; }
-  const cm=cargoMeta(USER.cargo);
-  if(!confirm('¿Generar un borrador del plan con IA para tu rol ('+cm.label+')?\nRedactará introducción, misión, visión, valores, objetivos y conclusiones (editable). No toca tu FODA ni tus indicadores.')) return;
+  const d0=pgData(); const cm=cargoMeta(d0.info.cargoKey||USER.cargo);
+  const ipress=(d0.info.ipress||USER.org||'—'), serv=(d0.info.unidad||USER.area||cm.scope||'—'), inst=(d0.info.institucion||'');
+  if(!confirm('¿Generar un borrador del plan '+(d0.codigo||'')+' con IA para el cargo '+cm.label+' ('+serv+')?\nRedactará introducción, misión, visión, valores, objetivos y conclusiones (editable). No toca tu FODA ni tus indicadores.')) return;
   toast('⏳ Generando borrador con IA…');
-  const prompt='Eres consultor experto en gestión de servicios de salud (Modelo GEMSES de Mg. Carlos Pérez). Redacta el borrador de un Plan de Gestión para el cargo "'+cm.label+'" (función en la pirámide GEMSES: '+cm.funcion+') en la IPRESS "'+(USER.org||'—')+'", área/servicio "'+(USER.area||cm.scope||'—')+'". Empieza misión/visión/objetivos con el verbo del rol ('+cm.funcion+'). Devuelve SOLO JSON, sin texto adicional: {"intro":"...","mision":"...","vision":"...","valores":["..."],"objetivos":[{"macro":"Estratégico|Misional|Soporte","general":"...","especifico":"...","meta":"..."}],"conclusiones":"..."}. Incluye 3 objetivos (uno por macroproceso) y máximo 5 valores. Enfoque GEMSES: atención humanizada, segura, continua, oportuna y eficiente; seguridad del paciente; uso de TIC; capacitación e investigación.';
+  const prompt='Eres consultor experto en gestión de servicios de salud (Modelo GEMSES de Mg. Carlos Pérez). Redacta el borrador de un Plan de Gestión para el cargo "'+cm.label+'" (función en la pirámide GEMSES: '+cm.funcion+') del servicio/área "'+serv+'" en la IPRESS "'+ipress+'"'+(inst?(' ('+inst+')'):'')+'. Empieza misión/visión/objetivos con el verbo del rol ('+cm.funcion+'); menciona el servicio y la IPRESS de forma concreta (no uses placeholders como XX). Devuelve SOLO JSON, sin texto adicional: {"intro":"...","mision":"...","vision":"...","valores":["..."],"objetivos":[{"macro":"Estratégico|Misional|Soporte","general":"...","especifico":"...","meta":"..."}],"conclusiones":"..."}. Incluye 3 objetivos (uno por macroproceso) y máximo 5 valores. Enfoque GEMSES: atención humanizada, segura, continua, oportuna y eficiente; seguridad del paciente; uso de TIC; capacitación e investigación.';
   try{
     const j=aiParseJSON(await llamarIA(prompt));
     if(!j||typeof j!=='object') throw new Error('respuesta no válida');
