@@ -1255,6 +1255,73 @@ function diagPestDel(i){ diagData().pestItems.splice(i,1); saveData(); renderDia
 function diagPestSet(i,campo,val){ const it=diagData().pestItems[i]; if(!it)return; if(campo==='e1'||campo==='e2'||campo==='e3'){ it[campo]=Math.max(0,Math.min(4,parseFloat(val)||0)); } else it[campo]=val; saveData(); renderDiagnostico(); }
 function diagPestSeed(){ if((diagData().pestItems||[]).length && !confirm('¿Reemplazar los factores PEST por los de ejemplo?'))return; diagData().pestItems=AUTODIAG_PEST_SEED.map(x=>({dim:x.dim,tipo:x.tipo,macro:'Estratégico',desc:x.desc,e1:0,e2:0,e3:0})); saveData(); renderDiagnostico(); toast('✓ Factores PEST de ejemplo'); }
 function diagPestProms(){ const arr=diagData().pestItems||[]; const p=arr.map(pgPestProm).filter(x=>x>0); return {n:arr.length,opp:arr.filter(x=>x.tipo!=='Amenaza').length,thr:arr.filter(x=>x.tipo==='Amenaza').length,impacto:p.length?Math.round(p.reduce((a,b)=>a+b,0)/p.length*10)/10:0}; }
+/* ---- Exportaciones del Diagnóstico: Word, Excel, PDF (informe compartido) ---- */
+function diagReportBody(){
+  const diag=diagData(), st=cadStats(diag.cadena), foda=fodaFromAuto(diag.cadena,diag.pestItems,null), ng=pgNivelGestion({foda}), sem=nivelSemaforo(ng.overall), ps=diagPestProms();
+  const org=escHtml(USER.org||'—'), aut=escHtml(USER.name||'—'), uni=escHtml(USER.area||'—');
+  const compRows=Object.values(st.comps).map(c=>`<tr><td>${escHtml(c.macro)}</td><td>${escHtml(c.comp)}</td><td style="text-align:center">${c.n}</td><td style="text-align:center">${c.pct}%</td></tr>`).join('');
+  const critRows=(diag.cadena||[]).map(x=>`<tr><td>${escHtml(x.macro)}</td><td>${escHtml(x.comp)}</td><td>${escHtml(x.crit)}</td><td style="text-align:center">${(+x.val||0)}/4</td></tr>`).join('');
+  const pestRows=(diag.pestItems||[]).map(it=>`<tr><td>${escHtml(it.dim)}</td><td>${escHtml(it.tipo)}</td><td>${escHtml(it.macro)}</td><td>${escHtml(it.desc)}</td><td style="text-align:center">${(+it.e1||0)} / ${(+it.e2||0)} / ${(+it.e3||0)}</td><td style="text-align:center">${pgPestProm(it)}</td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>';
+  const fodaRows=ng.macros.map(x=>`<tr><td>${escHtml(x.m)}</td><td style="text-align:center">${Math.round(x.F)}</td><td style="text-align:center">${Math.round(x.D)}</td><td style="text-align:center">${Math.round(x.O)}</td><td style="text-align:center">${Math.round(x.A)}</td><td style="text-align:center">${x.nivel==null?'—':x.nivel+'%'}</td></tr>`).join('');
+  return `<h1>Diagnóstico Estratégico GEMSES</h1>
+    <p class="muted">🏥 ${org} · ${uni} · Autor: ${aut} · ${slugFecha()}</p>
+    <h2>1. Resumen ejecutivo</h2>
+    <p><b>Nivel de Gestión: ${ng.overall==null?'—':ng.overall+'%'} — ${sem.t}</b> (${sem.d}).</p>
+    <p>Autodiagnóstico interno global: <b>${st.overall}%</b> (${st.n} criterios). PEST externo: ${ps.n} factores (${ps.opp} oportunidades / ${ps.thr} amenazas), impacto promedio ${ps.impacto}/4.</p>
+    <table><tr><th>Macroproceso</th><th>% interno</th><th>Nivel de Gestión</th></tr>${PG_MACROS.map(m=>{const x=ng.macros.find(y=>y.m===m);return `<tr><td>${m}</td><td style="text-align:center">${(st.macros[m]||{}).pct||0}%</td><td style="text-align:center">${x&&x.nivel!=null?x.nivel+'%':'—'}</td></tr>`;}).join('')}</table>
+    <h2>2. Autodiagnóstico de la cadena de valor (interno)</h2>
+    <p><b>Por componente:</b></p><table><tr><th>Macroproceso</th><th>Componente</th><th># Criterios</th><th>% Logro</th></tr>${compRows}</table>
+    <p><b>Detalle de criterios:</b></p><table><tr><th>Macroproceso</th><th>Componente</th><th>Criterio</th><th>Valoración</th></tr>${critRows}</table>
+    <h2>3. Autodiagnóstico PEST (externo, calificado por expertos)</h2>
+    <table><tr><th>Dimensión</th><th>Tipo</th><th>Macroproceso</th><th>Factor externo</th><th>Expertos (1/2/3)</th><th>Impacto</th></tr>${pestRows}</table>
+    <h2>4. FODA matemático (derivado)</h2>
+    <table><tr><th>Macroproceso</th><th>F×P</th><th>D×P</th><th>O×P</th><th>A×P</th><th>Nivel</th></tr>${fodaRows}</table>
+    <h2>5. Posicionamiento de la gestión</h2>
+    <p class="muted">Eje X (Debilidades→Fortalezas) ← autodiagnóstico interno · eje Y (Amenazas→Oportunidades) ← PEST externo.</p>
+    ${pgPosicionamientoSVG({foda})}
+    <p class="muted">Todos los resultados se derivan de una sola fuente (los dos formularios); Nivel 50% = punto neutro.</p>`;
+}
+function diagExportWord(){
+  const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Diagnóstico Estratégico GEMSES</title>'
+    +'<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#13294B}h1{font-size:20pt;margin:0}h2{font-size:14pt;color:#028090;border-bottom:1px solid #ccc;margin-top:16px}table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:6px 0}th,td{border:1px solid #aaa;padding:4px 6px;vertical-align:top}th{background:#13294B;color:#fff;text-align:left}.muted{color:#666;font-size:9pt}</style></head><body>'
+    +diagReportBody()+'</body></html>';
+  descargarArchivo('Diagnostico_Estrategico_GEMSES_'+slugFecha()+'.doc', html, 'application/msword');
+  toast('📄 Word exportado');
+}
+function diagExportPDF(){
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>Diagnóstico Estratégico GEMSES</title>'
+    +'<style>:root{--line:#d9dee3;--muted:#667}body{font-family:system-ui,Arial,sans-serif;font-size:12px;color:#13294B;margin:24px}h1{font-size:22px;margin:0}h2{font-size:15px;color:#028090;border-bottom:1px solid #ccc;margin-top:18px}table{border-collapse:collapse;width:100%;font-size:11px;margin:6px 0}th,td{border:1px solid #bbb;padding:4px 6px;vertical-align:top}th{background:#13294B;color:#fff;text-align:left}.muted{color:#667;font-size:11px}@media print{body{margin:0}}</style></head><body>'
+    +diagReportBody()+'</body></html>';
+  const w=window.open('','_blank'); if(!w){ toast('Permite ventanas emergentes para generar el PDF'); return; }
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(()=>{ try{w.print();}catch(e){} }, 400);
+  toast('Usa “Guardar como PDF” en el diálogo de impresión');
+}
+function diagExportExcel(){
+  const diag=diagData(), st=cadStats(diag.cadena), foda=fodaFromAuto(diag.cadena,diag.pestItems,null), ng=pgNivelGestion({foda}), sem=nivelSemaforo(ng.overall), ps=diagPestProms();
+  let res=xRow(['GEMSES360 — Diagnóstico Estratégico'])+xRow(['Institución',USER.org||'—'])+xRow(['Unidad / Área',USER.area||'—'])+xRow(['Autor',USER.name||'—'])+xRow(['Generado',slugFecha()])+xRow([])
+    +xRow(['Nivel de Gestión %', ng.overall==null?'':ng.overall])+xRow(['Lectura', sem.t+' — '+sem.d])
+    +xRow(['Autodiagnóstico interno global %', st.overall])+xRow(['Criterios', st.n])
+    +xRow(['Factores PEST', ps.n])+xRow(['Oportunidades', ps.opp])+xRow(['Amenazas', ps.thr])+xRow(['Impacto PEST promedio', ps.impacto])+xRow([])
+    +xHeadRow(['Macroproceso','% interno','Nivel de Gestión %'])
+    +PG_MACROS.map(m=>{const x=ng.macros.find(y=>y.m===m);return xRow([m,(st.macros[m]||{}).pct||0, x&&x.nivel!=null?x.nivel:'']);}).join('');
+  let cad=xHeadRow(['Macroproceso','Componente','Criterio','Valoración (0-4)']);
+  (diag.cadena||[]).forEach(x=>cad+=xRow([x.macro,x.comp,x.crit,(+x.val||0)]));
+  let comp=xHeadRow(['Macroproceso','Componente','# Criterios','% Logro']);
+  Object.values(st.comps).forEach(c=>comp+=xRow([c.macro,c.comp,c.n,c.pct]));
+  let pest=xHeadRow(['Dimensión','Tipo','Macroproceso','Factor externo','Exp1','Exp2','Exp3','Impacto']);
+  (diag.pestItems||[]).forEach(it=>pest+=xRow([it.dim,it.tipo,it.macro,it.desc,(+it.e1||0),(+it.e2||0),(+it.e3||0),pgPestProm(it)]));
+  let fd=xHeadRow(['Macroproceso','F×P','D×P','O×P','A×P','Neto','Nivel %']);
+  ng.macros.forEach(x=>fd+=xRow([x.m,Math.round(x.F),Math.round(x.D),Math.round(x.O),Math.round(x.A),Math.round(x.net),x.nivel==null?'':x.nivel]));
+  const wb='<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n'+
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">'+
+    '<Styles><Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>'+
+    '<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#13294B" ss:Pattern="Solid"/></Style></Styles>'+
+    xSheet('Resumen',res)+xSheet('Autodiagnóstico',cad)+xSheet('Por componente',comp)+xSheet('PEST',pest)+xSheet('FODA',fd)+
+    '</Workbook>';
+  descargarArchivo('Diagnostico_Estrategico_GEMSES_'+slugFecha()+'.xls', wb, 'application/vnd.ms-excel');
+  toast('📊 Excel exportado');
+}
 function renderDiagnostico(){
   const diag=diagData();
   const st=cadStats(diag.cadena);
@@ -1315,6 +1382,10 @@ function renderDiagnostico(){
       <p>Tablero de gestión: completa el <b>Autodiagnóstico</b> (interno) y el <b>PESTEL</b> (externo) y obtén el <b>FODA matemático</b>, el <b>Nivel de Gestión</b> y el <b>Posicionamiento</b>, todo derivado y estadísticamente consistente.</p>
       <div class="wstats"><div class="wstat"><b style="color:${pctC(st.overall)}">${st.overall}%</b><span>Autodiagnóstico interno</span></div><div class="wstat"><b style="color:${sem.c}">${ng.overall===null?'—':ng.overall+'%'}</b><span>Nivel de Gestión</span></div><div class="wstat"><b>${diag.pestItems.length}</b><span>Factores PEST</span></div></div>
     </div>
+    <div class="toolbar" style="margin-bottom:10px;gap:6px;flex-wrap:wrap"><span style="font-size:11px;color:var(--muted);font-weight:700">Exportar informe:</span>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="diagExportWord()">📄 Word</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="diagExportExcel()">📊 Excel</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="diagExportPDF()">🖨️ PDF</button></div>
     ${tabBar}${body}`;
 }
 function pgMonDel(i){ pgData().monitoreo.splice(i,1); saveData(); renderPlanGestion(); }
