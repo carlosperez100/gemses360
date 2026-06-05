@@ -526,6 +526,9 @@ const PRODUCTS = [
   {id:'maestras', name:'Tablas Maestras', icon:'🗂️', color:'linear-gradient(135deg,#5a6570,#13294B)',
    desc:'Catálogos maestros autogestionados (IPRESS, cargos, servicios, y librerías de autodiagnóstico, PESTEL, objetivos, actividades, indicadores) por profesión y nivel (IAFAS/IPRESS/UGIPRESS). Alimentan cada plan.',
    tags:['Catálogos','Librerías','Admin'], state:'active'},
+  {id:'configia', name:'Asistente IA', icon:'🤖', color:'linear-gradient(135deg,#13294B,#7A5BD6)',
+   desc:'Configuración de la inteligencia artificial (proveedor, modelo, clave) y habilitación de acceso. Solo el administrador; la IA queda deshabilitada para todos hasta que se habilite.',
+   tags:['IA','Configuración','Admin'], state:'active'},
   {id:'brecha', name:'Brecha de Personal', icon:'👥', color:'linear-gradient(135deg,#E0A21A,#F0B429)',
    desc:'Cálculo y proyección de la brecha de recursos humanos en salud según demanda, carga laboral y estándares de dotación.',
    tags:['RR.HH.','Dotación','Proyección'], state:'soon'},
@@ -820,7 +823,7 @@ function reabrirOnboarding(){ renderOnboarding(); }
 
 /* ---------- SHELL ---------- */
 function hasAccess(pid){
-  if(pid==='maestras') return !!(USER&&(USER.rol==='admin'||USER.verTodo===true));   // Tablas Maestras: solo admin
+  if(pid==='maestras'||pid==='configia') return !!(USER&&(USER.rol==='admin'||USER.verTodo===true));   // Tablas Maestras y Asistente IA: solo admin
   if(pid==='diagnostico') pid='plan';   // el Diagnóstico Estratégico hereda el acceso del Plan de Gestión
   if(!USER.access||!USER.access.includes(pid)) return false;
   const until=USER.accessUntil&&USER.accessUntil[pid];   // vigencia mensual (códigos)
@@ -865,6 +868,7 @@ function nav(v){
   if(p.id==='plan') return renderPlanGestion();
   if(p.id==='diagnostico') return renderDiagnostico();
   if(p.id==='maestras') return renderMaestras();
+  if(p.id==='configia') return renderConfigIA();
   return renderComingSoon(p);
 }
 
@@ -1630,7 +1634,7 @@ function diagExportExcel(){
   toast('📊 Excel exportado');
 }
 /* ---- Asistente IA del Diagnóstico (reusa llamarIA / AICFG) ---- */
-function aiReady(){ return !!(typeof AICFG==='object' && AICFG && (AICFG.key||'').trim()); }
+function aiReady(){ return !!(typeof AICFG==='object' && AICFG && (AICFG.key||'').trim()) && !!(typeof USER!=='undefined'&&USER&&(USER.rol==='admin'||USER.verTodo===true||AICFG.enabled===true)); }
 function aiParseJSON(txt){
   if(txt==null) return null; let s=String(txt).trim();
   s=s.replace(/^```[a-z]*\s*/i,'').replace(/```\s*$/,'').trim();
@@ -1655,7 +1659,7 @@ function diagContextText(){
 function aiSet2(el,html){ const e=document.getElementById(el); if(e) e.innerHTML=html; }
 async function diagAICopiloto(){
   if(!document.getElementById('diagAICopOut'))return;
-  if(!aiReady()){ aiSet2('diagAICopOut','<div class="ai-diag d-warn">Configura la IA en Informe → Asistente IA.</div>'); return; }
+  if(!aiReady()){ aiSet2('diagAICopOut','<div class="ai-diag d-warn">Habilita la IA en el módulo Asistente IA (admin).</div>'); return; }
   aiSet2('diagAICopOut','<div class="ai-diag">⏳ Analizando…</div>');
   const prompt='Eres consultor experto en gestión de servicios de salud (Modelo GEMSES de Mg. Carlos Pérez). Con base en este diagnóstico, en español y conciso: (1) lectura ejecutiva en 4-6 viñetas; (2) los 3 nudos críticos; (3) recomendaciones priorizadas y accionables. Usa los números.\n\n'+diagContextText();
   try{ const txt=await llamarIA(prompt); aiSet2('diagAICopOut','<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:#fafcff;white-space:pre-wrap;font-size:12.5px;line-height:1.55">'+esc(txt)+'</div>'); }
@@ -1663,7 +1667,7 @@ async function diagAICopiloto(){
 }
 async function diagAIValidar(){
   if(!document.getElementById('diagAIValOut'))return;
-  if(!aiReady()){ aiSet2('diagAIValOut','<div class="ai-diag d-warn">Configura la IA en Informe → Asistente IA.</div>'); return; }
+  if(!aiReady()){ aiSet2('diagAIValOut','<div class="ai-diag d-warn">Habilita la IA en el módulo Asistente IA (admin).</div>'); return; }
   aiSet2('diagAIValOut','<div class="ai-diag">⏳ Revisando…</div>');
   const prompt='Eres auditor de calidad de un diagnóstico estratégico (Modelo GEMSES). Evalúa consistencia y completitud y devuelve en español, conciso: (1) vacíos y riesgos del diagnóstico; (2) sesgos o desbalances (interno vs externo); (3) 3 acciones para mejorar la CALIDAD del diagnóstico. Evalúa, no repitas los datos.\n\n'+diagContextText();
   try{ const txt=await llamarIA(prompt); aiSet2('diagAIValOut','<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:#fffdf7;white-space:pre-wrap;font-size:12.5px;line-height:1.55">'+esc(txt)+'</div>'); }
@@ -1671,7 +1675,7 @@ async function diagAIValidar(){
 }
 async function diagAISugerirPest(){
   if(!document.getElementById('diagAISugOut'))return;
-  if(!aiReady()){ aiSet2('diagAISugOut','<div class="ai-diag d-warn">Configura la IA en Informe → Asistente IA.</div>'); return; }
+  if(!aiReady()){ aiSet2('diagAISugOut','<div class="ai-diag d-warn">Habilita la IA en el módulo Asistente IA (admin).</div>'); return; }
   aiSet2('diagAISugOut','<div class="ai-diag">⏳ Generando factores…</div>');
   const prompt='Propón entre 6 y 8 ítems para un cuestionario PEST (entorno) de esta IPRESS de salud en Perú: "'+(USER.org||'hospital')+'", área "'+(USER.area||'—')+'". Redáctalos como afirmaciones del entorno (preferiblemente factores de riesgo/adversos, en negativo) que se calificarán de 0 a 4. Devuelve SOLO un arreglo JSON sin texto adicional: [{"dim":"Político|Económico|Social|Tecnológico|Legal","crit":"..."}]. Equilibra las dimensiones.';
   try{
@@ -1685,7 +1689,7 @@ async function diagAISugerirPest(){
 }
 async function diagAIExtraer(){
   if(!document.getElementById('diagAIExtOut'))return;
-  if(!aiReady()){ aiSet2('diagAIExtOut','<div class="ai-diag d-warn">Configura la IA en Informe → Asistente IA.</div>'); return; }
+  if(!aiReady()){ aiSet2('diagAIExtOut','<div class="ai-diag d-warn">Habilita la IA en el módulo Asistente IA (admin).</div>'); return; }
   const src=((document.getElementById('diagAISrc')||{}).value||'').trim();
   if(src.length<20){ aiSet2('diagAIExtOut','<div class="ai-diag d-warn">Pega un texto más extenso para extraer.</div>'); return; }
   aiSet2('diagAIExtOut','<div class="ai-diag">⏳ Extrayendo…</div>');
@@ -1746,7 +1750,7 @@ function renderDiagnostico(){
       {ok:pestSinCalif===0, t:pestSinCalif===0?'Todos los ítems PEST calificados':pestSinCalif+' ítem(s) PEST sin calificar (valor 0)'},
       {ok:dimsFaltan.length===0, t:dimsFaltan.length===0?'Las '+PEST_Q_DIMS.length+' dimensiones PEST tienen respuesta':'Dimensiones PEST sin respuesta: '+dimsFaltan.join(', ')}
     ];
-    body=`${!aiOk?`<div class="ai-diag d-warn" style="margin-bottom:10px">⚙️ Para usar el Asistente IA, configura el proveedor y la clave de API en <b>Gestión de Indicadores → Informe → Asistente IA</b>. La clave se guarda solo en este navegador. Recomendado: trabajar con <b>datos despersonalizados</b> (sin nombres de pacientes).</div>`:''}
+    body=`${!aiOk?`<div class="ai-diag d-warn" style="margin-bottom:10px">⚙️ La IA está deshabilitada o sin clave. El administrador la configura y habilita en el módulo <b>🤖 Asistente IA</b>. Recomendado: trabajar con <b>datos despersonalizados</b> (sin nombres de pacientes).</div>`:''}
       <div class="detail-sec" style="background:var(--bg);margin-bottom:12px">
         <b style="font-size:12.5px">🔎 Validación rápida (en vivo)</b>
         <div style="margin-top:6px;font-size:12px">${checks.map(c=>`<div style="margin:3px 0;color:${c.ok?'var(--ok)':'var(--warn)'}">${c.ok?'✓':'⚠'} ${esc(c.t)}</div>`).join('')}</div>
@@ -2075,7 +2079,7 @@ function pgGenPorRol(){
   saveData(); pgStep='objetivos'; renderPlanGestion(); toast('✓ Plan base generado para tu rol ('+cm.funcion+')');
 }
 async function pgAIGenPorRol(){
-  if(!aiReady()){ toast('Configura la IA en Gestión de Indicadores → Informe → Asistente IA'); return; }
+  if(!aiReady()){ toast('Habilita la IA en el módulo Asistente IA (admin)'); return; }
   const cm=cargoMeta(USER.cargo);
   if(!confirm('¿Generar un borrador del plan con IA para tu rol ('+cm.label+')?\nRedactará introducción, misión, visión, valores, objetivos y conclusiones (editable). No toca tu FODA ni tus indicadores.')) return;
   toast('⏳ Generando borrador con IA…');
@@ -3230,7 +3234,7 @@ let PESOS=loadPesos();
 function pesoDim(d){return (typeof PESOS[d]==='number')?PESOS[d]:0;}
 /* Config de IA (clave la ingresa el usuario en la app; se guarda solo en su navegador) */
 const LS_AICFG='g360_ai_cfg';
-const AI_DEF={provider:'gemini',model:'gemini-2.5-flash',key:'',endpoint:''};
+const AI_DEF={provider:'gemini',model:'gemini-2.5-flash',key:'',endpoint:'',enabled:false};
 function loadAI(){try{const s=JSON.parse(lsGet(LS_AICFG));if(s&&typeof s==='object')return Object.assign({},AI_DEF,s);}catch(e){}return {...AI_DEF};}
 function saveAI(c){lsSet(LS_AICFG,JSON.stringify(c));}
 let AICFG=loadAI();
@@ -4034,6 +4038,40 @@ function aiInformeHTML(){
 }
 function aiSet(k,v){ if(USER.rol!=='admin')return; AICFG[k]=v; saveAI(AICFG); if(k==='provider'){renderInforme();} }
 function aiToggleKey(){ const e=document.getElementById('aiKey'); if(e)e.type=e.type==='password'?'text':'password'; }
+/* ---------- MÓDULO ADMIN: Asistente IA (configuración + habilitación de acceso) ---------- */
+function aiIsAdmin(){ return !!(USER&&(USER.rol==='admin'||USER.verTodo===true)); }
+function aiCfgSet(k,v){ if(!aiIsAdmin())return; AICFG[k]=v; saveAI(AICFG); if(k==='provider') renderConfigIA(); }
+function aiSetEnabled(v){ if(!aiIsAdmin())return; AICFG.enabled=!!v; saveAI(AICFG); renderConfigIA(); toast(AICFG.enabled?'✓ IA habilitada':'IA deshabilitada'); }
+function aiTest(){ const out=document.getElementById('aiCfgOut'); if(!out)return; if(!(AICFG.key||'').trim()){ out.innerHTML='<div class="ai-diag d-warn">Falta la clave de API.</div>'; return; }
+  out.innerHTML='<div class="ai-diag">⏳ Probando conexión…</div>';
+  llamarIA('Responde únicamente con la palabra LISTO').then(function(t){ const e=document.getElementById('aiCfgOut'); if(e)e.innerHTML='<div class="ai-diag" style="border-color:var(--ok);color:var(--ok)">✓ La IA respondió: "'+esc(String(t).trim().slice(0,60))+'" · '+esc(AICFG.provider)+' / '+esc(AICFG.model)+'</div>'; })
+  .catch(function(err){ const e=document.getElementById('aiCfgOut'); if(e)e.innerHTML='<div class="ai-diag d-bad">Error: '+esc(err.message||String(err))+'. Revisa el modelo o la clave.</div>'; });
+}
+function renderConfigIA(){
+  pgTitle.textContent='Asistente IA'; pgSub.textContent='Configuración y habilitación de la inteligencia artificial';
+  const provLabel={gemini:'Google Gemini',openai:'OpenAI',custom:'Personalizado (otro proveedor)'};
+  const provOpts=Object.keys(provLabel).map(k=>`<option value="${k}" ${AICFG.provider===k?'selected':''}>${provLabel[k]}</option>`).join('');
+  const tieneKey=!!(AICFG.key&&AICFG.key.trim()), on=AICFG.enabled===true;
+  content.innerHTML=`<div class="welcome" style="background:linear-gradient(135deg,#13294B,#7A5BD6)"><h2>🤖 Asistente IA — configuración</h2><p>Solo el <b>administrador</b> configura el proveedor y la clave. La IA queda <b>deshabilitada para todos</b> hasta que la habilites aquí. La clave se guarda solo en este navegador.</p></div>
+    <div class="detail-sec" style="max-width:760px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:var(--bg);border-radius:10px">
+        <b style="font-size:13px">Estado:</b>
+        <span style="font-weight:800;color:${on?'var(--ok)':'var(--bad)'}">${on?'● IA HABILITADA':'○ IA deshabilitada'}</span>
+        <span style="font-size:11px;color:var(--muted)">${tieneKey?'clave configurada':'sin clave'} · ${esc(AICFG.provider)} / ${esc(AICFG.model||'')}</span>
+        <div class="grow"></div>
+        <button class="btn ${on?'btn-ghost':'btn-primary'} btn-sm" style="width:auto" onclick="aiSetEnabled(${on?'false':'true'})">${on?'Deshabilitar IA':'Habilitar IA'}</button>
+      </div>
+      <div class="fgrid">
+        <div><label class="flbl">Proveedor</label><select class="fi" onchange="aiCfgSet('provider',this.value)">${provOpts}</select></div>
+        <div><label class="flbl">Modelo</label><input class="fi" value="${esc(AICFG.model||'')}" placeholder="gemini-2.5-flash" onchange="aiCfgSet('model',this.value)"><div style="font-size:10px;color:var(--muted);margin-top:3px">Gemini: <b>gemini-2.5-flash</b>, gemini-2.0-flash, gemini-2.5-pro.</div></div>
+        <div class="full"><label class="flbl">Clave de API</label><div style="display:flex;gap:6px"><input class="fi" id="aiKey" type="password" style="flex:1" value="${esc(AICFG.key||'')}" placeholder="Pega aquí tu API key (regenérala si la expusiste)" onchange="aiCfgSet('key',this.value)"><button type="button" onclick="aiToggleKey()" style="border:1px solid var(--line);background:#fff;border-radius:8px;width:38px;cursor:pointer">👁️</button></div></div>
+        <div class="full"><label class="flbl">Endpoint (opcional)</label><input class="fi" value="${esc(AICFG.endpoint||'')}" placeholder="Vacío = endpoint estándar del proveedor" onchange="aiCfgSet('endpoint',this.value)"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="aiTest()">⚡ Probar conexión</button></div>
+      <div id="aiCfgOut" style="margin-top:10px"></div>
+      <p style="font-size:10.5px;color:var(--muted);margin-top:12px"><b>Acceso:</b> mientras esté deshabilitada, ningún módulo (Borrador IA, Copiloto, Sugerir, Extracción, Validación) podrá usar la IA. El administrador siempre puede probar. <br>Privacidad: la clave queda en este navegador (no se sube al repositorio); para multiusuario real, lo ideal es un proxy/backend. No envíes datos identificables de pacientes.</p>
+    </div>`;
+}
 
 /* Construye el resumen textual del informe para enviarlo a la IA. */
 function resumenInformeTexto(){
