@@ -1322,6 +1322,78 @@ function diagExportExcel(){
   descargarArchivo('Diagnostico_Estrategico_GEMSES_'+slugFecha()+'.xls', wb, 'application/vnd.ms-excel');
   toast('📊 Excel exportado');
 }
+/* ---- Asistente IA del Diagnóstico (reusa llamarIA / AICFG) ---- */
+function aiReady(){ return !!(typeof AICFG==='object' && AICFG && (AICFG.key||'').trim()); }
+function aiParseJSON(txt){
+  if(txt==null) return null; let s=String(txt).trim();
+  s=s.replace(/^```[a-z]*\s*/i,'').replace(/```\s*$/,'').trim();
+  const tryParse=v=>{ try{ return JSON.parse(v); }catch(e){ return undefined; } };
+  let r=tryParse(s); if(r!==undefined) return r;
+  const a=s.indexOf('{'), b=s.lastIndexOf('}'); if(a>=0&&b>a){ r=tryParse(s.slice(a,b+1)); if(r!==undefined) return r; }
+  const a2=s.indexOf('['), b2=s.lastIndexOf(']'); if(a2>=0&&b2>a2){ r=tryParse(s.slice(a2,b2+1)); if(r!==undefined) return r; }
+  return null;
+}
+function diagContextText(){
+  const diag=diagData(), st=cadStats(diag.cadena), foda=fodaFromAuto(diag.cadena,diag.pestItems,null), ng=pgNivelGestion({foda}), sem=nivelSemaforo(ng.overall);
+  let t='Diagnóstico GEMSES — IPRESS: '+(USER.org||'—')+', área: '+(USER.area||'—')+'.\n';
+  t+='Nivel de Gestión: '+(ng.overall==null?'s/d':ng.overall+'%')+' ('+sem.t+'). Autodiagnóstico interno global: '+st.overall+'%.\n';
+  t+='Interno por macroproceso: '+PG_MACROS.map(m=>m+' '+((st.macros[m]||{}).pct||0)+'%').join(', ')+'.\n';
+  const comps=Object.values(st.comps).sort((a,b)=>a.pct-b.pct);
+  t+='Componentes más débiles: '+(comps.slice(0,5).map(c=>c.comp+' ('+c.pct+'%)').join(', ')||'—')+'.\n';
+  const opp=diag.pestItems.filter(p=>p.tipo!=='Amenaza').map(p=>p.desc).filter(Boolean);
+  const thr=diag.pestItems.filter(p=>p.tipo==='Amenaza').map(p=>p.desc).filter(Boolean);
+  t+='Oportunidades (PEST): '+(opp.join('; ')||'—')+'.\nAmenazas (PEST): '+(thr.join('; ')||'—')+'.\n';
+  return t;
+}
+function aiSet2(el,html){ const e=document.getElementById(el); if(e) e.innerHTML=html; }
+async function diagAICopiloto(){
+  if(!document.getElementById('diagAICopOut'))return;
+  if(!aiReady()){ aiSet2('diagAICopOut','<div class="ai-diag d-warn">Configura la IA en Informe → Asistente IA.</div>'); return; }
+  aiSet2('diagAICopOut','<div class="ai-diag">⏳ Analizando…</div>');
+  const prompt='Eres consultor experto en gestión de servicios de salud (Modelo GEMSES de Mg. Carlos Pérez). Con base en este diagnóstico, en español y conciso: (1) lectura ejecutiva en 4-6 viñetas; (2) los 3 nudos críticos; (3) recomendaciones priorizadas y accionables. Usa los números.\n\n'+diagContextText();
+  try{ const txt=await llamarIA(prompt); aiSet2('diagAICopOut','<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:#fafcff;white-space:pre-wrap;font-size:12.5px;line-height:1.55">'+esc(txt)+'</div>'); }
+  catch(err){ aiSet2('diagAICopOut','<div class="ai-diag d-bad">Error: '+esc(err.message||String(err))+'. Verifica clave/modelo.</div>'); }
+}
+async function diagAIValidar(){
+  if(!document.getElementById('diagAIValOut'))return;
+  if(!aiReady()){ aiSet2('diagAIValOut','<div class="ai-diag d-warn">Configura la IA en Informe → Asistente IA.</div>'); return; }
+  aiSet2('diagAIValOut','<div class="ai-diag">⏳ Revisando…</div>');
+  const prompt='Eres auditor de calidad de un diagnóstico estratégico (Modelo GEMSES). Evalúa consistencia y completitud y devuelve en español, conciso: (1) vacíos y riesgos del diagnóstico; (2) sesgos o desbalances (interno vs externo); (3) 3 acciones para mejorar la CALIDAD del diagnóstico. Evalúa, no repitas los datos.\n\n'+diagContextText();
+  try{ const txt=await llamarIA(prompt); aiSet2('diagAIValOut','<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:#fffdf7;white-space:pre-wrap;font-size:12.5px;line-height:1.55">'+esc(txt)+'</div>'); }
+  catch(err){ aiSet2('diagAIValOut','<div class="ai-diag d-bad">Error: '+esc(err.message||String(err))+'</div>'); }
+}
+async function diagAISugerirPest(){
+  if(!document.getElementById('diagAISugOut'))return;
+  if(!aiReady()){ aiSet2('diagAISugOut','<div class="ai-diag d-warn">Configura la IA en Informe → Asistente IA.</div>'); return; }
+  aiSet2('diagAISugOut','<div class="ai-diag">⏳ Generando factores…</div>');
+  const prompt='Propón entre 6 y 8 factores del entorno (análisis PEST) relevantes para esta IPRESS de salud en Perú: "'+(USER.org||'hospital')+'", área "'+(USER.area||'—')+'". Devuelve SOLO un arreglo JSON sin texto adicional: [{"dim":"Político|Económico|Social|Tecnológico|Ecológico|Legal","tipo":"Oportunidad|Amenaza","desc":"..."}]. Equilibra oportunidades y amenazas.';
+  try{
+    const arr=aiParseJSON(await llamarIA(prompt));
+    if(!Array.isArray(arr)||!arr.length) throw new Error('La IA no devolvió factores válidos');
+    const dd=diagData(); let add=0;
+    arr.forEach(o=>{ const desc=(o&&o.desc||'').toString().trim(); if(!desc)return; const dim=PEST_DIMS.includes(o.dim)?o.dim:'Político'; const tipo=(o.tipo==='Amenaza')?'Amenaza':'Oportunidad'; dd.pestItems.push({dim,tipo,macro:'Estratégico',desc,e1:0,e2:0,e3:0}); add++; });
+    if(!add) throw new Error('No se reconocieron factores');
+    saveData(); toast('✓ '+add+' factores PEST sugeridos — califícalos con tus expertos'); diagTab='pestel'; renderDiagnostico();
+  }catch(err){ aiSet2('diagAISugOut','<div class="ai-diag d-bad">Error: '+esc(err.message||String(err))+'</div>'); }
+}
+async function diagAIExtraer(){
+  if(!document.getElementById('diagAIExtOut'))return;
+  if(!aiReady()){ aiSet2('diagAIExtOut','<div class="ai-diag d-warn">Configura la IA en Informe → Asistente IA.</div>'); return; }
+  const src=((document.getElementById('diagAISrc')||{}).value||'').trim();
+  if(src.length<20){ aiSet2('diagAIExtOut','<div class="ai-diag d-warn">Pega un texto más extenso para extraer.</div>'); return; }
+  aiSet2('diagAIExtOut','<div class="ai-diag">⏳ Extrayendo…</div>');
+  const comps=[...new Set(diagData().cadena.map(x=>x.comp))];
+  const prompt='Analiza el TEXTO y extrae un diagnóstico de gestión en salud (Modelo GEMSES). Devuelve SOLO JSON sin explicaciones: {"componentes":[{"comp":"<uno de: '+comps.join(' | ')+'>","val":0}],"pest":[{"dim":"Político|Económico|Social|Tecnológico|Ecológico|Legal","tipo":"Oportunidad|Amenaza","macro":"Estratégico|Misional|Soporte","desc":"...","impacto":0}]}. val = nivel de cumplimiento del componente (0 nada … 4 excelente); impacto 0-4. No inventes lo que no esté en el TEXTO; omite los componentes sin información.\n\nTEXTO:\n'+src.slice(0,8000);
+  try{
+    const j=aiParseJSON(await llamarIA(prompt));
+    if(!j||typeof j!=='object') throw new Error('No se pudo interpretar la respuesta de la IA');
+    const dd=diagData(); let cChg=0,pAdd=0;
+    (j.componentes||[]).forEach(o=>{ const v=Math.max(0,Math.min(4,Math.round(+(o&&o.val)||0))); const comp=(o&&o.comp||'').toString().trim().toLowerCase(); if(!comp)return; let hit=false; dd.cadena.forEach(x=>{ if((x.comp||'').toLowerCase()===comp){ x.val=v; hit=true; } }); if(hit)cChg++; });
+    (j.pest||[]).forEach(o=>{ const desc=(o&&o.desc||'').toString().trim(); if(!desc)return; const dim=PEST_DIMS.includes(o.dim)?o.dim:'Político'; const tipo=(o.tipo==='Amenaza')?'Amenaza':'Oportunidad'; const macro=PG_MACROS.includes(o.macro)?o.macro:'Estratégico'; const imp=Math.max(0,Math.min(4,Math.round(+o.impacto||0))); dd.pestItems.push({dim,tipo,macro,desc,e1:imp,e2:imp,e3:imp}); pAdd++; });
+    if(!cChg&&!pAdd) throw new Error('No se encontraron datos extraíbles en el texto');
+    saveData(); toast('✓ Extraído: '+cChg+' componente(s) calificado(s), '+pAdd+' factor(es) PEST'); renderDiagnostico();
+  }catch(err){ aiSet2('diagAIExtOut','<div class="ai-diag d-bad">Error: '+esc(err.message||String(err))+'</div>'); }
+}
 function renderDiagnostico(){
   const diag=diagData();
   const st=cadStats(diag.cadena);
@@ -1329,7 +1401,7 @@ function renderDiagnostico(){
   const ng=pgNivelGestion({foda}); const sem=nivelSemaforo(ng.overall);
   const pctC=p=>p>=85?'var(--ok)':p>=60?'var(--warn)':'var(--bad)';
   const mcol={'Estratégico':'#1f6feb','Misional':'#e0a21a','Soporte':'#d64545'};
-  const tabs=[['cadena','🩺 Autodiagnóstico (interno)'],['pestel','🌐 PESTEL (externo)'],['resultados','📊 Resultados']];
+  const tabs=[['cadena','🩺 Autodiagnóstico (interno)'],['pestel','🌐 PESTEL (externo)'],['resultados','📊 Resultados'],['ia','🤖 Asistente IA']];
   const tabBar=`<div class="toolbar" style="gap:6px;margin-bottom:12px">${tabs.map(([k,l])=>`<button class="btn ${diagTab===k?'btn-primary':'btn-ghost'} btn-sm" style="width:auto" onclick="diagGo('${k}')">${l}</button>`).join('')}</div>`;
   let body='';
   if(diagTab==='cadena'){
@@ -1361,6 +1433,34 @@ function renderDiagnostico(){
       <div class="detail-sec" style="background:var(--bg);font-size:11.5px;margin-bottom:8px">Factores: <b>${ps.n}</b> · <span style="color:var(--ok);font-weight:700">${ps.opp} oportunidades</span> · <span style="color:var(--bad);font-weight:700">${ps.thr} amenazas</span> · Impacto promedio: <b>${ps.impacto}</b>/4</div>
       <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Dimensión</th><th>Tipo</th><th>Macro</th><th>Factor externo</th><th>Exp1</th><th>Exp2</th><th>Exp3</th><th>Impacto</th><th></th></tr>${rows||'<tr><td colspan="9" style="color:var(--muted)">Sin factores. Agrega o carga ejemplos.</td></tr>'}</table></div>
       <div style="display:flex;gap:8px;margin-top:8px"><button class="pg-add" style="margin:0" onclick="diagPestAdd()">＋ Agregar factor</button><button class="btn btn-ghost btn-sm" style="width:auto" onclick="diagPestSeed()">Sembrar ejemplos</button></div>`;
+  } else if(diagTab==='ia'){
+    const aiOk=aiReady();
+    const sinCalif=diag.cadena.filter(x=>(+x.val||0)===0).length;
+    const dimsUsadas=new Set(diag.pestItems.map(p=>p.dim));
+    const dimsFaltan=PEST_DIMS.filter(d=>!dimsUsadas.has(d));
+    const pestSinExp=diag.pestItems.filter(p=>pgPestProm(p)===0).length;
+    const checks=[
+      {ok:sinCalif===0, t:sinCalif===0?'Todos los criterios del autodiagnóstico calificados':sinCalif+' criterio(s) sin calificar (valor 0)'},
+      {ok:diag.pestItems.length>=4, t:diag.pestItems.length>=4?diag.pestItems.length+' factores PEST registrados':'Pocos factores PEST ('+diag.pestItems.length+') — agrega o sugiere con IA'},
+      {ok:dimsFaltan.length===0, t:dimsFaltan.length===0?'Las 6 dimensiones PEST tienen factores':'Dimensiones PEST sin factores: '+dimsFaltan.join(', ')},
+      {ok:pestSinExp===0, t:pestSinExp===0?'Todos los factores PEST calificados por expertos':pestSinExp+' factor(es) PEST sin calificación de expertos'}
+    ];
+    body=`${!aiOk?`<div class="ai-diag d-warn" style="margin-bottom:10px">⚙️ Para usar el Asistente IA, configura el proveedor y la clave de API en <b>Gestión de Indicadores → Informe → Asistente IA</b>. La clave se guarda solo en este navegador. Recomendado: trabajar con <b>datos despersonalizados</b> (sin nombres de pacientes).</div>`:''}
+      <div class="detail-sec" style="background:var(--bg);margin-bottom:12px">
+        <b style="font-size:12.5px">🔎 Validación rápida (en vivo)</b>
+        <div style="margin-top:6px;font-size:12px">${checks.map(c=>`<div style="margin:3px 0;color:${c.ok?'var(--ok)':'var(--warn)'}">${c.ok?'✓':'⚠'} ${esc(c.t)}</div>`).join('')}</div>
+        <button class="btn btn-ghost btn-sm" style="width:auto;margin-top:8px" onclick="diagAIValidar()">🤖 Revisión profunda con IA</button>
+        <div id="diagAIValOut" style="margin-top:8px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+        <div class="detail-sec"><b style="font-size:12.5px">🧭 Copiloto — lectura ejecutiva</b><p style="font-size:11px;color:var(--muted);margin:4px 0 8px">Diagnóstico ejecutivo, nudos críticos y recomendaciones priorizadas (GEMSES).</p><button class="btn btn-primary btn-sm" style="width:auto" onclick="diagAICopiloto()">Generar lectura</button><div id="diagAICopOut" style="margin-top:8px"></div></div>
+        <div class="detail-sec"><b style="font-size:12.5px">✨ Sugerir factores PEST</b><p style="font-size:11px;color:var(--muted);margin:4px 0 8px">La IA propone factores externos para tu IPRESS/área; tú los calificas con expertos.</p><button class="btn btn-primary btn-sm" style="width:auto" onclick="diagAISugerirPest()">Sugerir factores</button><div id="diagAISugOut" style="margin-top:8px"></div></div>
+      </div>
+      <div class="detail-sec" style="margin-top:12px"><b style="font-size:12.5px">📥 Extracción estructurada</b><p style="font-size:11px;color:var(--muted);margin:4px 0 8px">Pega un informe, acta o notas del servicio y la IA llena el autodiagnóstico (por componente) y los factores PEST.</p>
+        <textarea id="diagAISrc" class="fi" rows="6" placeholder="Pega aquí el documento, acta o notas del servicio…" style="font-family:inherit"></textarea>
+        <button class="btn btn-primary btn-sm" style="width:auto;margin-top:8px" onclick="diagAIExtraer()">Extraer y llenar formularios</button>
+        <div id="diagAIExtOut" style="margin-top:8px"></div>
+      </div>`;
   } else {
     const ngCards=ng.macros.map(x=>{const s=nivelSemaforo(x.nivel);
       return `<div style="flex:1;min-width:150px;border:1px solid var(--line);border-top:3px solid ${mcol[x.m]||'var(--navy)'};border-radius:10px;padding:10px 12px;background:var(--card)"><div style="font-weight:800;color:var(--navy);font-size:12.5px">${x.m}</div><div style="font-size:24px;font-weight:800;color:${s.c};line-height:1.15">${x.nivel===null?'—':x.nivel+'%'}</div><div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">🟢 F×P ${Math.round(x.F)} · O×P ${Math.round(x.O)}<br>🔴 D×P ${Math.round(x.D)} · A×P ${Math.round(x.A)}</div></div>`;}).join('');
@@ -1666,6 +1766,26 @@ function pgGenPorRol(){
   d.resumen='';
   saveData(); pgStep='objetivos'; renderPlanGestion(); toast('✓ Plan base generado para tu rol ('+cm.funcion+')');
 }
+async function pgAIGenPorRol(){
+  if(!aiReady()){ toast('Configura la IA en Gestión de Indicadores → Informe → Asistente IA'); return; }
+  const cm=cargoMeta(USER.cargo);
+  if(!confirm('¿Generar un borrador del plan con IA para tu rol ('+cm.label+')?\nRedactará introducción, misión, visión, valores, objetivos y conclusiones (editable). No toca tu FODA ni tus indicadores.')) return;
+  toast('⏳ Generando borrador con IA…');
+  const prompt='Eres consultor experto en gestión de servicios de salud (Modelo GEMSES de Mg. Carlos Pérez). Redacta el borrador de un Plan de Gestión para el cargo "'+cm.label+'" (función en la pirámide GEMSES: '+cm.funcion+') en la IPRESS "'+(USER.org||'—')+'", área/servicio "'+(USER.area||cm.scope||'—')+'". Empieza misión/visión/objetivos con el verbo del rol ('+cm.funcion+'). Devuelve SOLO JSON, sin texto adicional: {"intro":"...","mision":"...","vision":"...","valores":["..."],"objetivos":[{"macro":"Estratégico|Misional|Soporte","general":"...","especifico":"...","meta":"..."}],"conclusiones":"..."}. Incluye 3 objetivos (uno por macroproceso) y máximo 5 valores. Enfoque GEMSES: atención humanizada, segura, continua, oportuna y eficiente; seguridad del paciente; uso de TIC; capacitación e investigación.';
+  try{
+    const j=aiParseJSON(await llamarIA(prompt));
+    if(!j||typeof j!=='object') throw new Error('respuesta no válida');
+    const d=pgData();
+    if(j.intro) d.intro=String(j.intro);
+    if(j.mision) d.mision=String(j.mision);
+    if(j.vision) d.vision=String(j.vision);
+    if(Array.isArray(j.valores)&&j.valores.length) d.valores=j.valores.map(String).slice(0,6);
+    if(Array.isArray(j.objetivos)&&j.objetivos.length) d.objetivos=j.objetivos.map(o=>({macro:PG_MACROS.includes(o&&o.macro)?o.macro:'Estratégico',general:String((o&&o.general)||''),especifico:String((o&&o.especifico)||''),meta:String((o&&o.meta)||'')}));
+    if(j.conclusiones) d.conclusiones=String(j.conclusiones);
+    if(!d.info.cargo) d.info.cargo=cm.label;
+    saveData(); pgStep='filosofia'; renderPlanGestion(); toast('✓ Borrador del plan generado con IA — revísalo y ajústalo');
+  }catch(err){ toast('No se pudo generar: '+(err.message||String(err))); }
+}
 function pgGenResumen(){
   const d=pgData();
   let t=`PLAN DE GESTIÓN — ${d.info.unidad||'Unidad'} · ${d.info.ipress||'Institución'}\n`;
@@ -1697,6 +1817,7 @@ function renderPlanGestion(){
     <div class="toolbar"><div class="ab-hosp">📋 Plan de Gestión — <b>${esc(d.info.unidad||'tu unidad')}</b></div>
       <div class="grow"></div>
       <button class="btn btn-primary btn-sm" style="width:auto" onclick="pgGenPorRol()">🧩 Generar según mi rol</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgAIGenPorRol()">🤖 Borrador IA</button>
       <select class="btn btn-ghost btn-sm" style="width:auto" onchange="if(this.value){pgSeedFrom(this.value);this.value='';}">
         <option value="">✨ Plantilla pre-armada…</option>
         <option value="hmc">Hospital Militar Central — Supervisión de Enfermería</option>
