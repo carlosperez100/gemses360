@@ -853,6 +853,20 @@ const PG_SECTIONS=[
   {k:'resumen',label:'17· Resumen ejecutivo',ic:'📄'}
 ];
 const PESTEL_DIMS=[['politico','Político'],['economico','Económico'],['social','Social'],['tecnologico','Tecnológico'],['ecologico','Ecológico / Ambiental'],['legal','Legal']];
+const PEST_DIMS=['Político','Económico','Social','Tecnológico','Ecológico','Legal'];
+/* Autodiagnóstico PEST — factores externos calificados por expertos (0–4). Insumo de Oportunidades/Amenazas del FODA */
+const AUTODIAG_PEST_SEED=[
+  {dim:'Político',tipo:'Oportunidad',desc:'Políticas de modernización del Estado y gobierno digital en salud'},
+  {dim:'Político',tipo:'Amenaza',desc:'Inestabilidad política y rotación de autoridades del sector'},
+  {dim:'Económico',tipo:'Oportunidad',desc:'Financiamiento por resultados y cooperación técnica/internacional'},
+  {dim:'Económico',tipo:'Amenaza',desc:'Restricción o recorte del presupuesto público en salud'},
+  {dim:'Social',tipo:'Oportunidad',desc:'Participación ciudadana y cultura de seguridad del paciente'},
+  {dim:'Social',tipo:'Amenaza',desc:'Aumento de la demanda y expectativas de los asegurados'},
+  {dim:'Tecnológico',tipo:'Oportunidad',desc:'Telemedicina, historia clínica electrónica e interoperabilidad'},
+  {dim:'Tecnológico',tipo:'Amenaza',desc:'Obsolescencia tecnológica y brechas de equipamiento'},
+  {dim:'Ecológico',tipo:'Amenaza',desc:'Gestión de residuos hospitalarios y riesgos sanitario-ambientales'},
+  {dim:'Legal',tipo:'Oportunidad',desc:'Normativa de calidad y acreditación (estándares JCI / SUSALUD)'}
+];
 const RRHH_GRADOS=['Jefa de Departamento','Supervisoras','Jefas de UUHH','Enfermeras','Técnicas de enfermería','Auxiliares de enfermería','CAS / Locadores'];
 /* Autodiagnóstico de la cadena de valor — escala GEMSES 0–4 (libro, Cap. 9) */
 const AUTODIAG_SCALE=[
@@ -963,6 +977,8 @@ function pgData(){
   if(!Array.isArray(d.autodiag.cadena)) d.autodiag.cadena=[];
   if(d.autodiag.cadSeeded===undefined) d.autodiag.cadSeeded=false;
   d.pestel=d.pestel||{politico:'',economico:'',social:'',tecnologico:'',ecologico:'',legal:''};
+  if(!Array.isArray(d.pestItems)) d.pestItems=[];
+  d.pestItems.forEach(it=>{ if(it.dim===undefined)it.dim='Político'; if(it.tipo===undefined)it.tipo='Oportunidad'; if(it.macro===undefined)it.macro='Estratégico'; ['e1','e2','e3'].forEach(k=>{ if(it[k]===undefined)it[k]=0; }); });
   d.intro=d.intro||'';
   d.mision=d.mision||''; d.vision=d.vision||''; d.valores=d.valores||[];
   d.objetivos=d.objetivos||[];
@@ -1015,16 +1031,31 @@ function pgFodaDesdeAuto(){
     fors.forEach(x=>foda[m].F.push({t:x.crit, peso:0, val:(+x.val||0)}));      // intensidad: 2,3,4
     ajustaPesos100(foda[m].D); ajustaPesos100(foda[m].F);
   });
-  const negRe=/(amenaza|riesgo|d[eé]ficit|falta|escas|recorte|crisis|demora|insuficien|reducc|conflicto|rotaci[oó]n|fuga|desabastec|inflaci|hostil|barrera|restricc|sanci|carenc|limitad|brecha|sobredemanda|sobrecarga|disminu|p[eé]rdida)/i;
-  const lines=[]; PESTEL_DIMS.forEach(([k])=>{ (d.pestel[k]||'').split(/\n|•|·|;|•|\.\s/).map(s=>s.trim()).filter(s=>s.length>4).forEach(s=>lines.push(s)); });
-  const opp=[],thr=[]; lines.forEach(s=>{ (negRe.test(s)?thr:opp).push(s); });
-  const mT='Estratégico';
-  opp.slice(0,6).forEach(s=>foda[mT].O.push({t:s, peso:0, val:2}));
-  thr.slice(0,6).forEach(s=>foda[mT].A.push({t:s, peso:0, val:2}));
-  ajustaPesos100(foda[mT].O); ajustaPesos100(foda[mT].A);
+  const pestI=d.pestItems||[];
+  if(pestI.length){
+    // PEST puntuado por expertos → O/A con impacto exacto, al macroproceso indicado
+    pestI.forEach(it=>{ if(!(it.desc||'').trim())return; const m=PG_MACROS.includes(it.macro)?it.macro:'Estratégico'; const q=(it.tipo==='Amenaza')?'A':'O'; const imp=Math.max(0,Math.min(4,Math.round(pgPestProm(it)))); foda[m][q].push({t:it.desc, peso:0, val:imp||2}); });
+    PG_MACROS.forEach(m=>{ ajustaPesos100(foda[m].O); ajustaPesos100(foda[m].A); });
+  } else {
+    // Fallback: heurística sobre el PESTEL de texto libre (en Estratégico)
+    const negRe=/(amenaza|riesgo|d[eé]ficit|falta|escas|recorte|crisis|demora|insuficien|reducc|conflicto|rotaci[oó]n|fuga|desabastec|inflaci|hostil|barrera|restricc|sanci|carenc|limitad|brecha|sobredemanda|sobrecarga|disminu|p[eé]rdida)/i;
+    const lines=[]; PESTEL_DIMS.forEach(([k])=>{ (d.pestel[k]||'').split(/\n|•|·|;|\.\s/).map(s=>s.trim()).filter(s=>s.length>4).forEach(s=>lines.push(s)); });
+    const opp=[],thr=[]; lines.forEach(s=>{ (negRe.test(s)?thr:opp).push(s); });
+    const mT='Estratégico';
+    opp.slice(0,6).forEach(s=>foda[mT].O.push({t:s, peso:0, val:2}));
+    thr.slice(0,6).forEach(s=>foda[mT].A.push({t:s, peso:0, val:2}));
+    ajustaPesos100(foda[mT].O); ajustaPesos100(foda[mT].A);
+  }
   d.foda=foda; saveData(); renderPlanGestion();
   toast('✓ FODA generado desde los autodiagnósticos — revisa pesos, redacción y reparte O/A por macroproceso');
 }
+/* ---------- Autodiagnóstico PEST (puntuado por expertos 0–4) ---------- */
+function pgPestProm(it){ const v=[+it.e1||0,+it.e2||0,+it.e3||0].filter(x=>x>0); return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:0; }
+function pgPestAdd(){ pgData().pestItems.push({dim:'Político',tipo:'Oportunidad',macro:'Estratégico',desc:'',e1:0,e2:0,e3:0}); saveData(); renderPlanGestion(); }
+function pgPestDel(i){ pgData().pestItems.splice(i,1); saveData(); renderPlanGestion(); }
+function pgPestSet(i,campo,val){ const it=pgData().pestItems[i]; if(!it)return; if(campo==='e1'||campo==='e2'||campo==='e3'){ it[campo]=Math.max(0,Math.min(4,parseFloat(val)||0)); } else it[campo]=val; saveData(); renderPlanGestion(); }
+function pgPestSeed(){ const d=pgData(); if((d.pestItems||[]).length && !confirm('Reemplazar los factores PEST actuales por los de ejemplo?')) return; d.pestItems=AUTODIAG_PEST_SEED.map(x=>({dim:x.dim,tipo:x.tipo,macro:'Estratégico',desc:x.desc,e1:0,e2:0,e3:0})); saveData(); renderPlanGestion(); toast('✓ Factores PEST de ejemplo cargados — califícalos con tus expertos (0–4)'); }
+function pgPestStats(){ const arr=pgData().pestItems||[]; const opp=arr.filter(x=>x.tipo!=='Amenaza').length, thr=arr.filter(x=>x.tipo==='Amenaza').length; const proms=arr.map(pgPestProm).filter(x=>x>0); const imp=proms.length?Math.round(proms.reduce((a,b)=>a+b,0)/proms.length*10)/10:0; return {n:arr.length,opp,thr,impacto:imp}; }
 function pgZona(m){
   const F=fodaSum(m,'F'),D=fodaSum(m,'D'),O=fodaSum(m,'O'),A=fodaSum(m,'A');
   const interno=F-D, externo=O-A;
@@ -1498,7 +1529,7 @@ function pgStepDone(k){ const d=pgData();
   switch(k){
     case 'info': return !!(d.info.ipress&&d.info.autor);
     case 'autodiag': return d.autodiag.cadena.some(x=>(+x.val||0)>0)||!!(d.autodiag.rrhh.length||d.autodiag.indicadores||d.dotacion.cap);
-    case 'pestel': return PESTEL_DIMS.some(([k2])=>d.pestel[k2]);
+    case 'pestel': return PESTEL_DIMS.some(([k2])=>d.pestel[k2]) || (d.pestItems&&d.pestItems.length>0);
     case 'intro': return !!d.intro;
     case 'filosofia': return !!(d.mision&&d.vision&&d.valores.length);
     case 'objetivos': return d.objetivos.length>0;
@@ -1629,9 +1660,27 @@ function pgSectionHTML(k){
   }
   if(k==='pestel'){
     const boxes=PESTEL_DIMS.map(([key,lbl])=>`<div><label class="flbl">${lbl}</label><textarea class="fi" rows="3" placeholder="Factores ${lbl.toLowerCase()} del entorno…" onchange="pgField('pestel.${key}',this.value)">${esc(d.pestel[key])}</textarea></div>`).join('');
+    const ps=pgPestStats();
+    const pestRows=(d.pestItems||[]).map((it,i)=>{const prom=pgPestProm(it); const pc=it.tipo==='Amenaza'?'var(--bad)':'var(--ok)';
+      return `<tr>
+        <td><select class="fi" style="padding:5px;font-size:11px" onchange="pgPestSet(${i},'dim',this.value)">${PEST_DIMS.map(dd=>`<option ${it.dim===dd?'selected':''}>${dd}</option>`).join('')}</select></td>
+        <td><select class="fi" style="padding:5px;font-size:11px;color:${pc};font-weight:700" onchange="pgPestSet(${i},'tipo',this.value)"><option ${it.tipo!=='Amenaza'?'selected':''}>Oportunidad</option><option ${it.tipo==='Amenaza'?'selected':''}>Amenaza</option></select></td>
+        <td><select class="fi" style="padding:5px;font-size:11px" onchange="pgPestSet(${i},'macro',this.value)">${PG_MACROS.map(m=>`<option ${it.macro===m?'selected':''}>${m}</option>`).join('')}</select></td>
+        <td><input class="fi" style="padding:5px;font-size:11.5px;min-width:160px" value="${esc(it.desc)}" placeholder="Factor externo" onchange="pgPestSet(${i},'desc',this.value)"></td>
+        <td><input class="fi" type="number" min="0" max="4" style="padding:5px;width:46px;font-size:11.5px" value="${+it.e1||0}" onchange="pgPestSet(${i},'e1',this.value)"></td>
+        <td><input class="fi" type="number" min="0" max="4" style="padding:5px;width:46px;font-size:11.5px" value="${+it.e2||0}" onchange="pgPestSet(${i},'e2',this.value)"></td>
+        <td><input class="fi" type="number" min="0" max="4" style="padding:5px;width:46px;font-size:11.5px" value="${+it.e3||0}" onchange="pgPestSet(${i},'e3',this.value)"></td>
+        <td style="text-align:center;font-weight:800;color:${pc}">${prom}</td>
+        <td style="text-align:center"><a onclick="pgPestDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`;}).join('');
     return `<h4>🌐 Análisis PESTEL (entorno externo)</h4>
       <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">Analiza el macroentorno por dimensión. Los factores que detectes aquí alimentan las <b>Oportunidades y Amenazas</b> del FODA (paso 8).</p>
-      <div class="fgrid">${boxes}</div>`;
+      <h5 style="margin:4px 0 4px;color:var(--teal)">📝 Notas cualitativas por dimensión</h5>
+      <div class="fgrid">${boxes}</div>
+      <h5 style="margin:16px 0 4px;color:var(--teal)">📊 Autodiagnóstico PEST (puntuado por expertos 0–4)</h5>
+      <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Cada factor externo se califica de <b>0 a 4 por hasta 3 expertos</b>; el promedio es su <b>impacto</b>. Marca si es <b>Oportunidad</b> o <b>Amenaza</b> y a qué macroproceso alimenta. Al generar el FODA (paso 8) estos factores producen las O/A con su impacto exacto.</p>
+      <div class="detail-sec" style="background:var(--bg);font-size:11.5px;margin-bottom:8px">Factores: <b>${ps.n}</b> · <span style="color:var(--ok);font-weight:700">${ps.opp} oportunidades</span> · <span style="color:var(--bad);font-weight:700">${ps.thr} amenazas</span> · Impacto promedio: <b>${ps.impacto}</b>/4</div>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Dimensión</th><th>Tipo</th><th>Macro</th><th>Factor externo</th><th>Exp1</th><th>Exp2</th><th>Exp3</th><th>Impacto</th><th></th></tr>${pestRows||'<tr><td colspan="9" style="color:var(--muted)">Aún no hay factores PEST. Agrégalos o carga ejemplos.</td></tr>'}</table></div>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="pg-add" style="margin:0" onclick="pgPestAdd()">＋ Agregar factor</button><button class="btn btn-ghost btn-sm" style="width:auto" onclick="pgPestSeed()">Sembrar ejemplos</button></div>`;
   }
   if(k==='foda'){
     const macroBlocks=PG_MACROS.map(m=>{
@@ -1823,6 +1872,7 @@ function exportPlanWord(){
   const monRows=d.monitoreo.map(m=>`<tr><td>${escHtml(m.indicador)}</td><td>${escHtml(m.formula)}</td><td>${escHtml(m.fuente)}</td><td>${escHtml(m.estandar)}</td><td>${escHtml(m.periodo)}</td><td>${escHtml(m.responsable)}</td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>';
   const rrhhRows=(d.autodiag.rrhh||[]).map(x=>{const c=+x.cap||0,e=+x.efectivo||0;return `<tr><td>${escHtml(x.grado)}</td><td style="text-align:center">${c}</td><td style="text-align:center">${e}</td><td style="text-align:center">${+x.necesidad||0}</td><td style="text-align:center">${c?Math.round(e/c*100):0}%</td><td style="text-align:center">${c?Math.round((c-e)/c*100):0}%</td></tr>`;}).join('');
   const pestelBlock=PESTEL_DIMS.filter(([k2])=>d.pestel[k2]).map(([k2,lbl])=>`<p><b>${lbl}:</b> ${escHtml(d.pestel[k2])}</p>`).join('');
+  const pestRowsW=(d.pestItems||[]).map(it=>`<tr><td>${escHtml(it.dim)}</td><td>${escHtml(it.tipo)}</td><td>${escHtml(it.macro)}</td><td>${escHtml(it.desc)}</td><td style="text-align:center">${(+it.e1||0)} / ${(+it.e2||0)} / ${(+it.e3||0)}</td><td style="text-align:center">${pgPestProm(it)}</td></tr>`).join('');
   const seg=pgSegStats();
   const cronoSegRows=d.crono.map(c=>`<tr><td>${escHtml(c.actividad)}</td><td>${escHtml(c.responsable)}</td><td>${escHtml(c.estado||'')}</td><td style="text-align:center">${+c.avance||0}%</td></tr>`).join('');
   const indSegRows=d.monitoreo.map(o=>{const lg=pgMonLogro(o); const ult=o.med&&o.med.length?o.med[o.med.length-1]:null; return `<tr><td>${escHtml(o.indicador)}</td><td style="text-align:center">${+o.meta||0}</td><td style="text-align:center">${ult?escHtml(ult.p)+': '+escHtml(String(ult.v)):'—'}</td><td style="text-align:center">${lg==null?'—':lg+'%'}</td></tr>`;}).join('');
@@ -1858,7 +1908,8 @@ function exportPlanWord(){
   <p><b>Dotación de RR.HH.:</b> Requerimiento CAP ${(+d.dotacion.cap||0)} · Efectivo real ${(+d.dotacion.actual||0)} · <b>Brecha ${((+d.dotacion.cap||0)-(+d.dotacion.actual||0))} puestos</b></p>
   ${d.diag.recursosInst?`<p><b>Recursos / infraestructura:</b> ${escHtml(d.diag.recursosInst)} ${escHtml(d.diag.recursosMat||'')} ${escHtml(d.diag.infraestructura||'')}</p>`:''}
   <p><b>Análisis interno:</b> ${escHtml(d.diagInterno)}</p><p><b>Análisis externo:</b> ${escHtml(d.diagExterno)}</p>
-  ${pestelBlock?`<h2>Análisis PESTEL (entorno externo)</h2>${pestelBlock}`:''}
+  ${(pestelBlock||pestRowsW)?`<h2>Análisis PESTEL (entorno externo)</h2>${pestelBlock}
+    ${pestRowsW?`<h3>Autodiagnóstico PEST (puntuado por expertos)</h3><table><tr><th>Dimensión</th><th>Tipo</th><th>Macroproceso</th><th>Factor externo</th><th>Expertos (1/2/3)</th><th>Impacto</th></tr>${pestRowsW}</table>`:''}`:''}
   <h2>5. FODA matemático por macroproceso</h2>${fodaBlocks}
   <h3>Posicionamiento de la gestión (modelo GEMSES)</h3>
   <p class="muted">Confluyen el análisis interno y el externo — eje X (Debilidades→Fortalezas) del Autodiagnóstico de Cadena; eje Y (Amenazas→Oportunidades) del PEST. DA = punto en zona de riesgo; FO = punto en ventaja competitiva.</p>
