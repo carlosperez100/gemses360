@@ -520,6 +520,9 @@ const PRODUCTS = [
   {id:'plan', name:'Plan de Gestión', icon:'📋', color:'linear-gradient(135deg,#0C1B2E,#13294B)',
    desc:'Elaboración del Plan de Gestión para concursos directivos: diagnóstico, objetivos, estrategias e indicadores alineados al Modelo GEMSES.',
    tags:['Concursos','Diagnóstico','Estrategia'], state:'soon'},
+  {id:'diagnostico', name:'Diagnóstico Estratégico', icon:'🔬', color:'linear-gradient(135deg,#13294B,#028090)',
+   desc:'Tablero tipo Power BI: autodiagnóstico de la cadena (interno) + PESTEL por expertos (externo) → FODA matemático, Nivel de Gestión y Posicionamiento, todo derivado y estadísticamente consistente.',
+   tags:['Autodiagnóstico','PESTEL','FODA','Posicionamiento'], state:'active'},
   {id:'brecha', name:'Brecha de Personal', icon:'👥', color:'linear-gradient(135deg,#E0A21A,#F0B429)',
    desc:'Cálculo y proyección de la brecha de recursos humanos en salud según demanda, carga laboral y estándares de dotación.',
    tags:['RR.HH.','Dotación','Proyección'], state:'soon'},
@@ -566,7 +569,7 @@ function saveData(){lsSet(LS_DATA,JSON.stringify(DB))}
 /* ---------- Seed usuarios por defecto (idempotente, se asegura en cada carga) ---------- */
 function seedUsers(){
   let us=loadUsers(), changed=false;
-  const ACC=['formacion','indicadores','pae','plan','brecha','programacion','tablero'];
+  const ACC=['formacion','indicadores','pae','plan','diagnostico','brecha','programacion','tablero'];
   // Demo: VISTA GLOBAL (ve todos los registros) — como está hoy
   const dem=us.find(u=>u.email==='demo@gemses360.com');
   if(!dem){
@@ -709,6 +712,7 @@ function reabrirOnboarding(){ renderOnboarding(); }
 
 /* ---------- SHELL ---------- */
 function hasAccess(pid){
+  if(pid==='diagnostico') pid='plan';   // el Diagnóstico Estratégico hereda el acceso del Plan de Gestión
   if(!USER.access||!USER.access.includes(pid)) return false;
   const until=USER.accessUntil&&USER.accessUntil[pid];   // vigencia mensual (códigos)
   if(until && until < todayISO()) return false;          // acceso expirado
@@ -750,6 +754,7 @@ function nav(v){
   if(p.id==='indicadores') return renderIndicadores();
   if(p.id==='formacion') return renderFormacion();
   if(p.id==='plan') return renderPlanGestion();
+  if(p.id==='diagnostico') return renderDiagnostico();
   return renderComingSoon(p);
 }
 
@@ -1017,11 +1022,9 @@ function fodaSum(m,q){ return pgData().foda[m][q].reduce((a,x)=>a+(x.peso*x.val)
 function fodaPesoSum(m,q){ return pgData().foda[m][q].reduce((a,x)=>a+(+x.peso||0),0); }
 /* Auto-poblar el FODA: D/F ← Autodiagnóstico de Cadena (interno) · O/A ← PESTEL (externo). Aquí confluyen ambos análisis. */
 function ajustaPesos100(arr){ if(!arr.length)return; let s=arr.reduce((a,x)=>a+(+x.peso||0),0); if(s<=0){ const e=Math.floor(100/arr.length); arr.forEach(x=>x.peso=e); s=e*arr.length; } arr[arr.length-1].peso=(+arr[arr.length-1].peso||0)+(100-s); }
-function pgFodaDesdeAuto(){
-  const d=pgData(); const cad=d.autodiag.cadena||[];
-  const hayCad=cad.some(x=>(+x.val||0)>0||(x.crit||'').trim()); const hayPest=PESTEL_DIMS.some(([k])=>(d.pestel[k]||'').trim());
-  if(!hayCad&&!hayPest){ toast('Completa primero el Autodiagnóstico de Cadena (paso 2) y/o el PESTEL (paso 7)'); return; }
-  if(!confirm('Se regenerará el FODA matemático:\n• Debilidades/Fortalezas ← Autodiagnóstico de Cadena\n• Oportunidades/Amenazas ← PESTEL\nEsto reemplaza el FODA actual. ¿Continuar?')) return;
+/* Constructor PURO del FODA matemático: D/F ← cadena (interno), O/A ← PEST puntuado (externo). Fuente única de verdad → consistencia. */
+function fodaFromAuto(cad, pestI, pestelText){
+  cad=cad||[]; pestI=pestI||[];
   const foda={}; PG_MACROS.forEach(m=>foda[m]={D:[],A:[],F:[],O:[]});
   PG_MACROS.forEach(m=>{
     const items=cad.filter(x=>x.macro===m && (x.crit||'').trim());
@@ -1031,22 +1034,26 @@ function pgFodaDesdeAuto(){
     fors.forEach(x=>foda[m].F.push({t:x.crit, peso:0, val:(+x.val||0)}));      // intensidad: 2,3,4
     ajustaPesos100(foda[m].D); ajustaPesos100(foda[m].F);
   });
-  const pestI=d.pestItems||[];
   if(pestI.length){
-    // PEST puntuado por expertos → O/A con impacto exacto, al macroproceso indicado
     pestI.forEach(it=>{ if(!(it.desc||'').trim())return; const m=PG_MACROS.includes(it.macro)?it.macro:'Estratégico'; const q=(it.tipo==='Amenaza')?'A':'O'; const imp=Math.max(0,Math.min(4,Math.round(pgPestProm(it)))); foda[m][q].push({t:it.desc, peso:0, val:imp||2}); });
     PG_MACROS.forEach(m=>{ ajustaPesos100(foda[m].O); ajustaPesos100(foda[m].A); });
-  } else {
-    // Fallback: heurística sobre el PESTEL de texto libre (en Estratégico)
+  } else if(pestelText){
     const negRe=/(amenaza|riesgo|d[eé]ficit|falta|escas|recorte|crisis|demora|insuficien|reducc|conflicto|rotaci[oó]n|fuga|desabastec|inflaci|hostil|barrera|restricc|sanci|carenc|limitad|brecha|sobredemanda|sobrecarga|disminu|p[eé]rdida)/i;
-    const lines=[]; PESTEL_DIMS.forEach(([k])=>{ (d.pestel[k]||'').split(/\n|•|·|;|\.\s/).map(s=>s.trim()).filter(s=>s.length>4).forEach(s=>lines.push(s)); });
+    const lines=[]; PESTEL_DIMS.forEach(([k])=>{ (pestelText[k]||'').split(/\n|•|·|;|\.\s/).map(s=>s.trim()).filter(s=>s.length>4).forEach(s=>lines.push(s)); });
     const opp=[],thr=[]; lines.forEach(s=>{ (negRe.test(s)?thr:opp).push(s); });
     const mT='Estratégico';
     opp.slice(0,6).forEach(s=>foda[mT].O.push({t:s, peso:0, val:2}));
     thr.slice(0,6).forEach(s=>foda[mT].A.push({t:s, peso:0, val:2}));
     ajustaPesos100(foda[mT].O); ajustaPesos100(foda[mT].A);
   }
-  d.foda=foda; saveData(); renderPlanGestion();
+  return foda;
+}
+function pgFodaDesdeAuto(){
+  const d=pgData(); const cad=d.autodiag.cadena||[]; const pestI=d.pestItems||[];
+  const hayCad=cad.some(x=>(+x.val||0)>0||(x.crit||'').trim()); const hayPest=pestI.length||PESTEL_DIMS.some(([k])=>(d.pestel[k]||'').trim());
+  if(!hayCad&&!hayPest){ toast('Completa primero el Autodiagnóstico de Cadena (paso 2) y/o el PESTEL (paso 7)'); return; }
+  if(!confirm('Se regenerará el FODA matemático:\n• Debilidades/Fortalezas ← Autodiagnóstico de Cadena\n• Oportunidades/Amenazas ← PESTEL\nEsto reemplaza el FODA actual. ¿Continuar?')) return;
+  d.foda=fodaFromAuto(cad, pestI, d.pestel); saveData(); renderPlanGestion();
   toast('✓ FODA generado desde los autodiagnósticos — revisa pesos, redacción y reparte O/A por macroproceso');
 }
 /* ---------- Autodiagnóstico PEST (puntuado por expertos 0–4) ---------- */
@@ -1211,9 +1218,9 @@ function pgCadAdd(macro,comp){ pgData().autodiag.cadena.push({macro:macro,comp:c
 function pgCadDel(i){ pgData().autodiag.cadena.splice(i,1); saveData(); renderPlanGestion(); }
 function pgCadSetCrit(i,v){ const it=pgData().autodiag.cadena[i]; if(it){it.crit=v; saveData();} }
 function pgCadSetVal(i,v){ const it=pgData().autodiag.cadena[i]; if(it){it.val=v; saveData(); renderPlanGestion();} }
-/* Estadísticas: % por componente, por macroproceso y global */
-function pgCadStats(){
-  const cad=pgData().autodiag.cadena; const comps={}; const macros={}; let tot=0,n=0;
+/* Estadísticas: % por componente, por macroproceso y global (pura) */
+function cadStats(cad){
+  cad=cad||[]; const comps={}, macros={}; let tot=0,n=0;
   cad.forEach(x=>{ const v=+x.val||0; const ck=x.macro+' • '+x.comp;
     (comps[ck]=comps[ck]||{macro:x.macro,comp:x.comp,sum:0,n:0}); comps[ck].sum+=v; comps[ck].n++;
     (macros[x.macro]=macros[x.macro]||{sum:0,n:0}); macros[x.macro].sum+=v; macros[x.macro].n++;
@@ -1222,6 +1229,93 @@ function pgCadStats(){
   Object.values(comps).forEach(c=>c.pct=pct(c.sum,c.n));
   Object.keys(macros).forEach(m=>macros[m].pct=pct(macros[m].sum,macros[m].n));
   return {comps,macros,overall:pct(tot,n),n};
+}
+function pgCadStats(){ return cadStats(pgData().autodiag.cadena); }
+
+/* ====================== MÓDULO: DIAGNÓSTICO ESTRATÉGICO GEMSES (tablero independiente) ====================== */
+function diagData(){
+  const db=DB[USER.email]; if(!db) return {cadena:[],pestItems:[]};
+  if(!db.diag){ db.diag={
+    cadena:AUTODIAG_CADENA_SEED.map(x=>({macro:x.m,comp:x.c,crit:x.t,val:0})),
+    pestItems:AUTODIAG_PEST_SEED.map(x=>({dim:x.dim,tipo:x.tipo,macro:'Estratégico',desc:x.desc,e1:0,e2:0,e3:0}))
+  }; saveData(); }
+  if(!Array.isArray(db.diag.cadena)) db.diag.cadena=[];
+  if(!Array.isArray(db.diag.pestItems)) db.diag.pestItems=[];
+  return db.diag;
+}
+let diagTab='cadena';
+function diagGo(t){ diagTab=t; renderDiagnostico(); }
+function diagCadSetVal(i,v){ const it=diagData().cadena[i]; if(it){it.val=v; saveData(); renderDiagnostico();} }
+function diagCadSetCrit(i,v){ const it=diagData().cadena[i]; if(it){it.crit=v; saveData();} }
+function diagCadAdd(macro,comp){ diagData().cadena.push({macro,comp,crit:'',val:0}); saveData(); renderDiagnostico(); }
+function diagCadDel(i){ diagData().cadena.splice(i,1); saveData(); renderDiagnostico(); }
+function diagCadRestaurar(){ if(!confirm('¿Restaurar los 70 criterios estándar? Se perderán las valoraciones del autodiagnóstico.'))return; diagData().cadena=AUTODIAG_CADENA_SEED.map(x=>({macro:x.m,comp:x.c,crit:x.t,val:0})); saveData(); renderDiagnostico(); toast('✓ 70 criterios restaurados'); }
+function diagPestAdd(){ diagData().pestItems.push({dim:'Político',tipo:'Oportunidad',macro:'Estratégico',desc:'',e1:0,e2:0,e3:0}); saveData(); renderDiagnostico(); }
+function diagPestDel(i){ diagData().pestItems.splice(i,1); saveData(); renderDiagnostico(); }
+function diagPestSet(i,campo,val){ const it=diagData().pestItems[i]; if(!it)return; if(campo==='e1'||campo==='e2'||campo==='e3'){ it[campo]=Math.max(0,Math.min(4,parseFloat(val)||0)); } else it[campo]=val; saveData(); renderDiagnostico(); }
+function diagPestSeed(){ if((diagData().pestItems||[]).length && !confirm('¿Reemplazar los factores PEST por los de ejemplo?'))return; diagData().pestItems=AUTODIAG_PEST_SEED.map(x=>({dim:x.dim,tipo:x.tipo,macro:'Estratégico',desc:x.desc,e1:0,e2:0,e3:0})); saveData(); renderDiagnostico(); toast('✓ Factores PEST de ejemplo'); }
+function diagPestProms(){ const arr=diagData().pestItems||[]; const p=arr.map(pgPestProm).filter(x=>x>0); return {n:arr.length,opp:arr.filter(x=>x.tipo!=='Amenaza').length,thr:arr.filter(x=>x.tipo==='Amenaza').length,impacto:p.length?Math.round(p.reduce((a,b)=>a+b,0)/p.length*10)/10:0}; }
+function renderDiagnostico(){
+  const diag=diagData();
+  const st=cadStats(diag.cadena);
+  const foda=fodaFromAuto(diag.cadena, diag.pestItems, null);
+  const ng=pgNivelGestion({foda}); const sem=nivelSemaforo(ng.overall);
+  const pctC=p=>p>=85?'var(--ok)':p>=60?'var(--warn)':'var(--bad)';
+  const mcol={'Estratégico':'#1f6feb','Misional':'#e0a21a','Soporte':'#d64545'};
+  const tabs=[['cadena','🩺 Autodiagnóstico (interno)'],['pestel','🌐 PESTEL (externo)'],['resultados','📊 Resultados']];
+  const tabBar=`<div class="toolbar" style="gap:6px;margin-bottom:12px">${tabs.map(([k,l])=>`<button class="btn ${diagTab===k?'btn-primary':'btn-ghost'} btn-sm" style="width:auto" onclick="diagGo('${k}')">${l}</button>`).join('')}</div>`;
+  let body='';
+  if(diagTab==='cadena'){
+    const cad=diag.cadena;
+    const scorer=(i,v)=>`<span class="ad-score">`+[0,1,2,3,4].map(s=>`<button class="${s===v?'on':''}" style="${s===v?'background:'+AD_SCOLORS[s]:''}" title="${esc(String(s)+' = '+AUTODIAG_SCALE[s][1])}" onclick="diagCadSetVal(${i},${s})">${s}</button>`).join('')+`</span>`;
+    const seen={}, order=[], cnt={};
+    cad.forEach((x,i)=>{ const key=x.macro+' • '+x.comp; if(!seen[key]){seen[key]={macro:x.macro,comp:x.comp,items:[],pct:(st.comps[key]||{}).pct||0}; order.push(seen[key]);} cnt[key]=(cnt[key]||0)+1; seen[key].items.push({i,crit:x.crit,val:(+x.val||0),n:cnt[key]}); });
+    const renderComp=g=>`<div class="ad-comp"><div class="ad-h"><b>${esc(g.comp)}</b><div class="ad-bar"><i style="width:${g.pct}%;background:${pctC(g.pct)}"></i></div><span style="font-size:11px;font-weight:800;color:${pctC(g.pct)}">${g.pct}%</span></div>${g.items.map(it=>`<div class="ad-row"><span class="adn">${it.n}</span><input class="adt" value="${esc(it.crit)}" placeholder="Criterio" onchange="diagCadSetCrit(${it.i},this.value)">${scorer(it.i,it.val)}<a onclick="diagCadDel(${it.i})" style="cursor:pointer;color:var(--bad);font-weight:700;text-align:center">✕</a></div>`).join('')}<button class="pg-add" style="margin-top:4px" onclick="diagCadAdd('${esc(g.macro)}','${esc(g.comp)}')">＋ Agregar criterio</button></div>`;
+    const macroBlocks=PG_MACROS.map(m=>{const gs=order.filter(g=>g.macro===m); if(!gs.length)return ''; const mp=(st.macros[m]||{}).pct||0; return `<div style="margin-top:12px"><div style="font-weight:800;color:var(--navy);margin-bottom:6px">Macroproceso ${esc(m)} <span style="float:right;color:${pctC(mp)}">${mp}%</span></div>${gs.map(renderComp).join('')}</div>`;}).join('');
+    const legend=AUTODIAG_SCALE.map(([n,txt])=>`<span style="display:inline-block;margin-right:10px;font-size:10.5px;color:var(--muted)"><b style="color:${AD_SCOLORS[n]}">${n}</b> ${esc(txt)}</span>`).join('');
+    body=`<p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Valora cada criterio de la cadena de valor de <b>0 a 4</b>. El % por componente/macroproceso es tu <b>nivel de gestión interno</b> (alimenta Debilidades/Fortalezas del FODA).</p>
+      <div style="margin:0 0 8px">${legend}</div>
+      <div style="text-align:right;margin-bottom:4px"><button class="btn btn-ghost btn-sm" style="width:auto" onclick="diagCadRestaurar()">↺ Restaurar 70 criterios</button></div>
+      ${macroBlocks||'<p style="color:var(--muted)">Sin criterios.</p>'}`;
+  } else if(diagTab==='pestel'){
+    const ps=diagPestProms();
+    const rows=diag.pestItems.map((it,i)=>{const prom=pgPestProm(it); const pc=it.tipo==='Amenaza'?'var(--bad)':'var(--ok)';
+      return `<tr>
+        <td><select class="fi" style="padding:5px;font-size:11px" onchange="diagPestSet(${i},'dim',this.value)">${PEST_DIMS.map(dd=>`<option ${it.dim===dd?'selected':''}>${dd}</option>`).join('')}</select></td>
+        <td><select class="fi" style="padding:5px;font-size:11px;color:${pc};font-weight:700" onchange="diagPestSet(${i},'tipo',this.value)"><option ${it.tipo!=='Amenaza'?'selected':''}>Oportunidad</option><option ${it.tipo==='Amenaza'?'selected':''}>Amenaza</option></select></td>
+        <td><select class="fi" style="padding:5px;font-size:11px" onchange="diagPestSet(${i},'macro',this.value)">${PG_MACROS.map(m=>`<option ${it.macro===m?'selected':''}>${m}</option>`).join('')}</select></td>
+        <td><input class="fi" style="padding:5px;font-size:11.5px;min-width:170px" value="${esc(it.desc)}" placeholder="Factor externo" onchange="diagPestSet(${i},'desc',this.value)"></td>
+        <td><input class="fi" type="number" min="0" max="4" style="padding:5px;width:46px;font-size:11.5px" value="${+it.e1||0}" onchange="diagPestSet(${i},'e1',this.value)"></td>
+        <td><input class="fi" type="number" min="0" max="4" style="padding:5px;width:46px;font-size:11.5px" value="${+it.e2||0}" onchange="diagPestSet(${i},'e2',this.value)"></td>
+        <td><input class="fi" type="number" min="0" max="4" style="padding:5px;width:46px;font-size:11.5px" value="${+it.e3||0}" onchange="diagPestSet(${i},'e3',this.value)"></td>
+        <td style="text-align:center;font-weight:800;color:${pc}">${prom}</td>
+        <td style="text-align:center"><a onclick="diagPestDel(${i})" style="cursor:pointer;color:var(--bad);font-weight:700">✕</a></td></tr>`;}).join('');
+    body=`<p style="font-size:11.5px;color:var(--muted);margin:0 0 8px">Cada factor externo se califica de <b>0 a 4 por hasta 3 expertos</b>; el promedio es su <b>impacto</b>. Marca Oportunidad/Amenaza y el macroproceso que alimenta (Oportunidades/Amenazas del FODA).</p>
+      <div class="detail-sec" style="background:var(--bg);font-size:11.5px;margin-bottom:8px">Factores: <b>${ps.n}</b> · <span style="color:var(--ok);font-weight:700">${ps.opp} oportunidades</span> · <span style="color:var(--bad);font-weight:700">${ps.thr} amenazas</span> · Impacto promedio: <b>${ps.impacto}</b>/4</div>
+      <div style="overflow-x:auto"><table class="ft-table" style="font-size:12px"><tr><th>Dimensión</th><th>Tipo</th><th>Macro</th><th>Factor externo</th><th>Exp1</th><th>Exp2</th><th>Exp3</th><th>Impacto</th><th></th></tr>${rows||'<tr><td colspan="9" style="color:var(--muted)">Sin factores. Agrega o carga ejemplos.</td></tr>'}</table></div>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="pg-add" style="margin:0" onclick="diagPestAdd()">＋ Agregar factor</button><button class="btn btn-ghost btn-sm" style="width:auto" onclick="diagPestSeed()">Sembrar ejemplos</button></div>`;
+  } else {
+    const ngCards=ng.macros.map(x=>{const s=nivelSemaforo(x.nivel);
+      return `<div style="flex:1;min-width:150px;border:1px solid var(--line);border-top:3px solid ${mcol[x.m]||'var(--navy)'};border-radius:10px;padding:10px 12px;background:var(--card)"><div style="font-weight:800;color:var(--navy);font-size:12.5px">${x.m}</div><div style="font-size:24px;font-weight:800;color:${s.c};line-height:1.15">${x.nivel===null?'—':x.nivel+'%'}</div><div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">🟢 F×P ${Math.round(x.F)} · O×P ${Math.round(x.O)}<br>🔴 D×P ${Math.round(x.D)} · A×P ${Math.round(x.A)}</div></div>`;}).join('');
+    const fodaTable=`<table class="ft-table" style="font-size:12px"><tr><th>Macroproceso</th><th>Fortalezas</th><th>Debilidades</th><th>Oportunidades</th><th>Amenazas</th><th>Nivel</th></tr>${ng.macros.map(x=>`<tr><td><b>${x.m}</b></td><td style="text-align:center;color:#16a34a">${Math.round(x.F)}</td><td style="text-align:center;color:#dc2626">${Math.round(x.D)}</td><td style="text-align:center;color:#16a34a">${Math.round(x.O)}</td><td style="text-align:center;color:#dc2626">${Math.round(x.A)}</td><td style="text-align:center;font-weight:800;color:${nivelSemaforo(x.nivel).c}">${x.nivel===null?'—':x.nivel+'%'}</td></tr>`).join('')}</table>`;
+    body=`<div class="detail-sec" style="background:var(--bg);display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+        <div style="text-align:center;min-width:130px"><div style="font-size:44px;font-weight:800;line-height:1;color:${sem.c}">${ng.overall===null?'—':ng.overall+'%'}</div><div style="display:inline-block;margin-top:6px;background:${sem.c};color:#fff;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">${sem.t}</div><div style="font-size:10.5px;color:var(--muted);margin-top:4px">Nivel de Gestión · ${sem.d}</div></div>
+        <div style="flex:1;min-width:220px"><div style="font-size:12px;color:var(--navy);font-weight:700;margin-bottom:4px">Autodiagnóstico interno: <b style="color:${pctC(st.overall)}">${st.overall}%</b></div>${PG_MACROS.map(m=>{const mp=(st.macros[m]||{}).pct||0;return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px"><span style="width:92px">${m}</span><div class="ad-bar" style="max-width:220px"><i style="width:${mp}%;background:${pctC(mp)}"></i></div><b style="color:${pctC(mp)}">${mp}%</b></div>`;}).join('')}</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">${ngCards}</div>
+      <h5 style="margin:6px 0 4px;color:var(--teal)">📐 FODA matemático (derivado de los formularios)</h5>
+      <div style="overflow-x:auto">${fodaTable}</div>
+      <h5 style="margin:16px 0 4px;color:var(--teal)">📍 Posicionamiento de la gestión (modelo GEMSES)</h5>
+      <p style="font-size:11px;color:var(--muted);margin:0 0 6px">Eje <b>X (Debilidades→Fortalezas)</b> ← Autodiagnóstico interno · eje <b>Y (Amenazas→Oportunidades)</b> ← PEST externo. Cada macroproceso traza su línea DA (riesgo) → FO (ventaja).</p>
+      <div style="overflow-x:auto">${pgPosicionamientoSVG({foda})}</div>
+      <p style="font-size:10.5px;color:var(--muted);margin-top:10px">✔ <b>Consistencia estadística:</b> el FODA, el Nivel de Gestión y el Posicionamiento se calculan de una <b>sola fuente</b> (los dos formularios), sin datos manuales que puedan diverger. Nivel 50% = punto neutro; &lt;50% requiere intervención.</p>`;
+  }
+  content.innerHTML=`<div class="welcome" style="background:linear-gradient(135deg,#0C1B2E,#13294B)">
+      <h2>🔬 Diagnóstico Estratégico GEMSES</h2>
+      <p>Tablero de gestión: completa el <b>Autodiagnóstico</b> (interno) y el <b>PESTEL</b> (externo) y obtén el <b>FODA matemático</b>, el <b>Nivel de Gestión</b> y el <b>Posicionamiento</b>, todo derivado y estadísticamente consistente.</p>
+      <div class="wstats"><div class="wstat"><b style="color:${pctC(st.overall)}">${st.overall}%</b><span>Autodiagnóstico interno</span></div><div class="wstat"><b style="color:${sem.c}">${ng.overall===null?'—':ng.overall+'%'}</b><span>Nivel de Gestión</span></div><div class="wstat"><b>${diag.pestItems.length}</b><span>Factores PEST</span></div></div>
+    </div>
+    ${tabBar}${body}`;
 }
 function pgMonDel(i){ pgData().monitoreo.splice(i,1); saveData(); renderPlanGestion(); }
 function pgMonSet(i,campo,val){ const o=pgData().monitoreo[i]; if(o){o[campo]=val; saveData();} }
