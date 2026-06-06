@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GEMSES360 — Orquestación: Plan de Gestión & Autodiagnóstico</title>
+<style>
+:root{--navy:#13294B;--teal:#028090;--amber:#E0A21A;--red:#D64545;--green:#1E9E6A;--bg:#f3f5f7;--line:#dde3e8;--muted:#5a6570}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif;color:var(--navy);background:#fff}
+.wrap{max-width:1080px;margin:0 auto;padding:22px}
+header{background:linear-gradient(135deg,#0C1B2E,#13294B);color:#fff;border-radius:16px;padding:22px 26px;margin-bottom:18px}
+header h1{margin:0;font-size:23px}
+header p{margin:6px 0 0;color:#bcd;font-size:13px}
+h2{font-size:16px;color:var(--teal);margin:26px 0 10px;display:flex;align-items:center;gap:8px}
+h2 .n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--teal);color:#fff;align-items:center;justify-content:center;font-size:13px}
+.flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+.node{flex:1;min-width:150px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.node .t{font-weight:800;font-size:13px}
+.node .d{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.45}
+.node.in{border-top:4px solid var(--teal)}
+.node.ext{border-top:4px solid var(--amber)}
+.node.calc{border-top:4px solid var(--navy)}
+.node.out{border-top:4px solid var(--green)}
+.arrow{display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--teal);padding:0 6px;font-weight:700}
+.arrow.down{width:100%;transform:rotate(90deg);height:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+.merge{display:grid;grid-template-columns:1fr 40px 1.2fr 40px 1.1fr;align-items:center;gap:8px}
+@media(max-width:760px){.merge{grid-template-columns:1fr;gap:6px}.merge .arrow{transform:rotate(90deg)}}
+.stack{display:flex;flex-direction:column;gap:8px}
+.phase{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.phase .ph{padding:8px 12px;font-weight:800;font-size:12.5px;color:#fff}
+.phase .steps{padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11.5px;border:1px solid var(--line);border-radius:20px;padding:4px 10px;background:#fafcff}
+.chip b{color:var(--teal)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{flex:1;min-width:160px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fafcff}
+.tab .t{font-weight:800;font-size:13px}
+.tab .d{font-size:11px;color:var(--muted);margin-top:4px}
+.rule{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.scale{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12px;font-weight:700;flex:1;min-width:280px}
+.scale div{flex:1;padding:10px 6px;text-align:center;color:#fff}
+.legend{font-size:11.5px;color:var(--muted);margin-top:6px}
+.cross{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.cc{font-size:11.5px;border:1px dashed var(--teal);border-radius:10px;padding:6px 10px;background:#f1fbfc;color:var(--navy)}
+.note{font-size:11.5px;color:var(--muted);margin-top:8px}
+footer{margin-top:24px;border-top:1px solid var(--line);padding-top:12px;font-size:11px;color:var(--muted)}
+</style></head>
+<body><div class="wrap">
+<header>
+  <h1>🧭 GEMSES360 — Orquestación del Plan de Gestión y el Autodiagnóstico</h1>
+  <p>Cómo se organiza y cómo confluyen los datos · Modelo de Excelencia GEMSES (Mg. Carlos Pérez Pérez)</p>
+</header>
+
+<h2><span class="n">1</span> Flujo de datos — dónde confluye todo</h2>
+<div class="merge">
+  <div class="stack">
+    <div class="node in"><div class="t">🩺 Autodiagnóstico de Cadena</div><div class="d">Interno · 70 criterios · escala 0–4 · % por componente/macroproceso</div></div>
+    <div class="node ext"><div class="t">🌐 PESTEL</div><div class="d">Externo · cuestionario 0–4 por dimensión (Político·Económico·Social·Tecnológico·Legal)</div></div>
+  </div>
+  <div class="arrow">➜</div>
+  <div class="node calc"><div class="t">📊 FODA matemático</div><div class="d">Por macroproceso. Valoración <b>0,1,2 → Debilidad/Amenaza</b> · <b>3,4 → Fortaleza/Oportunidad</b>. Cada ítem guarda su redacción positiva y negativa.</div></div>
+  <div class="arrow">➜</div>
+  <div class="stack">
+    <div class="node out"><div class="t">🚦 Nivel de Gestión</div><div class="d">KPI único 0–100% + semáforo (50% = neutro)</div></div>
+    <div class="node out"><div class="t">📍 Posicionamiento</div><div class="d">3 zonas: Riesgo · Terreno de juego · Ventaja</div></div>
+  </div>
+</div>
+<div class="arrow down">➜</div>
+<div class="flow">
+  <div class="node calc"><div class="t">⚖️ Priorización</div><div class="d">Impacto × frecuencia (pesos por dimensión)</div></div>
+  <div class="arrow">➜</div>
+  <div class="node calc"><div class="t">📊 Pareto</div><div class="d">Pocos vitales (80/20)</div></div>
+  <div class="arrow">➜</div>
+  <div class="node out"><div class="t">📅 Cronograma</div><div class="d">Actividades por problema</div></div>
+  <div class="arrow">➜</div>
+  <div class="node out"><div class="t">📈 Monitoreo</div><div class="d">Indicadores · meta · fuente</div></div>
+  <div class="arrow">➜</div>
+  <div class="node out"><div class="t">📍 Seguimiento</div><div class="d">Avance % + logro en ejecución</div></div>
+  <div class="arrow">➜</div>
+  <div class="node out"><div class="t">📑 Rendición</div><div class="d">Informe de cuentas</div></div>
+</div>
+<div class="cross">
+  <span class="cc">🤖 Asistente IA: copiloto · sugerir · extracción · validación</span>
+  <span class="cc">🗂️ Plantillas: importar .xls/.csv · guardar · aplicar</span>
+  <span class="cc">⬇️ Exportar: Word · Excel · PDF</span>
+  <span class="cc">🔒 Seguridad por filas: usuario · hospital · admin</span>
+</div>
+
+<h2><span class="n">2</span> Plan de Gestión — 17 pasos (asistente guiado)</h2>
+<div class="stack">
+  <div class="phase"><div class="ph" style="background:var(--navy)">Encuadre</div><div class="steps">
+    <span class="chip"><b>1</b> Información</span><span class="chip"><b>2</b> Autodiagnóstico</span><span class="chip"><b>3</b> Introducción</span><span class="chip"><b>4</b> Filosofía</span><span class="chip"><b>5</b> Objetivos</span><span class="chip"><b>6</b> Diagnóstico</span></div></div>
+  <div class="phase"><div class="ph" style="background:var(--teal)">Análisis</div><div class="steps">
+    <span class="chip"><b>7</b> PESTEL</span><span class="chip"><b>8</b> FODA matemático</span><span class="chip"><b>9</b> Nivel de Gestión</span></div></div>
+  <div class="phase"><div class="ph" style="background:var(--amber)">Estrategia</div><div class="steps">
+    <span class="chip"><b>10</b> Priorización (Pareto)</span><span class="chip"><b>11</b> Estrategias (CAME)</span></div></div>
+  <div class="phase"><div class="ph" style="background:var(--green)">Ejecución</div><div class="steps">
+    <span class="chip"><b>12</b> Cronograma</span><span class="chip"><b>13</b> Monitoreo</span><span class="chip"><b>14</b> Seguimiento</span></div></div>
+  <div class="phase"><div class="ph" style="background:var(--red)">Cierre</div><div class="steps">
+    <span class="chip"><b>15</b> Rendición</span><span class="chip"><b>16</b> Conclusiones</span><span class="chip"><b>17</b> Resumen ejecutivo</span></div></div>
+</div>
+<div class="note">El paso 8 (FODA) se puede <b>autogenerar</b> desde el Autodiagnóstico (interno) y el PESTEL (externo); el 9, 10 y el Posicionamiento se derivan en cadena. Multi-plan con historial.</div>
+
+<h2><span class="n">3</span> Módulo «Diagnóstico Estratégico» (tablero tipo Power BI)</h2>
+<div class="tabs">
+  <div class="tab" style="border-top:4px solid var(--teal)"><div class="t">🩺 Autodiagnóstico</div><div class="d">Cadena de valor 0–4 · % por componente/macroproceso</div></div>
+  <div class="tab" style="border-top:4px solid var(--amber)"><div class="t">🌐 PESTEL</div><div class="d">Cuestionario 0–4 por dimensión · favorabilidad del entorno</div></div>
+  <div class="tab" style="border-top:4px solid var(--green)"><div class="t">📊 Resultados</div><div class="d">FODA + Nivel de Gestión + Posicionamiento (derivado de una sola fuente)</div></div>
+  <div class="tab" style="border-top:4px solid var(--navy)"><div class="t">🤖 Asistente IA</div><div class="d">Copiloto · sugerir · extracción estructurada · validación</div></div>
+</div>
+<div class="note">Barra superior: <b>Plantillas</b> (aplicar / guardar / importar .xls·.csv / eliminar) y <b>Exportar</b> (Word · Excel · PDF). Todo se recalcula de la misma fuente → estadísticamente consistente.</div>
+
+<h2><span class="n">4</span> Regla de valoración (cuando se valoriza) y dual-redacción</h2>
+<div class="rule">
+  <div class="scale">
+    <div style="background:var(--red)">0 · Debilidad/Amenaza</div>
+    <div style="background:#EF8A4B">1</div>
+    <div style="background:var(--amber)">2</div>
+    <div style="background:#7BC47F;color:#13294B">3</div>
+    <div style="background:var(--green)">4 · Fortaleza/Oportunidad</div>
+  </div>
+</div>
+<div class="legend"><b>0, 1, 2 → negativo</b> (Debilidad / Amenaza, usa la redacción negativa) · <b>3, 4 → positivo</b> (Fortaleza / Oportunidad, usa la redacción positiva). Cada ítem guarda <b>ambas redacciones</b>; la valoración decide cuál entra al FODA.</div>
+
+<footer>GEMSES360 · Orquestación del módulo Plan de Gestión y del Diagnóstico Estratégico · Modelo GEMSES — Mg. Carlos Pérez Pérez. Documento generado para fines de presentación.</footer>
+</div></body></html>

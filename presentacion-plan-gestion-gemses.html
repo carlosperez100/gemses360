@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan de Gestión — Modelo GEMSES</title>
+<style>
+:root{--navy:#0C1B2E;--navy2:#13294B;--teal:#028090;--amber:#E0A21A;--red:#D64545;--green:#1E9E6A;--ink:#13294B;--muted:#5a6570;--line:#dce2e8;--bg:#eef2f5}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:system-ui,Segoe UI,Arial,sans-serif;color:var(--ink);background:#0a1420}
+.deck{position:relative;height:100vh;width:100vw;overflow:hidden}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:46px 60px;background:#fff;animation:fade .25s}
+.slide.on{display:flex}
+@keyframes fade{from{opacity:.4}to{opacity:1}}
+.kicker{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
+h1{font-size:46px;line-height:1.08;margin:8px 0 0}
+h2{font-size:32px;line-height:1.1;margin:6px 0 14px;color:var(--navy2)}
+.bar{height:6px;width:80px;background:var(--teal);border-radius:6px;margin:14px 0 18px}
+p,li{font-size:21px;line-height:1.5}
+ul{margin:6px 0 0;padding-left:22px}
+li{margin:7px 0}
+li b{color:var(--navy2)}
+.muted{color:var(--muted)}
+.grid{display:grid;gap:16px;margin-top:10px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:repeat(4,1fr)}
+.card{border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:#fafcfe}
+.card h3{margin:0 0 6px;font-size:20px}
+.card.t{border-top:5px solid var(--teal)}.card.a{border-top:5px solid var(--amber)}.card.r{border-top:5px solid var(--red)}.card.g{border-top:5px solid var(--green)}.card.n{border-top:5px solid var(--navy2)}
+.card p,.card li{font-size:16px}
+.pill{display:inline-block;font-size:14px;font-weight:700;border:1px solid var(--line);border-radius:30px;padding:5px 12px;margin:4px 6px 0 0;background:#fff}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.node{border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-weight:700;font-size:16px;background:#fafcfe}
+.arrow{color:var(--teal);font-weight:800;font-size:20px}
+.scale{display:flex;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-top:12px}
+.scale div{flex:1;padding:14px 6px;text-align:center;color:#fff;font-weight:800;font-size:18px}
+.pyr{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:6px}
+.pyr div{color:#fff;font-weight:700;border-radius:8px;padding:8px 10px;font-size:16px;text-align:center}
+.foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:10px}
+.cover{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;justify-content:center}
+.cover .kicker{color:#7fd3df}.cover h1{font-size:56px}.cover .sub{font-size:22px;color:#cfe;margin-top:14px}
+.cover .bar{background:var(--amber);width:120px}
+.big{font-size:64px;font-weight:800;line-height:1}
+.nav{position:fixed;bottom:16px;right:18px;display:flex;gap:8px;z-index:10}
+.nav button{border:none;background:rgba(255,255,255,.92);border-radius:10px;width:42px;height:38px;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.cnt{position:fixed;bottom:20px;left:18px;color:#fff;font-size:13px;background:rgba(0,0,0,.35);padding:4px 10px;border-radius:20px;z-index:10}
+.hint{position:fixed;top:14px;right:18px;color:rgba(255,255,255,.7);font-size:12px;z-index:10}
+@media print{
+  html,body{background:#fff}.deck{height:auto;overflow:visible}
+  .slide{position:relative;inset:auto;display:flex !important;height:100vh;page-break-after:always;border-bottom:1px solid #eee;animation:none}
+  .nav,.cnt,.hint{display:none}
+}
+</style></head>
+<body>
+<div class="hint">← → para navegar · clic = siguiente · imprime a PDF para exportar</div>
+<div class="deck" id="deck">
+
+<section class="slide on cover">
+  <div class="kicker">Modelo de Excelencia GEMSES</div>
+  <h1>Plan de Gestión<br>en los Servicios de Salud</h1>
+  <div class="bar"></div>
+  <div class="sub">Gestión Moderna de los Servicios de Salud (GEMSES)<br>Mg. Carlos Pérez Pérez · Patente y marca registrada (INDECOPI)</div>
+  <div class="foot" style="border:none;color:#9fb6c9;margin-top:30px">Una herramienta para llevar el servicio a la excelencia con mínima inversión y en el menor tiempo.</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Punto de partida</div>
+  <h2>¿Qué es el Modelo GEMSES?</h2><div class="bar"></div>
+  <p>Modelo de <b>excelencia</b> para llevar a las organizaciones de salud a la <b>excelencia operacional</b> con <b>mínima inversión</b> y en el <b>menor tiempo posible</b>.</p>
+  <div class="grid g2">
+    <div class="card t"><h3>Epítome de 5 metodologías</h3><p>EFQM · Six Sigma · ISO 9000 · Malcolm Baldrige · SERVQUAL, sobre una base de <b>Enfoque Sistémico</b>.</p></div>
+    <div class="card a"><h3>Doble mirada</h3><p><b>Humanitaria</b> (centrada en el paciente) + <b>Tecnológica</b> (datos y automatización). Responde a la crisis <b>priorizando por frecuencia × impacto</b>.</p></div>
+  </div>
+  <div class="foot"><span>Modelo GEMSES — Mg. Carlos Pérez Pérez</span><span>2</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Para qué sirve</div>
+  <h2>¿Qué es un Plan de Gestión?</h2><div class="bar"></div>
+  <p>El instrumento que <b>diagnostica, prioriza, planifica y controla</b> la gestión de un departamento, servicio o área — base para <b>concursos directivos</b> y para la mejora real.</p>
+  <ul>
+    <li>Parte de un <b>diagnóstico situacional</b> y un <b>análisis estratégico (FODA)</b>.</li>
+    <li>Define <b>objetivos, estrategias y metas</b> por macroproceso.</li>
+    <li>Se ejecuta con un <b>cronograma</b> y se controla con un <b>plan de monitoreo de indicadores</b>.</li>
+    <li>Integra la gestión <b>estratégica, táctica y operativa</b> en un solo hilo.</li>
+  </ul>
+  <div class="foot"><span>Esquema del proyecto de Plan de Gestión</span><span>3</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Fundamento</div>
+  <h2>Los 9 principios rectores</h2><div class="bar"></div>
+  <div class="grid g3">
+    <span class="pill">1 · Respuesta ante la crisis</span><span class="pill">2 · Cadenas de valor</span><span class="pill">3 · Resultados: Tiempo·Calidad·Costo·Satisfacción</span>
+    <span class="pill">4 · Integra estratégico-táctico-operativo</span><span class="pill">5 · Equipo y funciones</span><span class="pill">6 · Cliente, trabajadores y financiadores</span>
+    <span class="pill">7 · Escalable</span><span class="pill">8 · Automatización</span><span class="pill">9 · Investigación</span>
+  </div>
+  <p class="muted" style="margin-top:18px">Úsalos como <b>checklist</b> al elaborar el plan: si un principio no está reflejado, falta algo.</p>
+  <div class="foot"><span>Cap. 7 — Fundamentos y estructura</span><span>4</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Estructura del modelo</div>
+  <h2>Los 3 macroprocesos</h2><div class="bar"></div>
+  <div class="grid g3">
+    <div class="card" style="border-top:5px solid #1f6feb"><h3>🔵 Estratégico</h3><p>Humanización, planeación estratégica efectiva y el <b>control automatizado de indicadores</b> (ciclo DMAIC).</p></div>
+    <div class="card a"><h3>🟡 Misional</h3><p>Las <b>cadenas de valor</b> asistenciales: Preventivo-Promocional, Clínico, Procedimientos Especiales, Quirúrgico.</p></div>
+    <div class="card r"><h3>🔴 Soporte</h3><p>Finanzas, talento humano, instalaciones/equipos, insumos/logística e <b>investigación</b>.</p></div>
+  </div>
+  <p class="muted" style="margin-top:16px">El plan se estructura y se evalúa (FODA, objetivos, indicadores) <b>por cada macroproceso</b>.</p>
+  <div class="foot"><span>Cap. 9–11</span><span>5</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Quién hace qué</div>
+  <h2>Pirámide funcional → el verbo del rol</h2><div class="bar"></div>
+  <div class="grid g2" style="align-items:center">
+    <div class="pyr">
+      <div style="background:var(--navy2);width:60%">Planificación — Director / Jefe de Departamento</div>
+      <div style="background:var(--teal);width:72%">Organización — Jefe de Servicio</div>
+      <div style="background:var(--amber);width:84%">Dirección — Coordinador</div>
+      <div style="background:var(--green);width:94%">Operación — Profesional asistencial</div>
+      <div style="background:var(--red);width:100%">Control — Supervisor</div>
+    </div>
+    <div>
+      <p>La misión, la visión y los objetivos <b>empiezan con el verbo de tu nivel</b>:</p>
+      <ul>
+        <li><b>Planifica</b> (departamento) · <b>Organiza</b> (servicio)</li>
+        <li><b>Dirige</b> (coordinador) · <b>Controla</b> (supervisor)</li>
+      </ul>
+      <p class="muted">Se planifica <b>de arriba hacia abajo</b>; cada nivel prioriza lo propio.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Cap. 7 — Pirámide funcional</span><span>6</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Cómo se arma</div>
+  <h2>Estructura del Plan de Gestión</h2><div class="bar"></div>
+  <div class="grid g2">
+    <div class="card n"><h3>1. Resumen ejecutivo</h3></div>
+    <div class="card t"><h3>2. Diagnóstico situacional</h3><p>Misión/Visión · Cadena de valor · Organización · Infraestructura · Potencial humano · Normas · Producción · <b>FODA</b> · Problemas priorizados.</p></div>
+    <div class="card a"><h3>3. Objetivos, estrategias y metas</h3></div>
+    <div class="card g"><h3>4. Programación y cronograma</h3></div>
+    <div class="card r"><h3>5. Plan de monitoreo e indicadores</h3></div>
+    <div class="card" style="border-top:5px solid #7A5BD6"><h3>Eje transversal</h3><p>Seguridad del paciente y humanización del cuidado.</p></div>
+  </div>
+  <div class="foot"><span>Esquema oficial del proyecto de Plan de Gestión</span><span>7</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Diagnóstico</div>
+  <h2>Autodiagnóstico de cadena + PEST</h2><div class="bar"></div>
+  <p>Dos cuestionarios con la <b>misma escala 0–4</b> que miden el punto de partida:</p>
+  <div class="grid g2">
+    <div class="card t"><h3>🩺 Autodiagnóstico de cadena (interno)</h3><p>Criterios por componente y macroproceso → <b>% de logro</b> y nudos críticos. Insumo de <b>Debilidades / Fortalezas</b>.</p></div>
+    <div class="card a"><h3>🌐 PEST (externo)</h3><p>Político, Económico, Social, Tecnológico, Legal → impacto del entorno. Insumo de <b>Oportunidades / Amenazas</b>.</p></div>
+  </div>
+  <div class="scale">
+    <div style="background:var(--red)">0–1–2 · Debilidad / Amenaza</div>
+    <div style="background:#7BC47F;color:var(--navy2)">3</div>
+    <div style="background:var(--green)">4 · Fortaleza / Oportunidad</div>
+  </div>
+  <div class="foot"><span>Cap. 9 — Planeación estratégica efectiva</span><span>8</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Análisis estratégico</div>
+  <h2>FODA matemático → Nivel de Gestión</h2><div class="bar"></div>
+  <p>Cada factor se valora y se <b>pondera</b> (los pesos suman 100): <b>valor = Peso × Valoración</b>. Se cruza interno × externo <b>por macroproceso</b>.</p>
+  <div class="flow">
+    <div class="node">Autodiagnóstico + PEST</div><span class="arrow">➜</span>
+    <div class="node">FODA matemático (D·F·O·A)</div><span class="arrow">➜</span>
+    <div class="node">🚦 Nivel de Gestión %</div><span class="arrow">➜</span>
+    <div class="node">📍 Posicionamiento</div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card r"><h3>Zona de riesgo</h3><p>Debilidades/Amenazas predominan.</p></div>
+    <div class="card a"><h3>Terreno de juego</h3><p>Equilibrio; campo de mejora.</p></div>
+    <div class="card g"><h3>Ventaja competitiva</h3><p>Fortalezas/Oportunidades predominan.</p></div>
+  </div>
+  <div class="foot"><span>Cap. 9 — FODA matemático</span><span>9</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">De la crisis a la acción</div>
+  <h2>Priorización por percentiles + 5W·2H</h2><div class="bar"></div>
+  <p><b>Matriz de impactos</b>: frecuencia × impacto ponderado por dimensión. Se ordena por percentiles y eso define el <b>nivel del plan</b>:</p>
+  <div class="grid g3">
+    <div class="card r"><h3>&gt; P75 → Proyecto de mejora</h3><p>Responsable: máxima autoridad.</p></div>
+    <div class="card a"><h3>&gt; P50 → Mejora de procesos</h3><p>Responsable: mando medio.</p></div>
+    <div class="card g"><h3>P25 → Mejora de actividades</h3><p>Colaboradores con supervisión.</p></div>
+  </div>
+  <p style="margin-top:14px">Cada mejora se planifica con <b>5W+2H</b>: <span class="muted">Qué · Por qué · Cómo · Quién · Dónde · Cuándo · Cuánto</span>.</p>
+  <div class="foot"><span>Cap. 9 / 13 — Priorización e implementación</span><span>10</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">El corazón operativo</div>
+  <h2>Indicadores (KPI·KRI·KCI) y ciclo DMAIC</h2><div class="bar"></div>
+  <div class="grid g3">
+    <div class="card t"><h3>KPI</h3><p>Capacidad: ¿logramos el desempeño deseado?</p></div>
+    <div class="card a"><h3>KRI</h3><p>Riesgo: ¿aumenta la exposición? (alerta temprana)</p></div>
+    <div class="card r"><h3>KCI</h3><p>Control: ¿son efectivos los controles?</p></div>
+  </div>
+  <div class="flow" style="margin-top:14px">
+    <div class="node">Definir</div><span class="arrow">→</span><div class="node">Medir</div><span class="arrow">→</span><div class="node">Analizar</div><span class="arrow">→</span><div class="node">Implementar</div><span class="arrow">→</span><div class="node">Controlar</div>
+  </div>
+  <p class="muted" style="margin-top:12px">4 dimensiones de resultado: <b>Tiempo · Calidad · Costo · Satisfacción</b> (ponderadas según la misión).</p>
+  <div class="foot"><span>Cap. 9 — DMAIC de gestión de indicadores</span><span>11</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">La meta</div>
+  <h2>Los 5 niveles de madurez de la gestión</h2><div class="bar"></div>
+  <div class="flow">
+    <div class="node" style="border-top:5px solid var(--red)">N1 · 25%<br><span class="muted" style="font-weight:400">Problemas</span></div><span class="arrow">→</span>
+    <div class="node" style="border-top:5px solid var(--amber)">N2 · 50%<br><span class="muted" style="font-weight:400">Actividades</span></div><span class="arrow">→</span>
+    <div class="node" style="border-top:5px solid #7BC47F">N3 · 75%<br><span class="muted" style="font-weight:400">Procesos</span></div><span class="arrow">→</span>
+    <div class="node" style="border-top:5px solid var(--green)">N4 · 90%<br><span class="muted" style="font-weight:400">Proyectos</span></div><span class="arrow">→</span>
+    <div class="node" style="border-top:5px solid var(--teal)">N5 · 100%<br><span class="muted" style="font-weight:400">Excelencia</span></div>
+  </div>
+  <p style="margin-top:18px">El Plan de Gestión es el vehículo para <b>subir de nivel</b>: de reaccionar a problemas a gestionar procesos, proyectos y excelencia.</p>
+  <div class="foot"><span>Cap. 13 — Niveles de gestión</span><span>12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Ejecución y control</div>
+  <h2>Cronograma · Monitoreo · Seguimiento · Rendición</h2><div class="bar"></div>
+  <div class="grid g4">
+    <div class="card g"><h3>📅 Cronograma</h3><p>Actividades por problema priorizado, con responsable y meses.</p></div>
+    <div class="card t"><h3>📈 Monitoreo</h3><p>Ficha por indicador: fórmula, fuente, estándar, periodo.</p></div>
+    <div class="card a"><h3>📍 Seguimiento</h3><p>% de avance y logro durante la ejecución del plan.</p></div>
+    <div class="card n"><h3>📑 Rendición</h3><p>Informes y transparencia de resultados.</p></div>
+  </div>
+  <p class="muted" style="margin-top:16px">Control = comparar <b>base vs. post</b> en función de las metas, de forma sistematizada.</p>
+  <div class="foot"><span>Cap. 13 — Seguimiento y control</span><span>13</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">De la teoría a la práctica</div>
+  <h2>GEMSES360 — la plataforma que lo digitaliza</h2><div class="bar"></div>
+  <p>Convierte el plan de papel en un <b>flujo asistido y un tablero automatizado</b>:</p>
+  <ul>
+    <li>Autodiagnóstico + PESTEL → <b>FODA matemático → Nivel de Gestión → Posicionamiento</b>, todo derivado.</li>
+    <li>Priorización con <b>Pareto</b>, cronograma, monitoreo y <b>seguimiento de ejecución</b>.</li>
+    <li><b>Tablas maestras</b> por profesión y nivel · <b>código de trazabilidad</b> PG-IPRESS-AÑO-Nº.</li>
+    <li><b>Asistentes de IA</b> (copiloto, sugerir, extracción, validación) y export Word/Excel/PDF.</li>
+  </ul>
+  <p class="muted" style="margin-top:10px">Decisiones basadas en datos en tiempo real (tablero/CMI, estilo Power BI).</p>
+  <div class="foot"><span>gemses360.metacalidad.cloud</span><span>14</span></div>
+</section>
+
+<section class="slide cover">
+  <div class="kicker">Gracias</div>
+  <h1>Del diagnóstico<br>a la excelencia.</h1>
+  <div class="bar"></div>
+  <div class="sub">Plan de Gestión · Modelo GEMSES<br>Mg. Carlos Pérez Pérez — carlosperez100@gmail.com</div>
+  <div class="foot" style="border:none;color:#9fb6c9;margin-top:28px">© Modelo GEMSES — patentado y con marca registrada (INDECOPI). Material para fines de presentación.</div>
+</section>
+
+</div>
+
+<div class="cnt" id="cnt">1 / 15</div>
+<div class="nav"><button onclick="go(-1)">‹</button><button onclick="go(1)">›</button></div>
+<script>
+var slides=[].slice.call(document.querySelectorAll('.slide')),cur=0;
+function show(i){cur=(i+slides.length)%slides.length;for(var k=0;k<slides.length;k++)slides[k].classList.toggle('on',k===cur);document.getElementById('cnt').textContent=(cur+1)+' / '+slides.length;}
+function go(d){show(cur+d);}
+document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();go(1);}else if(e.key==='ArrowLeft'||e.key==='PageUp'){go(-1);}else if(e.key==='Home'){show(0);}else if(e.key==='End'){show(slides.length-1);}});
+document.getElementById('deck').addEventListener('click',function(e){if(e.target.closest('.nav'))return;go(1);});
+show(0);
+</script>
+</body></html>
