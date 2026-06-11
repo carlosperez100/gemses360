@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero de Gestión GEMSES – 6B Cirugía HNERM</title>
+<style>
+:root{--azul:#0e2a47;--teal:#00B0A6;--rojo:#C00000;--verde:#2E7D32;--amar:#BF8F00;--gris:#f4f6f8;}
+*{box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{margin:0;background:var(--gris);font-size:14px;color:#222}
+#top{background:#000;color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px}
+#top h1{font-size:16px;margin:0;letter-spacing:1px}
+#top small{opacity:.75}
+#layout{display:flex;min-height:calc(100vh - 52px)}
+#side{width:172px;background:#dff3f1;padding:10px 8px;flex-shrink:0}
+#side button{display:block;width:100%;margin:4px 0;padding:9px 10px;border:1.5px solid #0e2a47;border-radius:18px;background:#fff;cursor:pointer;font-weight:600;font-size:12px;text-align:center}
+#side button.act{background:#0e2a47;color:#fff}
+#main{flex:1;padding:16px 22px;max-width:1100px}
+.card{background:#fff;border-radius:8px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+h2{margin:0 0 10px;font-size:17px;color:var(--azul)}
+h3{margin:12px 0 6px;font-size:14px;color:var(--azul)}
+table{width:100%;border-collapse:collapse;background:#fff}
+td,th{border:1px solid #e0e0e0;padding:5px 8px;font-size:12.5px;text-align:left}
+th{background:#0e2a47;color:#fff;font-size:12px}
+.esc label{margin:0 4px;cursor:pointer;font-size:12px;white-space:nowrap}
+.bar{height:20px;background:#eee;border-radius:4px;overflow:hidden;margin:3px 0}
+.bar>div{height:100%;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;white-space:nowrap}
+.filtro{margin:0 0 10px}
+select,input[type=text],textarea{padding:6px;border:1px solid #bbb;border-radius:4px;font-size:13px}
+textarea{width:100%;min-height:42px}
+.btn{background:var(--azul);color:#fff;border:none;padding:9px 14px;border-radius:5px;cursor:pointer;font-weight:bold;margin:3px 4px 3px 0}
+.btn.sec{background:#666}.btn.teal{background:var(--teal)}
+.kpi{display:inline-block;background:#fff;border-radius:8px;padding:14px 22px;margin:6px 10px 6px 0;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.kpi b{display:block;font-size:30px;color:var(--teal)}
+.niveles{display:flex;gap:6px;align-items:flex-end;margin:14px 0}
+.niv{flex:1;text-align:center;color:#fff;font-size:10.5px;padding:6px 2px;border-radius:4px 4px 0 0;opacity:.35}
+.niv.on{opacity:1;outline:3px solid var(--teal)}
+.tagF{color:var(--verde);font-weight:bold}.tagD{color:var(--rojo);font-weight:bold}
+.grupoCard{border:2px solid var(--azul);border-radius:8px;padding:12px;margin:10px 0;background:#fbfdff}
+.deb-chip{display:inline-block;background:#fde8e8;border:1px solid var(--rojo);color:#7a0000;border-radius:12px;padding:2px 9px;margin:2px;font-size:11.5px}
+.mini{font-size:11px;color:#666}
+svg text{font-family:'Segoe UI',Arial}
+@media print{#side,#top small,.btn,.filtro{display:none}.page{display:block!important}}
+.page{display:none}.page.act{display:block}
+</style>
+</head>
+<body>
+<div id="top"><h1>📊 TABLERO DE GESTIÓN — MODELO GEMSES</h1><small>Servicio de Enfermería 6B Cirugía de Páncreas · HNERM · Lic. Luz Vera Chupillón | Plantilla oficial GEMSES360 (70 criterios + 25 PEST)</small></div>
+<div id="layout">
+<nav id="side"></nav>
+<div id="main"></div>
+</div>
+<script>
+const CADENA = [{"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Está definida la fuente de recolección de datos?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Existe un procedimiento para la recolección de datos?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Se cuenta con un método de control de errores mediante validación de la información?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Se cuenta con un enfoque integrado de datos?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿El ingreso de datos es interactivo?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Se cuenta con una base de datos fiable para la organización?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿La base de datos se encuentra organizada?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Se cuenta con almacenamiento en línea?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Se transforman los datos brutos en información útil?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Presenta información de fácil comprensión para la toma de decisiones?"}, {"macro": "Estratégico", "comp": "Estándares y Buenas Prácticas", "crit": "¿Genera cambios que le permitan a la organización evolucionar?"}, {"macro": "Estratégico", "comp": "Información y Comunicación", "crit": "¿La información y comunicación es clara?"}, {"macro": "Estratégico", "comp": "Información y Comunicación", "crit": "¿La información y comunicación es permanente, continua y sistemática?"}, {"macro": "Estratégico", "comp": "Información y Comunicación", "crit": "¿Se utilizan sistemas de comunicación ágiles?"}, {"macro": "Estratégico", "comp": "Información y Comunicación", "crit": "¿La información y comunicación permite la retroalimentación?"}, {"macro": "Estratégico", "comp": "Información y Comunicación", "crit": "¿La información y comunicación está alineada con la estrategia y visión?"}, {"macro": "Estratégico", "comp": "Modernización", "crit": "¿Existe simplificación administrativa?"}, {"macro": "Estratégico", "comp": "Modernización", "crit": "¿La organización funcional es adecuada?"}, {"macro": "Estratégico", "comp": "Modernización", "crit": "¿Se cuenta con una metodología moderna de gestión?"}, {"macro": "Estratégico", "comp": "Control y Automatización", "crit": "¿La gestión de personal es automatizada?"}, {"macro": "Estratégico", "comp": "Control y Automatización", "crit": "¿La gestión de pacientes es automatizada?"}, {"macro": "Estratégico", "comp": "Control y Automatización", "crit": "¿La gestión de la capacitación es automatizada?"}, {"macro": "Estratégico", "comp": "Control y Automatización", "crit": "¿La gestión de insumos es automatizada?"}, {"macro": "Estratégico", "comp": "Control y Automatización", "crit": "¿La gestión de indicadores es automatizada?"}, {"macro": "Misional", "comp": "Calidad de Atención", "crit": "¿Se gestiona la información de los indicadores IPSG?"}, {"macro": "Misional", "comp": "Calidad de Atención", "crit": "¿Se gestiona el cumplimiento de la lista de verificación de Cirugía Segura?"}, {"macro": "Misional", "comp": "Calidad de Atención", "crit": "¿Se gestiona la administración correcta de medicamentos?"}, {"macro": "Misional", "comp": "Calidad de Atención", "crit": "¿Se gestiona la identificación correcta del paciente?"}, {"macro": "Misional", "comp": "Calidad de Atención", "crit": "¿Se gestiona la adherencia a la higiene de manos?"}, {"macro": "Misional", "comp": "Calidad de Atención", "crit": "¿Se gestiona la información acerca de caídas?"}, {"macro": "Misional", "comp": "Calidad de Atención", "crit": "¿Se gestiona la información acerca de lesiones por presión?"}, {"macro": "Misional", "comp": "Estancia Hospitalaria", "crit": "¿Existe trazabilidad por cadena de valor por proceso asistencial?"}, {"macro": "Misional", "comp": "Estancia Hospitalaria", "crit": "¿Se registran las desconexiones en cada fase de los procesos asistenciales?"}, {"macro": "Misional", "comp": "Estancia Hospitalaria", "crit": "¿Se cuenta con estándares para la estancia hospitalaria adecuada?"}, {"macro": "Misional", "comp": "Estancia Hospitalaria", "crit": "¿Los datos del sistema concuerdan con la trazabilidad?"}, {"macro": "Misional", "comp": "Estancia Hospitalaria", "crit": "¿Se levantan las observaciones de la trazabilidad del paciente?"}, {"macro": "Misional", "comp": "Estancia Hospitalaria", "crit": "¿Se levantan las observaciones del recorrido de las instalaciones?"}, {"macro": "Misional", "comp": "Costos", "crit": "¿La información de costos está validada?"}, {"macro": "Misional", "comp": "Costos", "crit": "¿Se cuenta con el costeo por fase de proceso?"}, {"macro": "Misional", "comp": "Costos", "crit": "¿Se cuenta con el costeo por cadena de valor?"}, {"macro": "Misional", "comp": "Costos", "crit": "¿Se realiza control de costos por fase de proceso?"}, {"macro": "Misional", "comp": "Costos", "crit": "¿Se realiza control de costos por cadena de valor?"}, {"macro": "Misional", "comp": "Satisfacción del Paciente", "crit": "¿El paciente percibe que la atención está centrada en sus derechos?"}, {"macro": "Misional", "comp": "Satisfacción del Paciente", "crit": "¿El paciente percibe que la atención es personalizada y respetuosa?"}, {"macro": "Misional", "comp": "Satisfacción del Paciente", "crit": "¿El paciente percibe que la atención es segura, accesible y oportuna?"}, {"macro": "Misional", "comp": "Satisfacción del Paciente", "crit": "¿El paciente percibe un entorno respetuoso?"}, {"macro": "Misional", "comp": "Satisfacción del Paciente", "crit": "¿El paciente percibe que le brindan información y comunicación?"}, {"macro": "Misional", "comp": "Satisfacción del Paciente", "crit": "¿Se gestiona la información de quejas del usuario?"}, {"macro": "Soporte", "comp": "Recursos Humanos", "crit": "¿Se cuenta con los perfiles por niveles?"}, {"macro": "Soporte", "comp": "Recursos Humanos", "crit": "¿Se cumple con el plan de inducción para el personal de reciente ingreso?"}, {"macro": "Soporte", "comp": "Recursos Humanos", "crit": "¿Se conoce claramente la demanda de los servicios?"}, {"macro": "Soporte", "comp": "Recursos Humanos", "crit": "¿Se conoce claramente la oferta de los servicios?"}, {"macro": "Soporte", "comp": "Recursos Humanos", "crit": "¿La programación es de acuerdo a las necesidades del área?"}, {"macro": "Soporte", "comp": "Recursos Humanos", "crit": "¿No existe brecha de personal?"}, {"macro": "Soporte", "comp": "Recursos Humanos", "crit": "¿No existe ausentismo laboral?"}, {"macro": "Soporte", "comp": "Recursos Humanos", "crit": "¿Se compensa adecuadamente al personal?"}, {"macro": "Soporte", "comp": "Insumos y Materiales", "crit": "¿Se formulan adecuadamente las necesidades de insumos?"}, {"macro": "Soporte", "comp": "Insumos y Materiales", "crit": "¿Las especificaciones técnicas son adecuadas y suficientes?"}, {"macro": "Soporte", "comp": "Insumos y Materiales", "crit": "¿Se conoce la metodología de sustento de EE.TT./TDR?"}, {"macro": "Soporte", "comp": "Insumos y Materiales", "crit": "¿Se evalúan los consumos?"}, {"macro": "Soporte", "comp": "Insumos y Materiales", "crit": "¿Se realiza seguimiento de los consumos según las estimaciones?"}, {"macro": "Soporte", "comp": "Capacitación", "crit": "¿Se cuenta con un área/equipo/comité para la capacitación?"}, {"macro": "Soporte", "comp": "Capacitación", "crit": "¿Existe un plan de capacitación?"}, {"macro": "Soporte", "comp": "Capacitación", "crit": "¿Se cuenta con niveles de capacitación establecidos para las credenciales?"}, {"macro": "Soporte", "comp": "Capacitación", "crit": "¿Se realiza seguimiento y monitoreo del plan de capacitación?"}, {"macro": "Soporte", "comp": "Investigación", "crit": "¿Las investigaciones ayudan a resolver problemas reales de los servicios?"}, {"macro": "Soporte", "comp": "Investigación", "crit": "¿Se cuenta con un área/equipo/comité para la investigación?"}, {"macro": "Soporte", "comp": "Investigación", "crit": "¿Se realiza seguimiento y acompañamiento en la investigación?"}, {"macro": "Soporte", "comp": "Finanzas", "crit": "¿Se realiza una estimación presupuestal acorde a las necesidades?"}, {"macro": "Soporte", "comp": "Finanzas", "crit": "¿La ejecución presupuestal es adecuada?"}];
+const PESTQ  = [{"dim": "Social", "crit": "Los pacientes están satisfechos de las competencias del personal", "neg": "Los pacientes demandan mayores competencias"}, {"dim": "Social", "crit": "Otras áreas o instituciones tienen interés de realizar convenios", "neg": "Otras áreas o instituciones no tienen interés de realizar convenios"}, {"dim": "Social", "crit": "Contamos con estrategias para atender la sobredemanda de servicios", "neg": "No contamos con estrategias para atender la sobredemanda de servicios"}, {"dim": "Social", "crit": "Estamos preparados para cubrir los nuevos estilos de vida", "neg": "No estamos preparados para cubrir los nuevos estilos de vida"}, {"dim": "Social", "crit": "Estamos preparados para contrarrestar el envejecimiento de la población", "neg": "No estamos preparados para contrarrestar el envejecimiento de la población (comorbilidades)"}, {"dim": "Social", "crit": "Tenemos una imagen favorable y competitiva frente a otras áreas/instituciones", "neg": "Otras áreas o instituciones tienen una imagen más favorable y competitiva"}, {"dim": "Político", "crit": "Existe apoyo de la jefatura inmediata", "neg": "No existe apoyo de la jefatura inmediata"}, {"dim": "Político", "crit": "Existe apoyo de los órganos sindicales y gremiales", "neg": "No existe apoyo de los órganos sindicales y gremiales"}, {"dim": "Político", "crit": "Existe apoyo de la alta dirección", "neg": "No existe apoyo de la alta dirección"}, {"dim": "Político", "crit": "Estamos preparados para responder a la legislación de protección de los derechos del paciente", "neg": "No estamos preparados para responder a la legislación de protección de los derechos del paciente"}, {"dim": "Político", "crit": "Existe apoyo de los colegios profesionales", "neg": "No existe apoyo de los colegios profesionales"}, {"dim": "Económico", "crit": "Existen estrategias para contrarrestar las políticas económicas restrictivas", "neg": "No existen estrategias para contrarrestar las políticas económicas restrictivas"}, {"dim": "Económico", "crit": "Se cuenta con asignación de presupuesto propio", "neg": "No se cuenta con asignación de presupuesto propio"}, {"dim": "Económico", "crit": "Se reconoce el trabajo y la producción presupuestalmente", "neg": "No se reconoce el trabajo y la producción presupuestalmente"}, {"dim": "Económico", "crit": "Las compensaciones económicas están acordes a los resultados/competencias", "neg": "Las compensaciones económicas no están acordes a los resultados obtenidos"}, {"dim": "Económico", "crit": "Existen políticas de presupuesto por resultados", "neg": "No existen políticas de presupuesto por resultados"}, {"dim": "Tecnológico", "crit": "Existen estrategias para el uso de las nuevas tecnologías", "neg": "No existen estrategias para el uso de las nuevas tecnologías"}, {"dim": "Tecnológico", "crit": "Existen políticas y procesos claros de automatización con tecnología", "neg": "No existen políticas ni procesos claros de automatización con tecnología"}, {"dim": "Tecnológico", "crit": "Se emplea inteligencia artificial y otras tecnologías", "neg": "No se emplea inteligencia artificial ni otras tecnologías"}, {"dim": "Tecnológico", "crit": "Es prioritario el uso de la tecnología e IA en el sector", "neg": "No es prioritario el uso de la tecnología e IA en el sector"}, {"dim": "Tecnológico", "crit": "Es claro para todos que la innovación y la cultura de seguridad del paciente son esenciales", "neg": "No es claro que la innovación y la cultura de seguridad del paciente sean esenciales"}, {"dim": "Legal", "crit": "La normatividad contribuye con el desarrollo de los servicios de la institución", "neg": "La normatividad no contribuye con el desarrollo de los servicios"}, {"dim": "Legal", "crit": "Las normativas tienen enfoque de mejora continua y no punitivas", "neg": "Las normativas no tienen enfoque de mejora continua y son punitivas"}, {"dim": "Legal", "crit": "Existen mecanismos para elaborar normativas acordes a las necesidades de los servicios", "neg": "No existen mecanismos para elaborar normativas acordes a las necesidades de los servicios"}, {"dim": "Legal", "crit": "La normativa se adecúa a las necesidades y requerimientos de los servicios", "neg": "La normativa no se adecúa a las necesidades y requerimientos de los servicios"}];
+const MACROS = ["Estratégico","Misional","Soporte"];
+const DIMS = [...new Set(PESTQ.map(p=>p.dim))];
+const OEI = [
+ "OEI 01 – Asegurar el acceso oportuno de los asegurados a prestaciones integrales",
+ "OEI 02 – Brindar prestaciones de salud integrales y de calidad acorde a las necesidades",
+ "OEI 03 – Impulsar la transformación digital y la gestión para resultados",
+ "OEI 04 – Fortalecer la humanización de la atención y la seguridad del paciente",
+ "OEI 05 – Fortalecer la gestión del recurso humano y la sostenibilidad institucional"];
+const PAGES = [["portada","PORTADA"],["cad","AUTODIAGNÓSTICO"],["pest","ANÁLISIS EXTERNO (PEST)"],["nivel","NIVEL DE GESTIÓN"],["macro","MACROPROCESO"],["comp","COMPONENTES"],["pareto","PARETO ÍTEMS"],["fd","F y D (interno)"],["oa","O y A (externo)"],["prio","PRIORIZACIÓN"],["plan","PLAN: OBJETIVOS"],["exp","EXPORTAR"]];
+
+// ---------- estado ----------
+let ST = JSON.parse(localStorage.getItem("tablero6b")||"null") || {vc:Array(CADENA.length).fill(null), vp:Array(PESTQ.length).fill(null), pesos:{}, grupos:[]};
+function save(){ localStorage.setItem("tablero6b", JSON.stringify(ST)); }
+const clamp=(v)=>Math.max(0,Math.min(4,+v||0));
+
+// ---------- nav ----------
+const side=document.getElementById("side"), main=document.getElementById("main");
+PAGES.forEach(([id,lbl],i)=>{ const b=document.createElement("button"); b.textContent=lbl; b.id="nav-"+id;
+  b.onclick=()=>go(id); side.appendChild(b); });
+let CUR="portada";
+function go(id){ CUR=id; document.querySelectorAll("#side button").forEach(b=>b.classList.toggle("act",b.id==="nav-"+id)); render(); window.scrollTo(0,0); }
+
+// ---------- cálculos ----------
+function statsCadena(){
+  const macros={}, comps={}; let s=0,n=0;
+  CADENA.forEach((it,i)=>{ const v=ST.vc[i]; if(v===null) return;
+    s+=v; n++;
+    (macros[it.macro]=macros[it.macro]||{s:0,n:0}); macros[it.macro].s+=v; macros[it.macro].n++;
+    const k=it.macro+"|"+it.comp;
+    (comps[k]=comps[k]||{macro:it.macro,comp:it.comp,s:0,n:0}); comps[k].s+=v; comps[k].n++; });
+  const pct=(o)=>o.n?Math.round(o.s/(o.n*4)*100):0;
+  return {global:n?Math.round(s/(n*4)*100):0, resp:n, tot:CADENA.length,
+    macros:Object.fromEntries(Object.entries(macros).map(([k,o])=>[k,pct(o)])),
+    comps:Object.values(comps).map(c=>({...c,pct:pct(c)}))};
+}
+function fyd(){
+  const F=[],D=[];
+  CADENA.forEach((it,i)=>{ const v=ST.vc[i]; if(v===null) return;
+    if(v>=2) F.push({i,...it,val:v});
+    else D.push({i,...it,val:4-v}); }); // valor de debilidad invertido (0→4, 1→3)
+  return {F,D};
+}
+function oya(){
+  const O=[],A=[];
+  PESTQ.forEach((it,i)=>{ const v=ST.vp[i]; if(v===null) return;
+    if(v>=2) O.push({i,...it,val:v});
+    else A.push({i,dim:it.dim,texto:it.neg||("NO: "+it.crit),val:4-v}); });
+  return {O,A};
+}
+function nivelInfo(p){
+  const N=[[25,"NIVEL 01 GESTIÓN DE PROBLEMAS","#7fc4bd"],[50,"NIVEL 02 GESTIÓN DE ACTIVIDADES","#54b3a9"],[75,"NIVEL 03 GESTIÓN DE PROCESOS","#2a9d8f"],[90,"NIVEL 04 GESTIÓN DE PROYECTOS","#1d7a74"],[100,"NIVEL 05 GESTIÓN DE EXCELENCIA","#0e2a47"]];
+  let idx=0; if(p>=90)idx=4; else if(p>=75)idx=3; else if(p>=50)idx=2; else if(p>=25)idx=1;
+  return {N,idx};
+}
+function bar(pct,color,label){ return `<div class="bar"><div style="width:${Math.max(pct,7)}%;background:${color}">${label||pct+"%"}</div></div>`; }
+const colM={"Estratégico":"#2f5597","Misional":"#BF8F00","Soporte":"#C00000"};
+
+// ---------- páginas ----------
+function pPortada(){
+  const st=statsCadena();
+  return `<div class="card"><h2>Tablero de Control — Nivel de Gestión Interno según el Modelo GEMSES</h2>
+  <p>Flujo: <b>Autodiagnóstico (70 criterios)</b> y <b>PEST (25)</b> → Nivel de gestión → Macroprocesos → Componentes → Pareto de ítems → Fortalezas/Debilidades → Oportunidades/Amenazas → Priorización → Plan (objetivos, estrategias y metas).</p>
+  <div class="kpi"><b>${st.global}%</b>Nivel de gestión</div>
+  <div class="kpi"><b>${st.resp}/${st.tot}</b>Criterios respondidos</div>
+  <div class="kpi"><b>${ST.vp.filter(v=>v!==null).length}/${PESTQ.length}</b>PEST respondidos</div>
+  <p><button class="btn teal" onclick="go('cad')">▶ Iniciar / continuar autodiagnóstico</button>
+  <button class="btn sec" onclick="if(confirm('¿Borrar todas las respuestas y el plan?')){localStorage.removeItem('tablero6b');location.reload();}">🗑 Reiniciar</button></p>
+  <p class="mini">Plantilla oficial GEMSES estándar (la misma de GEMSES360). Autoría del modelo: Mg. Carlos Pérez Pérez – CIIDEG. Los datos se guardan en este navegador y se pueden exportar a GEMSES360 (pestaña Exportar).</p></div>`;
+}
+function pCad(){
+  let h=`<div class="card"><h2>Autodiagnóstico de Cadena (interno) — escala 0–4</h2><p class="mini">0 = total desacuerdo · 1 = en desacuerdo · 2 = de acuerdo · 3 = bastante de acuerdo · 4 = total acuerdo</p>`;
+  for(const m of MACROS){
+    h+=`<h3 style="color:${colM[m]}">■ Macroproceso ${m}</h3>`;
+    let comp=null;
+    h+=`<table>`;
+    CADENA.forEach((it,i)=>{ if(it.macro!==m) return;
+      if(it.comp!==comp){ comp=it.comp; h+=`<tr><th colspan="3">${comp}</th></tr>`; }
+      let r=""; for(let v=0;v<=4;v++) r+=`<label><input type="radio" name="c${i}" value="${v}" ${ST.vc[i]===v?"checked":""} onchange="ST.vc[${i}]=${v};save()">${v}</label>`;
+      h+=`<tr><td style="width:30px">${i+1}</td><td>${it.crit}</td><td class="esc" style="width:170px">${r}</td></tr>`; });
+    h+=`</table>`;
+  }
+  return h+`<p><button class="btn teal" onclick="go('pest')">Continuar al PEST ▶</button></p></div>`;
+}
+function pPest(){
+  let h=`<div class="card"><h2>Análisis externo PEST(EL) — escala 0–4</h2><p class="mini">Puntúe su grado de acuerdo con la afirmación POSITIVA. Si la realidad es la contraria (texto gris), puntúe bajo: el sistema lo convertirá en amenaza automáticamente.</p>`;
+  for(const d of DIMS){
+    h+=`<h3>● ${d}</h3><table>`;
+    PESTQ.forEach((it,i)=>{ if(it.dim!==d) return;
+      let r=""; for(let v=0;v<=4;v++) r+=`<label><input type="radio" name="p${i}" value="${v}" ${ST.vp[i]===v?"checked":""} onchange="ST.vp[${i}]=${v};save()">${v}</label>`;
+      h+=`<tr><td style="width:30px">${i+1}</td><td>${it.crit}${it.neg?`<br><span class="mini" style="color:#a33">⇄ ${it.neg}</span>`:""}</td><td class="esc" style="width:170px">${r}</td></tr>`; });
+    h+=`</table>`;
+  }
+  return h+`<p><button class="btn teal" onclick="go('nivel')">Ver tablero ▶</button></p></div>`;
+}
+function pNivel(){
+  const st=statsCadena(); const {N,idx}=nivelInfo(st.global);
+  let niv=`<div class="niveles">`+N.map((n,i)=>`<div class="niv ${i===idx?'on':''}" style="background:${n[2]};height:${40+i*16}px">${n[0]}%<br>${n[1]}</div>`).join("")+`</div>`;
+  return `<div class="card"><h2>Nivel de Gestión Interno según el Modelo GEMSES</h2>
+  <div class="kpi"><b>${st.global}%</b>Nivel de gestión</div>
+  ${bar(st.global,"#00B0A6",st.global+"% logrado")}
+  ${bar(100-st.global,"#999",(100-st.global)+"% potencial de mejora")}
+  ${niv}
+  <p>${st.global<50?'<b style="color:var(--rojo)">Gestión REACTIVA</b>':st.global<75?'En transición hacia gestión de procesos':'<b style="color:var(--verde)">Gestión PROACTIVA</b>'} — ${st.resp} de ${st.tot} criterios evaluados.</p></div>`;
+}
+function pMacro(){
+  const st=statsCadena();
+  let h=`<div class="card"><h2>Nivel de gestión por Macroproceso</h2>`;
+  for(const m of MACROS){ const p=st.macros[m]||0;
+    h+=`<p style="margin:8px 0 2px"><b style="color:${colM[m]}">${m}</b></p>${bar(p,colM[m])}`; }
+  return h+`</div>`;
+}
+let F_COMP="Todas";
+function pComp(){
+  const st=statsCadena();
+  let lista=st.comps; if(F_COMP!=="Todas") lista=lista.filter(c=>c.macro===F_COMP);
+  lista=[...lista].sort((a,b)=>a.pct-b.pct);
+  let h=`<div class="card"><h2>Nivel de gestión por Componentes</h2>
+  <div class="filtro">Macroproceso: <select onchange="F_COMP=this.value;render()">${["Todas",...MACROS].map(m=>`<option ${m===F_COMP?"selected":""}>${m}</option>`).join("")}</select></div>`;
+  lista.forEach(c=>{ h+=`<p style="margin:7px 0 2px"><b style="color:${colM[c.macro]}">[${c.macro}]</b> ${c.comp} <span class="mini">(${c.n} ítems)</span></p>${bar(c.pct,colM[c.macro])}`; });
+  return h+`</div>`;
+}
+let F_PAR="Todas";
+function pPareto(){
+  let items=CADENA.map((it,i)=>({i,...it,v:ST.vc[i]})).filter(x=>x.v!==null);
+  if(F_PAR!=="Todas") items=items.filter(x=>x.macro===F_PAR);
+  items.forEach(x=>x.brecha=4-x.v);
+  items=items.filter(x=>x.brecha>0).sort((a,b)=>b.brecha-a.brecha).slice(0,25);
+  const tot=items.reduce((a,b)=>a+b.brecha,0)||1;
+  let acc=0; items.forEach(x=>{acc+=x.brecha; x.acum=Math.round(acc/tot*100);});
+  // SVG pareto
+  const W=980,H=300,P=40,bw=items.length?(W-2*P)/items.length:1;
+  let bars="",line="",pts=[];
+  items.forEach((x,k)=>{
+    const bh=x.brecha/4*(H-2*P);
+    bars+=`<rect x="${P+k*bw+2}" y="${H-P-bh}" width="${bw-4}" height="${bh}" fill="${colM[x.macro]}"><title>${x.crit} (brecha ${x.brecha})</title></rect>`;
+    bars+=`<text x="${P+k*bw+bw/2}" y="${H-P-bh-4}" font-size="9" text-anchor="middle">${x.brecha}</text>`;
+    pts.push([P+k*bw+bw/2, H-P-(x.acum/100)*(H-2*P)]);
+  });
+  if(pts.length) line=`<polyline points="${pts.map(p=>p.join(",")).join(" ")}" fill="none" stroke="#C00000" stroke-width="2"/>`+pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="2.5" fill="#C00000"/>`).join("");
+  const y80=H-P-0.8*(H-2*P);
+  let h=`<div class="card"><h2>Pareto de ítems (brecha = 4 − valoración)</h2>
+  <div class="filtro">Macroproceso: <select onchange="F_PAR=this.value;render()">${["Todas",...MACROS].map(m=>`<option ${m===F_PAR?"selected":""}>${m}</option>`).join("")}</select></div>
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#fff">
+    <line x1="${P}" y1="${H-P}" x2="${W-P}" y2="${H-P}" stroke="#999"/>
+    <line x1="${P}" y1="${y80}" x2="${W-P}" y2="${y80}" stroke="#C00000" stroke-dasharray="5,4"/>
+    <text x="${W-P}" y="${y80-5}" font-size="11" fill="#C00000" text-anchor="end">80%</text>
+    ${bars}${line}</svg>
+  <table><tr><th>#</th><th>Ítem</th><th>Macro</th><th>Brecha</th><th>% acumulado</th></tr>`;
+  items.forEach((x,k)=>{ h+=`<tr ${x.acum<=80?'style="background:#fff4f4"':''}><td>${k+1}</td><td>${x.crit}</td><td style="color:${colM[x.macro]};font-weight:bold">${x.macro}</td><td>${x.brecha}</td><td>${x.acum}%</td></tr>`; });
+  return h+`</table><p class="mini">Los ítems sombreados (≤80% acumulado) concentran el potencial de mejora — principio de Pareto.</p></div>`;
+}
+let F_FD="Todas";
+function pFD(){
+  const {F,D}=fyd();
+  const fil=x=>F_FD==="Todas"||x.macro===F_FD;
+  let h=`<div class="card"><h2>Análisis interno: Fortalezas y Debilidades</h2>
+  <div class="filtro">Macroproceso: <select onchange="F_FD=this.value;render()">${["Todas",...MACROS].map(m=>`<option ${m===F_FD?"selected":""}>${m}</option>`).join("")}</select></div>
+  <h3 class="tagD">DEBILIDADES (valoración original 0–1 → valor invertido 3–4)</h3>
+  <table><tr><th>Debilidad (brecha del criterio)</th><th>Macro</th><th>Componente</th><th>Valor</th></tr>`;
+  D.filter(fil).sort((a,b)=>b.val-a.val).forEach(d=> h+=`<tr><td>${d.crit}</td><td style="color:${colM[d.macro]};font-weight:bold">${d.macro}</td><td>${d.comp}</td><td class="tagD">${d.val}</td></tr>`);
+  h+=`</table><h3 class="tagF">FORTALEZAS (valoración 2–4)</h3>
+  <table><tr><th>Fortaleza</th><th>Macro</th><th>Componente</th><th>Valor</th></tr>`;
+  F.filter(fil).sort((a,b)=>b.val-a.val).forEach(f=> h+=`<tr><td>${f.crit}</td><td style="color:${colM[f.macro]};font-weight:bold">${f.macro}</td><td>${f.comp}</td><td class="tagF">${f.val}</td></tr>`);
+  return h+`</table></div>`;
+}
+let F_OA="Todas";
+function pOA(){
+  const {O,A}=oya();
+  const fil=x=>F_OA==="Todas"||x.dim===F_OA;
+  let h=`<div class="card"><h2>Análisis externo: Oportunidades y Amenazas (PEST)</h2>
+  <div class="filtro">Dimensión: <select onchange="F_OA=this.value;render()">${["Todas",...DIMS].map(m=>`<option ${m===F_OA?"selected":""}>${m}</option>`).join("")}</select></div>
+  <h3 class="tagD">AMENAZAS (valor invertido)</h3><table><tr><th>Amenaza</th><th>Dimensión</th><th>Valor</th></tr>`;
+  A.filter(fil).sort((a,b)=>b.val-a.val).forEach(a=> h+=`<tr><td>${a.texto}</td><td>${a.dim}</td><td class="tagD">${a.val}</td></tr>`);
+  h+=`</table><h3 class="tagF">OPORTUNIDADES</h3><table><tr><th>Oportunidad</th><th>Dimensión</th><th>Valor</th></tr>`;
+  O.filter(fil).sort((a,b)=>b.val-a.val).forEach(o=> h+=`<tr><td>${o.crit}</td><td>${o.dim}</td><td class="tagF">${o.val}</td></tr>`);
+  return h+`</table></div>`;
+}
+function pPrio(){
+  const {D}=fyd();
+  D.forEach(d=>{ if(!(d.i in ST.pesos)) ST.pesos[d.i]=5; });
+  const lista=[...D].sort((a,b)=>(ST.pesos[b.i]*b.val)-(ST.pesos[a.i]*a.val));
+  let h=`<div class="card"><h2>Priorización — consolidado de DEBILIDADES (Peso × Valor)</h2>
+  <p class="mini">Asigne el peso (1–10) según importancia/frecuencia. La tabla se reordena automáticamente; las primeras debilidades alimentan el Plan.</p>
+  <table><tr><th>Orden</th><th>Debilidad</th><th>Macro</th><th>Peso (1–10)</th><th>Valor</th><th>PxV</th></tr>`;
+  lista.forEach((d,k)=>{ h+=`<tr><td><b>${k+1}°</b></td><td>${d.crit}</td><td style="color:${colM[d.macro]};font-weight:bold">${d.macro}</td>
+   <td><input type="number" min="1" max="10" value="${ST.pesos[d.i]}" style="width:55px" onchange="ST.pesos[${d.i}]=Math.max(1,Math.min(10,+this.value||5));save();render()"></td>
+   <td>${d.val}</td><td><b>${ST.pesos[d.i]*d.val}</b></td></tr>`; });
+  return h+`</table></div>`;
+}
+function pPlan(){
+  const {D}=fyd();
+  const ordered=[...D].sort((a,b)=>((ST.pesos[b.i]||5)*b.val)-((ST.pesos[a.i]||5)*a.val));
+  let h=`<div class="card"><h2>Plan: agrupar debilidades → Objetivo, Estrategias y Metas</h2>
+  <p class="mini">Cree grupos temáticos de debilidades. Cada grupo recibe: OEI de EsSalud al que se alinea, objetivo del servicio (verbo ORGANIZAR — jefa de servicio), estrategias con su factibilidad y metas operativas.</p>
+  <button class="btn teal" onclick="ST.grupos.push({nombre:'Grupo '+(ST.grupos.length+1),debs:[],oei:OEI[1],obj:'',est:[{t:'',f:'Alta'},{t:'',f:'Media'},{t:'',f:'Alta'}],metas:['','','']});save();render()">➕ Nuevo grupo</button>`;
+  ST.grupos.forEach((g,gi)=>{
+    h+=`<div class="grupoCard">
+    <p><input type="text" value="${g.nombre.replace(/"/g,'&quot;')}" style="font-weight:bold;width:300px" onchange="ST.grupos[${gi}].nombre=this.value;save()">
+    <button class="btn sec" style="float:right" onclick="if(confirm('¿Eliminar grupo?')){ST.grupos.splice(${gi},1);save();render()}">🗑</button></p>
+    <p><b>Debilidades del grupo:</b><br>${g.debs.map(di=>{const d=CADENA[di];return `<span class="deb-chip">${d?d.crit.slice(0,70):di} <a href="#" onclick="ST.grupos[${gi}].debs=ST.grupos[${gi}].debs.filter(x=>x!==${di});save();render();return false">✕</a></span>`;}).join("")||'<span class="mini">(vacío)</span>'}</p>
+    <p>Agregar debilidad: <select onchange="if(this.value!==''){ST.grupos[${gi}].debs.push(+this.value);save();render()}">
+      <option value="">— elegir (ordenadas por PxV) —</option>
+      ${ordered.filter(d=>!g.debs.includes(d.i)).map(d=>`<option value="${d.i}">[${d.macro}] ${d.crit.slice(0,90)} (PxV ${(ST.pesos[d.i]||5)*d.val})</option>`).join("")}</select></p>
+    <p><b>OEI EsSalud:</b> <select style="width:95%" onchange="ST.grupos[${gi}].oei=this.value;save()">${OEI.map(o=>`<option ${o===g.oei?"selected":""}>${o}</option>`).join("")}</select></p>
+    <p><b>Objetivo del servicio:</b><textarea placeholder="Organizar ..." onchange="ST.grupos[${gi}].obj=this.value;save()">${g.obj||""}</textarea></p>
+    <b>Estrategias (con factibilidad de ejecución):</b>`;
+    g.est.forEach((e,ei)=>{ h+=`<p style="display:flex;gap:6px">${ei+1}. <textarea style="flex:1" onchange="ST.grupos[${gi}].est[${ei}].t=this.value;save()">${e.t||""}</textarea>
+      <select onchange="ST.grupos[${gi}].est[${ei}].f=this.value;save()">${["Alta","Media","Baja"].map(f=>`<option ${f===e.f?"selected":""}>${f}</option>`).join("")}</select></p>`; });
+    h+=`<b>Metas operativas:</b>`;
+    g.metas.forEach((m,mi)=>{ h+=`<p style="display:flex;gap:6px">${mi+1}. <textarea style="flex:1" onchange="ST.grupos[${gi}].metas[${mi}]=this.value;save()">${m||""}</textarea></p>`; });
+    h+=`</div>`;
+  });
+  return h+`</div>`;
+}
+function pExp(){
+  return `<div class="card"><h2>Exportar</h2>
+  <p><b>→ A GEMSES360 (nube):</b> descarga los CSV en el formato del importador de la plataforma y súbelos con «⬆ Importar .xls/.csv» del módulo Plan de Gestión.</p>
+  <button class="btn teal" onclick="expCadenaCSV()">⬇ CSV Cadena (GEMSES360)</button>
+  <button class="btn teal" onclick="expPestCSV()">⬇ CSV PEST (GEMSES360)</button>
+  <p><b>→ Respaldo y plan:</b></p>
+  <button class="btn" onclick="expJSON()">⬇ JSON completo</button>
+  <button class="btn" onclick="expPlanCSV()">⬇ CSV Plan (grupos/objetivos/metas)</button>
+  <button class="btn sec" onclick="window.print()">🖨 Imprimir / PDF</button>
+  <p class="mini">El CSV de Cadena usa las columnas: macroproceso, componente, criterio, debilidad, valoracion. El de PEST: dimension, oportunidad, amenaza, valoracion — exactamente lo que GEMSES360 reconoce.</p></div>`;
+}
+
+// ---------- export ----------
+function dl(n,c,t){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([c],{type:t})); a.download=n; a.click(); }
+const q=s=>'"'+String(s??"").replace(/"/g,'""')+'"';
+function expCadenaCSV(){
+  let r=["macroproceso,componente,criterio,debilidad,valoracion"];
+  CADENA.forEach((it,i)=>r.push([q(it.macro),q(it.comp),q(it.crit),q(""),ST.vc[i]??""].join(",")));
+  dl("GEMSES360_cadena_6B.csv","﻿"+r.join("\r\n"),"text/csv;charset=utf-8");
+}
+function expPestCSV(){
+  let r=["dimension,oportunidad,amenaza,valoracion"];
+  PESTQ.forEach((it,i)=>r.push([q(it.dim),q(it.crit),q(it.neg||""),ST.vp[i]??""].join(",")));
+  dl("GEMSES360_pest_6B.csv","﻿"+r.join("\r\n"),"text/csv;charset=utf-8");
+}
+function expJSON(){ dl("tablero_gemses_6b.json", JSON.stringify({fecha:new Date().toISOString(),servicio:"6B Cirugía de Páncreas HNERM",estado:ST,stats:statsCadena()},null,2),"application/json"); }
+function expPlanCSV(){
+  let r=["grupo,oei_essalud,objetivo,estrategia,factibilidad,meta,debilidades"];
+  ST.grupos.forEach(g=>{
+    const debs=g.debs.map(di=>CADENA[di]?.crit).join(" | ");
+    const n=Math.max(g.est.length,g.metas.length);
+    for(let k=0;k<n;k++) r.push([q(g.nombre),q(g.oei),q(g.obj),q(g.est[k]?.t||""),q(g.est[k]?.f||""),q(g.metas[k]||""),q(debs)].join(","));
+  });
+  dl("PLAN_objetivos_estrategias_metas_6B.csv","﻿"+r.join("\r\n"),"text/csv;charset=utf-8");
+}
+
+// ---------- render ----------
+function render(){
+  const f={portada:pPortada,cad:pCad,pest:pPest,nivel:pNivel,macro:pMacro,comp:pComp,pareto:pPareto,fd:pFD,oa:pOA,prio:pPrio,plan:pPlan,exp:pExp}[CUR];
+  main.innerHTML=`<div class="page act">${f()}</div>`;
+}
+go("portada");
+</script>
+</body>
+</html>
