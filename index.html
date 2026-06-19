@@ -888,8 +888,9 @@ function renderDashboard(){
     const cards=m.ids.map(id=>PRODUCTS.find(p=>p.id===id)).filter(Boolean);
     cards.forEach(p=>_usados.add(p.id));
     if(!cards.length) return '';
-    return `<div class="sec-head" style="border-left:4px solid ${m.color};padding-left:12px"><h3>${m.title}</h3><div class="ln"></div><span class="pill" style="background:${m.color};color:#fff">${m.sub}</span></div>
-      <div class="prod-grid">${cards.map(prodCard).join('')}</div>`;
+    return `<div style="background:${m.color}0d;border:1px solid ${m.color}33;border-left:6px solid ${m.color};border-radius:14px;padding:14px 18px 6px;margin-bottom:22px">
+      <div class="sec-head" style="margin-top:2px"><h3 style="color:${m.color}">${m.title}</h3><div class="ln"></div><span class="pill" style="background:${m.color};color:#fff">${m.sub}</span></div>
+      <div class="prod-grid">${cards.map(prodCard).join('')}</div></div>`;
   }).join('');
   const _otros=PRODUCTS.filter(p=>!_usados.has(p.id));
   if(_otros.length){ gruposHTML+=`<div class="sec-head"><h3>Otros módulos</h3><div class="ln"></div></div><div class="prod-grid">${_otros.map(prodCard).join('')}</div>`; }
