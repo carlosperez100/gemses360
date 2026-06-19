@@ -578,7 +578,7 @@ function saveData(){lsSet(LS_DATA,JSON.stringify(DB))}
 /* ---------- Seed usuarios por defecto (idempotente, se asegura en cada carga) ---------- */
 function seedUsers(){
   let us=loadUsers(), changed=false;
-  const ACC=['formacion','indicadores','pae','plan','diagnostico','brecha','programacion','tablero'];
+  const ACC=['formacion','indicadores','pae','plan','diagnostico','supervision','brecha','programacion','tablero'];
   // Demo: VISTA GLOBAL (ve todos los registros) — como está hoy
   const dem=us.find(u=>u.email==='demo@gemses360.com');
   if(!dem){
@@ -3206,7 +3206,7 @@ function redeemCode(){
   // Grabado en el fuente: funciona en CUALQUIER navegador sin sincronizar, para repartir a los alumnos.
   // Acceso gratuito a todos los módulos con vigencia del curso.
   if(code==='CURSO-IA-2026'){
-    const ACC_CURSO=['formacion','indicadores','pae','plan','diagnostico','brecha','programacion','tablero'];
+    const ACC_CURSO=['formacion','indicadores','pae','plan','diagnostico','supervision','brecha','programacion','tablero'];
     const hasta=addMonths(todayISO(),3); // vigencia del curso (3 meses)
     USER.access=Array.from(new Set([...(USER.access||[]),...ACC_CURSO]));
     USER.accessUntil=USER.accessUntil||{}; ACC_CURSO.forEach(id=>USER.accessUntil[id]=hasta);
