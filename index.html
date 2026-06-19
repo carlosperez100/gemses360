@@ -541,6 +541,9 @@ const PRODUCTS = [
   {id:'tablero', name:'Tablero de Mando GEMSES', icon:'🧭', color:'linear-gradient(135deg,#0891B2,#22D3EE)',
    desc:'Producto sugerido: tablero ejecutivo que consolida indicadores de todas las IPRESS para la alta dirección institucional.',
    tags:['Ejecutivo','Multi-IPRESS','Benchmarking'], state:'soon', proposed:true},
+  {id:'supervision', name:'Plan de Supervisión', icon:'🗓️', color:'linear-gradient(135deg,#028090,#1E9E6A)',
+   desc:'Evaluación y monitoreo de IPRESS: programación flexible, cronograma, matriz de indicadores automática vs metas y encuestas de satisfacción.',
+   tags:['Supervisión','Cronograma','Encuestas','Indicadores'], state:'active'},
 ];
 
 /* ---------- PLANES ---------- */
@@ -869,6 +872,7 @@ function nav(v){
   if(p.id==='diagnostico') return renderDiagnostico();
   if(p.id==='maestras') return renderMaestras();
   if(p.id==='configia') return renderConfigIA();
+  if(p.id==='supervision') return renderSupervision();
   return renderComingSoon(p);
 }
 
@@ -879,7 +883,7 @@ function renderDashboard(){
   const activos=PRODUCTS.filter(p=>hasAccess(p.id)).length;
   // Agrupación de módulos por los 3 macroprocesos del Modelo GEMSES
   const MACROS=[
-    {title:'Macroproceso Estratégico', sub:'Dirección · diagnóstico · control', color:'#F0B429', ids:['plan','diagnostico','configia','tablero']},
+    {title:'Macroproceso Estratégico', sub:'Dirección · diagnóstico · control', color:'#F0B429', ids:['plan','diagnostico','supervision','configia','tablero']},
     {title:'Macroproceso Misional', sub:'Cadena de valor · atención al cliente', color:'#028090', ids:['indicadores','pae','programacion']},
     {title:'Macroproceso de Soporte', sub:'Recursos · talento · infraestructura', color:'#1E9E6A', ids:['formacion','maestras','brecha']},
   ];
@@ -934,6 +938,136 @@ function renderComingSoon(p){
     <h2>${p.name}</h2><p>${p.desc}</p>
     <div class="roadmap"><span>📐 Diseño</span><span>🔧 Construcción</span><span>🧪 Piloto</span><span>🚀 Lanzamiento</span></div>
     <p style="margin-top:20px;font-size:12.5px">Este módulo está habilitado en tu plan y se encuentra en desarrollo. La estructura ya quedó reservada en tu plataforma.</p></div>`;
+}
+
+/* ============================================================
+   MÓDULO: PLAN DE SUPERVISIÓN (Evaluación y Monitoreo de IPRESS)
+   Replica el módulo de SISOL 360. Plan + cronograma + matriz de
+   indicadores automática + encuestas de satisfacción.
+   Datos en localStorage; las encuestas tienen hook a Supabase
+   (window.SUPA) para migrar a base de datos central.
+   ============================================================ */
+const LS_SUP='g360_supervision';
+const SUP_INSTR=['Tópico de Urgencia','Consulta Externa','Hospitalización','Farmacia','Laboratorio','Bioseguridad','Satisfacción del usuario'];
+const SUP_PERIODOS=['Trim. 1','Trim. 2','Trim. 3','Trim. 4','Semestre I','Semestre II','Anual'];
+const SUP_ESTADOS=['Programada','En proceso','Ejecutada','Reprogramada'];
+const SUP_PREGUNTAS=['Trato del personal','Tiempo de espera','Limpieza e instalaciones','Información recibida','Satisfacción general'];
+function loadSup(){try{const s=JSON.parse(lsGet(LS_SUP));if(s&&Array.isArray(s.planes))return s;}catch(e){}return {planes:[],activo:null};}
+function saveSup(s){lsSet(LS_SUP,JSON.stringify(s));}
+function supActivo(){const s=loadSup();return s.planes.find(p=>p.id===s.activo)||s.planes[0]||null;}
+function supNuevoPlan(){
+  const nombre=prompt('Nombre del plan de supervisión:','Plan de Supervisión '+todayISO().slice(0,4));
+  if(!nombre)return;
+  const objetivo=prompt('Objetivo del plan:','Supervisar y evaluar las actividades y procesos operativos de las IPRESS para garantizar la calidad.')||'';
+  const s=loadSup(),id=uid();
+  s.planes.push({id,nombre:nombre.trim(),objetivo:objetivo.trim(),anio:todayISO().slice(0,4),metaIpress:10,crono:[],encuestas:[]});
+  s.activo=id;saveSup(s);toast('✓ Plan creado');renderSupervision();
+}
+function supSelPlan(id){const s=loadSup();s.activo=id;saveSup(s);renderSupervision();}
+function supEliminarPlan(){const p=supActivo();if(!p)return;if(!confirm('¿Eliminar el plan "'+p.nombre+'" con su cronograma y encuestas?'))return;const s=loadSup();s.planes=s.planes.filter(x=>x.id!==p.id);s.activo=(s.planes[0]&&s.planes[0].id)||null;saveSup(s);renderSupervision();}
+function supToggle(id){const el=document.getElementById(id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+function supProgramar(){
+  const p=supActivo();if(!p)return;
+  const ipress=(document.getElementById('supIpress').value||'').trim();
+  if(!ipress){toast('Indica la IPRESS');return;}
+  const s=loadSup(),pl=s.planes.find(x=>x.id===p.id);
+  pl.crono.push({id:uid(),ipress,instrumento:document.getElementById('supInstr').value,periodo:document.getElementById('supPeriodo').value,fecha:document.getElementById('supFecha').value,responsable:(document.getElementById('supResp').value||'').trim(),estado:'Programada',resultado:''});
+  saveSup(s);renderSupervision();
+}
+function supSetEstado(id,val){const s=loadSup(),p=s.planes.find(x=>x.id===s.activo),c=p&&p.crono.find(x=>x.id===id);if(c){c.estado=val;saveSup(s);renderSupervision();}}
+function supSetResultado(id,val){const s=loadSup(),p=s.planes.find(x=>x.id===s.activo),c=p&&p.crono.find(x=>x.id===id);if(c){c.resultado=val;saveSup(s);}}
+function supDelCrono(id){const s=loadSup(),p=s.planes.find(x=>x.id===s.activo);if(!p)return;p.crono=p.crono.filter(x=>x.id!==id);saveSup(s);renderSupervision();}
+function supGuardarEncuesta(){
+  const p=supActivo();if(!p)return;
+  const ipress=(document.getElementById('encIpress').value||'').trim();
+  if(!ipress){toast('Indica la IPRESS');return;}
+  const fecha=document.getElementById('encFecha').value||todayISO();
+  const resp=SUP_PREGUNTAS.map((_,i)=>+((document.querySelector('input[name="encP'+i+'"]:checked')||{}).value)||0);
+  if(resp.some(v=>!v)){toast('Responde las '+SUP_PREGUNTAS.length+' preguntas');return;}
+  const prom=Math.round(resp.reduce((a,b)=>a+b,0)/(resp.length*5)*100);
+  const comentario=(document.getElementById('encCom').value||'').trim();
+  const s=loadSup(),pl=s.planes.find(x=>x.id===p.id);
+  pl.encuestas.push({id:uid(),ipress,fecha,respuestas:resp,prom,comentario,creado:todayISO()});
+  saveSup(s);
+  if(window.SUPA&&window.SUPA.from){try{window.SUPA.from('encuestas_satisfaccion').insert([{ipress,fecha,prom,respuestas:resp,comentario,plan:pl.nombre}]);}catch(e){}}
+  toast('✓ Encuesta guardada'+(window.SUPA?' (local + nube)':' (local)'));renderSupervision();
+}
+function supDelEncuesta(id){const s=loadSup(),p=s.planes.find(x=>x.id===s.activo);if(!p)return;p.encuestas=p.encuestas.filter(x=>x.id!==id);saveSup(s);renderSupervision();}
+function supEstadoTag(actual,metaMin){
+  if(actual>=metaMin)return '<span class="badge-state s-active">Logrado</span>';
+  if(actual>=metaMin*0.5)return '<span class="badge-state s-soon">En proceso</span>';
+  return '<span class="badge-state" style="background:rgba(214,69,69,.12);color:var(--bad)">Crítico</span>';
+}
+function renderSupervision(){
+  pgTitle.textContent='Plan de Supervisión';
+  pgSub.textContent='Programación, cronograma e indicadores automáticos vs metas';
+  const s=loadSup(),plan=supActivo();
+  if(!plan){
+    content.innerHTML='<div class="welcome"><h2>🗓️ Plan de Supervisión</h2><p>Programa supervisiones a las IPRESS, lleva el cronograma, mide indicadores automáticos y registra encuestas de satisfacción.</p></div>'+
+    '<div class="prod" style="padding:28px;text-align:center"><p style="margin-bottom:16px;color:var(--muted)">Aún no tienes ningún plan de supervisión.</p>'+
+    '<button class="btn btn-primary" style="max-width:280px;margin:0 auto" onclick="supNuevoPlan()">+ Crear primer plan</button></div>';
+    return;
+  }
+  const cr=plan.crono||[],enc=plan.encuestas||[];
+  const ejec=cr.filter(c=>c.estado==='Ejecutada');
+  const nIpress=new Set(ejec.map(c=>c.ipress)).size;
+  const avance=cr.length?Math.round(ejec.length/cr.length*100):0;
+  const res=ejec.map(c=>+c.resultado||0).filter(v=>v>0);
+  const cumpl=res.length?Math.round(res.reduce((a,b)=>a+b,0)/res.length):0;
+  const atrasadas=cr.filter(c=>c.estado!=='Ejecutada'&&c.fecha&&c.fecha<todayISO()).length;
+  const satProm=enc.length?Math.round(enc.reduce((a,b)=>a+(+b.prom||0),0)/enc.length):0;
+  const metaIp=plan.metaIpress||10;
+  const opts=s.planes.map(p=>'<option value="'+p.id+'"'+(p.id===plan.id?' selected':'')+'>'+esc(p.nombre)+'</option>').join('');
+  const indDefs=[
+    ['N° IPRESS supervisadas','IPRESS distintas con supervisión ejecutada',metaIp,Math.round(metaIp*1.2),nIpress,nIpress,false],
+    ['% avance cronograma','(Ejecutadas / programadas) × 100',80,100,avance,avance,true],
+    ['% cumplimiento promedio','Promedio del resultado de supervisiones ejecutadas',80,100,cumpl,cumpl,true],
+    ['% satisfacción del usuario','Promedio de las encuestas de satisfacción',85,100,satProm,satProm,true]
+  ];
+  const indRows=indDefs.map(r=>{const pct=r[6]?'%':'';return '<tr><td><b>'+r[0]+'</b></td><td style="color:var(--muted);font-size:12px">'+r[1]+'</td><td style="text-align:center">'+r[2]+pct+'</td><td style="text-align:center">'+r[3]+pct+'</td><td style="text-align:center;font-weight:800;color:var(--teal)">'+r[5]+pct+'</td><td style="text-align:center">'+supEstadoTag(r[4],r[2])+'</td></tr>';}).join('');
+  const croRows=cr.length?cr.map(c=>'<tr><td>'+esc(c.ipress)+'</td><td>'+esc(c.instrumento||'')+'</td><td>'+esc(c.periodo||'')+'</td><td>'+esc(c.fecha||'—')+'</td><td>'+esc(c.responsable||'—')+'</td>'+
+    '<td><select class="fi" style="padding:5px 8px;font-size:12px" onchange="supSetEstado(\''+c.id+'\',this.value)">'+SUP_ESTADOS.map(e=>'<option'+(e===c.estado?' selected':'')+'>'+e+'</option>').join('')+'</select></td>'+
+    '<td style="text-align:center"><input class="fi" style="width:70px;padding:5px;text-align:center" type="number" min="0" max="100" placeholder="%" value="'+(c.resultado||'')+'" onchange="supSetResultado(\''+c.id+'\',this.value)"></td>'+
+    '<td style="text-align:center"><button class="btn btn-ghost btn-sm" onclick="supDelCrono(\''+c.id+'\')">🗑</button></td></tr>').join('')
+    :'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">Sin supervisiones programadas. Usa «+ Programar».</td></tr>';
+  const encRows=enc.length?enc.slice().reverse().map(e=>'<tr><td>'+esc(e.ipress)+'</td><td>'+esc(e.fecha)+'</td><td style="text-align:center;font-weight:800;color:'+(e.prom>=85?'var(--ok)':e.prom>=60?'var(--warn)':'var(--bad)')+'">'+e.prom+'%</td><td style="font-size:12px;color:var(--muted)">'+esc(e.comentario||'')+'</td><td style="text-align:center"><button class="btn btn-ghost btn-sm" onclick="supDelEncuesta(\''+e.id+'\')">🗑</button></td></tr>').join('')
+    :'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Sin encuestas registradas aún.</td></tr>';
+  const preg=SUP_PREGUNTAS.map((q,i)=>'<div style="margin-bottom:8px"><label class="flbl">'+q+'</label><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+[1,2,3,4,5].map(v=>'<label style="font-size:12px;display:inline-flex;align-items:center;gap:3px"><input type="radio" name="encP'+i+'" value="'+v+'"> '+v+'</label>').join('')+'<span style="font-size:11px;color:var(--muted)">(1 muy malo · 5 muy bueno)</span></div></div>').join('');
+  content.innerHTML=
+  '<div class="toolbar"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+    '<label class="flbl" style="margin:0">Plan:</label><select class="fi" style="max-width:380px;width:auto" onchange="supSelPlan(this.value)">'+opts+'</select>'+
+    '<button class="btn btn-primary btn-sm" style="width:auto" onclick="supNuevoPlan()">+ Nuevo plan</button>'+
+    '<button class="btn btn-ghost btn-sm" style="width:auto" onclick="supEliminarPlan()">🗑 Eliminar</button></div></div>'+
+  '<div class="prod" style="padding:18px;margin-bottom:18px"><div style="font-weight:800;font-size:15px;color:var(--teal);margin-bottom:6px">'+esc(plan.nombre)+'</div>'+
+    '<div style="background:rgba(2,128,144,.06);border-left:3px solid var(--teal);border-radius:8px;padding:10px 12px;font-size:13px">'+esc(plan.objetivo||'Sin objetivo definido')+'</div></div>'+
+  '<div class="wstats" style="margin-bottom:18px">'+
+    '<div class="wstat"><b style="color:var(--teal)">'+nIpress+'</b><span>IPRESS supervisadas · meta '+metaIp+'</span></div>'+
+    '<div class="wstat"><b style="color:var(--navy)">'+avance+'%</b><span>Avance cronograma · '+ejec.length+'/'+cr.length+'</span></div>'+
+    '<div class="wstat"><b style="color:var(--warn)">'+cumpl+'%</b><span>Cumplimiento promedio</span></div>'+
+    '<div class="wstat"><b style="color:'+(atrasadas?'var(--bad)':'var(--ok)')+'">'+atrasadas+'</b><span>Actividades atrasadas</span></div></div>'+
+  '<div class="sec-head"><h3>📊 Matriz de indicadores (automática)</h3><div class="ln"></div></div>'+
+  '<div style="overflow:auto;margin-bottom:22px"><table class="tbl" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;border-bottom:2px solid var(--line)"><th style="padding:8px">Indicador</th><th>Método</th><th style="text-align:center">Meta mín.</th><th style="text-align:center">Meta ópt.</th><th style="text-align:center">Actual</th><th style="text-align:center">Estado</th></tr></thead><tbody>'+indRows+'</tbody></table></div>'+
+  '<div class="sec-head"><h3>🗓️ Cronograma de supervisiones</h3><div class="ln"></div><button class="btn btn-primary btn-sm" style="width:auto" onclick="supToggle(\'supForm\')">+ Programar</button></div>'+
+  '<div id="supForm" style="display:none;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px"><div class="fgrid">'+
+    '<div><label class="flbl">IPRESS</label><input class="fi" id="supIpress" placeholder="Nombre de la IPRESS"></div>'+
+    '<div><label class="flbl">Instrumento</label><select class="fi" id="supInstr">'+SUP_INSTR.map(i=>'<option>'+i+'</option>').join('')+'</select></div>'+
+    '<div><label class="flbl">Periodo</label><select class="fi" id="supPeriodo">'+SUP_PERIODOS.map(i=>'<option>'+i+'</option>').join('')+'</select></div>'+
+    '<div><label class="flbl">Fecha programada</label><input class="fi" id="supFecha" type="date"></div>'+
+    '<div><label class="flbl">Responsable</label><input class="fi" id="supResp" placeholder="Responsable"></div></div>'+
+    '<div style="margin-top:12px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="supProgramar()">✓ Agregar al cronograma</button></div></div>'+
+  '<div style="overflow:auto;margin-bottom:24px"><table class="tbl" style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;border-bottom:2px solid var(--line)"><th style="padding:8px">IPRESS</th><th>Instrumento</th><th>Periodo</th><th>Fecha</th><th>Responsable</th><th>Estado</th><th style="text-align:center">Resultado</th><th></th></tr></thead><tbody>'+croRows+'</tbody></table></div>'+
+  '<div class="sec-head"><h3>📋 Encuestas de satisfacción</h3><div class="ln"></div><span class="pill">'+enc.length+' registradas · prom '+satProm+'%</span><button class="btn btn-primary btn-sm" style="width:auto" onclick="supToggle(\'encForm\')">+ Nueva encuesta</button></div>'+
+  '<div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">💾 Por ahora se guardan en este navegador. Al conectar Supabase irán a la base de datos central automáticamente.</div>'+
+  '<div id="encForm" style="display:none;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px"><div class="fgrid">'+
+    '<div><label class="flbl">IPRESS</label><input class="fi" id="encIpress" placeholder="Nombre de la IPRESS"></div>'+
+    '<div><label class="flbl">Fecha</label><input class="fi" id="encFecha" type="date"></div></div>'+
+    '<div style="margin-top:12px">'+preg+'</div>'+
+    '<div style="margin-top:6px"><label class="flbl">Comentario (opcional)</label><input class="fi" id="encCom" placeholder="Observación del usuario"></div>'+
+    '<div style="margin-top:12px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="supGuardarEncuesta()">✓ Guardar encuesta</button></div></div>'+
+  '<div style="overflow:auto;margin-bottom:24px"><table class="tbl" style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;border-bottom:2px solid var(--line)"><th style="padding:8px">IPRESS</th><th>Fecha</th><th style="text-align:center">Satisfacción</th><th>Comentario</th><th></th></tr></thead><tbody>'+encRows+'</tbody></table></div>'+
+  '<div class="sec-head"><h3>🔬 Diagnóstico estratégico (Autodiagnóstico · FODA · PESTEL)</h3><div class="ln"></div></div>'+
+  '<div class="prod" style="padding:18px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap"><div style="font-size:13px;color:var(--muted);max-width:560px">El autodiagnóstico, FODA matemático y PESTEL se gestionan en el módulo <b>Diagnóstico Estratégico</b>, alineados al Modelo GEMSES. Úsalos como base del análisis de tus supervisiones.</div>'+
+    '<button class="btn btn-primary" style="width:auto" onclick="nav(\'diagnostico\')">Abrir Diagnóstico Estratégico →</button></div>';
 }
 
 /* ============================================================
