@@ -1634,7 +1634,7 @@ function diagExportExcel(){
   toast('📊 Excel exportado');
 }
 /* ---- Asistente IA del Diagnóstico (reusa llamarIA / AICFG) ---- */
-function aiReady(){ return !!(typeof AICFG==='object' && AICFG && (AICFG.key||'').trim()) && !!(typeof USER!=='undefined'&&USER&&(USER.rol==='admin'||USER.verTodo===true||AICFG.enabled===true)); }
+function aiReady(){ const cfg=(typeof AICFG==='object'&&AICFG)?AICFG:null; const hasCred=!!cfg && (cfg.provider==='ollama' || (cfg.key||'').trim()); return hasCred && !!(typeof USER!=='undefined'&&USER&&(USER.rol==='admin'||USER.verTodo===true||AICFG.enabled===true)); }
 function aiParseJSON(txt){
   if(txt==null) return null; let s=String(txt).trim();
   s=s.replace(/^```[a-z]*\s*/i,'').replace(/```\s*$/,'').trim();
@@ -4031,7 +4031,7 @@ function renderInforme(){
 
 /* ---------- Sección de IA del informe: clave configurable por el usuario ---------- */
 function aiInformeHTML(){
-  const provLabel={gemini:'Google Gemini',openai:'OpenAI',custom:'Personalizado (otro proveedor)'};
+  const provLabel={ollama:'Ollama (servidor propio · gratis)',gemini:'Google Gemini',openai:'OpenAI',custom:'Personalizado (otro proveedor)'};
   const provOpts=Object.keys(provLabel).map(k=>`<option value="${k}" ${AICFG.provider===k?'selected':''}>${provLabel[k]}</option>`).join('');
   const tieneKey=!!(AICFG.key&&AICFG.key.trim());
   return `<div class="detail-sec">
@@ -4057,14 +4057,14 @@ function aiToggleKey(){ const e=document.getElementById('aiKey'); if(e)e.type=e.
 function aiIsAdmin(){ return !!(USER&&(USER.rol==='admin'||USER.verTodo===true)); }
 function aiCfgSet(k,v){ if(!aiIsAdmin())return; AICFG[k]=v; saveAI(AICFG); if(k==='provider') renderConfigIA(); }
 function aiSetEnabled(v){ if(!aiIsAdmin())return; AICFG.enabled=!!v; saveAI(AICFG); renderConfigIA(); toast(AICFG.enabled?'✓ IA habilitada':'IA deshabilitada'); }
-function aiTest(){ const out=document.getElementById('aiCfgOut'); if(!out)return; if(!(AICFG.key||'').trim()){ out.innerHTML='<div class="ai-diag d-warn">Falta la clave de API.</div>'; return; }
+function aiTest(){ const out=document.getElementById('aiCfgOut'); if(!out)return; if(AICFG.provider!=='ollama' && !(AICFG.key||'').trim()){ out.innerHTML='<div class="ai-diag d-warn">Falta la clave de API.</div>'; return; }
   out.innerHTML='<div class="ai-diag">⏳ Probando conexión…</div>';
   llamarIA('Responde únicamente con la palabra LISTO').then(function(t){ const e=document.getElementById('aiCfgOut'); if(e)e.innerHTML='<div class="ai-diag" style="border-color:var(--ok);color:var(--ok)">✓ La IA respondió: "'+esc(String(t).trim().slice(0,60))+'" · '+esc(AICFG.provider)+' / '+esc(AICFG.model)+'</div>'; })
   .catch(function(err){ const e=document.getElementById('aiCfgOut'); if(e)e.innerHTML='<div class="ai-diag d-bad">Error: '+esc(err.message||String(err))+'. Revisa el modelo o la clave.</div>'; });
 }
 function renderConfigIA(){
   pgTitle.textContent='Asistente IA'; pgSub.textContent='Configuración y habilitación de la inteligencia artificial';
-  const provLabel={gemini:'Google Gemini',openai:'OpenAI',custom:'Personalizado (otro proveedor)'};
+  const provLabel={ollama:'Ollama (servidor propio · gratis)',gemini:'Google Gemini',openai:'OpenAI',custom:'Personalizado (otro proveedor)'};
   const provOpts=Object.keys(provLabel).map(k=>`<option value="${k}" ${AICFG.provider===k?'selected':''}>${provLabel[k]}</option>`).join('');
   const tieneKey=!!(AICFG.key&&AICFG.key.trim()), on=AICFG.enabled===true;
   content.innerHTML=`<div class="welcome" style="background:linear-gradient(135deg,#13294B,#7A5BD6)"><h2>🤖 Asistente IA — configuración</h2><p>Solo el <b>administrador</b> configura el proveedor y la clave. La IA queda <b>deshabilitada para todos</b> hasta que la habilites aquí. La clave se guarda solo en este navegador.</p></div>
@@ -4103,7 +4103,7 @@ function resumenInformeTexto(){
 async function generarInformeIA(){
   if(USER.rol!=='admin')return;
   const out=document.getElementById('aiOut'); if(!out)return;
-  if(!AICFG.key||!AICFG.key.trim()){out.innerHTML=`<div class="ai-diag d-warn">Configura primero tu clave de API.</div>`;return;}
+  if(AICFG.provider!=='ollama' && (!AICFG.key||!AICFG.key.trim())){out.innerHTML=`<div class="ai-diag d-warn">Configura primero tu clave de API.</div>`;return;}
   out.innerHTML=`<div class="ai-diag">⏳ Consultando a la IA…</div>`;
   const prompt=`Eres analista de gestión en salud (Modelo GEMSES). Analiza el siguiente informe de indicadores y entrega: (1) un diagnóstico ejecutivo en 4-6 viñetas, (2) las dimensiones y los indicadores más críticos, (3) recomendaciones priorizadas de mejora. Sé concreto y usa los números.\n\n${resumenInformeTexto()}`;
   try{
@@ -4118,6 +4118,15 @@ async function generarInformeIA(){
 /* Llamada genérica a la IA. Soporta Gemini y OpenAI; endpoint personalizable. */
 async function llamarIA(prompt){
   const p=AICFG.provider||'gemini', key=(AICFG.key||'').trim(), model=(AICFG.model||'').trim();
+  if(p==='ollama'){
+    // IA local en el VPS vía proxy Nginx (/ollama/ -> 127.0.0.1:11434). No requiere clave de API.
+    const url=AICFG.endpoint||'/ollama/v1/chat/completions';
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:model||'llama3.2:3b',messages:[{role:'user',content:prompt}],stream:false})});
+    if(!r.ok) throw new Error('HTTP '+r.status+' — ¿está activo el proxy /ollama/ y el servicio Ollama?');
+    const j=await r.json();
+    return (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'(respuesta vacía)';
+  }
   if(p==='openai'){
     const url=AICFG.endpoint||'https://api.openai.com/v1/chat/completions';
     const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
