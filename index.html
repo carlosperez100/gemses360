@@ -3042,6 +3042,20 @@ function redeemCode(){
   const code=(el?el.value:'').trim().toUpperCase();
   const fail=t=>{if(msg){msg.style.color='var(--bad)';msg.textContent=t;}};
   if(!code)return fail('Ingresa un código.');
+  // ---- Código del CURSO (CIIDEG) ----
+  // Grabado en el fuente: funciona en CUALQUIER navegador sin sincronizar, para repartir a los alumnos.
+  // Acceso gratuito a todos los módulos con vigencia del curso.
+  if(code==='CURSO-IA-2026'){
+    const ACC_CURSO=['formacion','indicadores','pae','plan','diagnostico','brecha','programacion','tablero'];
+    const hasta=addMonths(todayISO(),3); // vigencia del curso (3 meses)
+    USER.access=Array.from(new Set([...(USER.access||[]),...ACC_CURSO]));
+    USER.accessUntil=USER.accessUntil||{}; ACC_CURSO.forEach(id=>USER.accessUntil[id]=hasta);
+    if(USER.plan==='explora')USER.plan='servicio';
+    persistUser(); closeModal(); renderShell();
+    toast('✓ Acceso del curso activado · CIIDEG · vigente hasta '+fmtDate(hasta));
+    nav('indicadores');
+    return;
+  }
   const codes=loadCodes(), c=codes.find(x=>x.code===code);
   if(!c)return fail('Código no válido o inexistente.');
   if(c.estado==='usado' && c.usadoPor && c.usadoPor!==USER.email) return fail('Este código ya fue asignado a otra persona.');
