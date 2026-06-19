@@ -877,6 +877,22 @@ function renderDashboard(){
   pgTitle.textContent='Inicio'; pgSub.textContent='Tu centro de control GEMSES360';
   const indsList=inds();
   const activos=PRODUCTS.filter(p=>hasAccess(p.id)).length;
+  // Agrupación de módulos por los 3 macroprocesos del Modelo GEMSES
+  const MACROS=[
+    {title:'Macroproceso Estratégico', sub:'Dirección · diagnóstico · control', color:'#F0B429', ids:['plan','diagnostico','configia','tablero']},
+    {title:'Macroproceso Misional', sub:'Cadena de valor · atención al cliente', color:'#028090', ids:['indicadores','pae','programacion']},
+    {title:'Macroproceso de Soporte', sub:'Recursos · talento · infraestructura', color:'#1E9E6A', ids:['formacion','maestras','brecha']},
+  ];
+  const _usados=new Set();
+  let gruposHTML=MACROS.map(m=>{
+    const cards=m.ids.map(id=>PRODUCTS.find(p=>p.id===id)).filter(Boolean);
+    cards.forEach(p=>_usados.add(p.id));
+    if(!cards.length) return '';
+    return `<div class="sec-head" style="border-left:4px solid ${m.color};padding-left:12px"><h3>${m.title}</h3><div class="ln"></div><span class="pill" style="background:${m.color};color:#fff">${m.sub}</span></div>
+      <div class="prod-grid">${cards.map(prodCard).join('')}</div>`;
+  }).join('');
+  const _otros=PRODUCTS.filter(p=>!_usados.has(p.id));
+  if(_otros.length){ gruposHTML+=`<div class="sec-head"><h3>Otros módulos</h3><div class="ln"></div></div><div class="prod-grid">${_otros.map(prodCard).join('')}</div>`; }
   content.innerHTML=`
     <div class="welcome">
       <h2>Hola, ${USER.name.split(' ')[0]} 👋</h2>
@@ -888,7 +904,7 @@ function renderDashboard(){
       </div>
     </div>
     <div class="sec-head"><h3>Productos GEMSES360</h3><div class="ln"></div><span class="pill">Modelo GEMSES</span></div>
-    <div class="prod-grid">${PRODUCTS.map(prodCard).join('')}</div>`;
+    ${gruposHTML}`;
 }
 function prodCard(p){
   const lk=hasAccess(p.id);
