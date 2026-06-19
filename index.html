@@ -947,6 +947,11 @@ function renderComingSoon(p){
    Datos en localStorage; las encuestas tienen hook a Supabase
    (window.SUPA) para migrar a base de datos central.
    ============================================================ */
+/* ---------- Supabase (encuestas de satisfacción en base de datos central) ---------- */
+const SUPA_URL='https://jjdfqinixqlswocubebc.supabase.co';
+const SUPA_KEY='sb_publishable_PEJyrFn2Ie7qoyK4cySR4A_09el_edA';
+try{ if(window.supabase&&window.supabase.createClient){ window.SUPA=window.supabase.createClient(SUPA_URL,SUPA_KEY); } }catch(e){ console.warn('Supabase no inicializado:',e); }
+
 const LS_SUP='g360_supervision';
 const SUP_INSTR=['Tópico de Urgencia','Consulta Externa','Hospitalización','Farmacia','Laboratorio','Bioseguridad','Satisfacción del usuario'];
 const SUP_PERIODOS=['Trim. 1','Trim. 2','Trim. 3','Trim. 4','Semestre I','Semestre II','Anual'];
@@ -977,7 +982,7 @@ function supProgramar(){
 function supSetEstado(id,val){const s=loadSup(),p=s.planes.find(x=>x.id===s.activo),c=p&&p.crono.find(x=>x.id===id);if(c){c.estado=val;saveSup(s);renderSupervision();}}
 function supSetResultado(id,val){const s=loadSup(),p=s.planes.find(x=>x.id===s.activo),c=p&&p.crono.find(x=>x.id===id);if(c){c.resultado=val;saveSup(s);}}
 function supDelCrono(id){const s=loadSup(),p=s.planes.find(x=>x.id===s.activo);if(!p)return;p.crono=p.crono.filter(x=>x.id!==id);saveSup(s);renderSupervision();}
-function supGuardarEncuesta(){
+async function supGuardarEncuesta(){
   const p=supActivo();if(!p)return;
   const ipress=(document.getElementById('encIpress').value||'').trim();
   if(!ipress){toast('Indica la IPRESS');return;}
@@ -989,8 +994,12 @@ function supGuardarEncuesta(){
   const s=loadSup(),pl=s.planes.find(x=>x.id===p.id);
   pl.encuestas.push({id:uid(),ipress,fecha,respuestas:resp,prom,comentario,creado:todayISO()});
   saveSup(s);
-  if(window.SUPA&&window.SUPA.from){try{window.SUPA.from('encuestas_satisfaccion').insert([{ipress,fecha,prom,respuestas:resp,comentario,plan:pl.nombre}]);}catch(e){}}
-  toast('✓ Encuesta guardada'+(window.SUPA?' (local + nube)':' (local)'));renderSupervision();
+  let nube=false;
+  if(window.SUPA&&window.SUPA.from){
+    try{ const {error}=await window.SUPA.from('encuestas_satisfaccion').insert([{ipress,fecha,prom,respuestas:resp,comentario,plan:pl.nombre}]);
+      if(error){console.warn('Supabase insert:',error);} else {nube=true;} }catch(e){console.warn(e);}
+  }
+  toast(nube?'✓ Encuesta guardada en la base de datos ☁️':'✓ Encuesta guardada (local)');renderSupervision();
 }
 function supDelEncuesta(id){const s=loadSup(),p=s.planes.find(x=>x.id===s.activo);if(!p)return;p.encuestas=p.encuestas.filter(x=>x.id!==id);saveSup(s);renderSupervision();}
 function supEstadoTag(actual,metaMin){
@@ -1057,7 +1066,7 @@ function renderSupervision(){
     '<div style="margin-top:12px"><button class="btn btn-primary btn-sm" style="width:auto" onclick="supProgramar()">✓ Agregar al cronograma</button></div></div>'+
   '<div style="overflow:auto;margin-bottom:24px"><table class="tbl" style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;border-bottom:2px solid var(--line)"><th style="padding:8px">IPRESS</th><th>Instrumento</th><th>Periodo</th><th>Fecha</th><th>Responsable</th><th>Estado</th><th style="text-align:center">Resultado</th><th></th></tr></thead><tbody>'+croRows+'</tbody></table></div>'+
   '<div class="sec-head"><h3>📋 Encuestas de satisfacción</h3><div class="ln"></div><span class="pill">'+enc.length+' registradas · prom '+satProm+'%</span><button class="btn btn-primary btn-sm" style="width:auto" onclick="supToggle(\'encForm\')">+ Nueva encuesta</button></div>'+
-  '<div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">💾 Por ahora se guardan en este navegador. Al conectar Supabase irán a la base de datos central automáticamente.</div>'+
+  '<div style="font-size:11.5px;color:'+(window.SUPA?'var(--ok)':'var(--muted)')+';margin-bottom:10px">'+(window.SUPA?'☁️ Conectado a la base de datos (Supabase) — las encuestas se guardan en la nube.':'💾 Se guardan en este navegador (Supabase no disponible).')+'</div>'+
   '<div id="encForm" style="display:none;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px"><div class="fgrid">'+
     '<div><label class="flbl">IPRESS</label><input class="fi" id="encIpress" placeholder="Nombre de la IPRESS"></div>'+
     '<div><label class="flbl">Fecha</label><input class="fi" id="encFecha" type="date"></div></div>'+
